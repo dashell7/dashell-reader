@@ -1,10 +1,14 @@
 # Qiaomu Reader 英文阅读与复习需求
 
-状态：定制版第一轮纵向链路已实现；词典来源和格式矩阵仍在扩展
+状态：已在本地接入上游 4.4.0；定制版第一轮纵向链路已实现，词典来源和格式矩阵仍在扩展
 
-日期：2026-09-26
+日期：2026-09-27
 
-参考源码：Qiaomu Reader `6ab345465a7a82b9e8cc4d953c939c1186e843ad`（4.3.0）、Language Learner 1.2.16 候选版、Spaced Repetition 1.15.4
+参考源码：Qiaomu Reader `27ddfcdb9ea13f1db6936ba8be08d1e64ecab413`（4.4.0）、Language Learner 1.2.16 候选版、Spaced Repetition 1.15.4
+
+## 2026-09-27 上游 4.4.0 接入
+
+本地候选版保留独立插件 ID `qiaomu-reader-english`，接入上游 4.3.1 的找书与 Gutenberg EPUB 导入，以及 4.4.0 的乔木 Home 协议。Home 的继续阅读包含定制版打开过的 Markdown，进度更新时通知 Home 刷新。测试库 `F:/qiaomu-reader-english` 已确认 4.4.0 重载、Gutenberg 搜索与下载后的 EPUB 书库打开，以及 Markdown 的悬浮释义和完整词典。后台打开 Markdown 后首次排版可能得不到宽度，已补上切回时重排和原位置保护。Home 未安装在测试库，跨插件界面仍只有协议单元测试，不能视为宿主验收。本地候选版未推送或发布。
 
 ## 2026-09-26 实施记录
 

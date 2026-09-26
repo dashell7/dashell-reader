@@ -53,10 +53,13 @@ import { BUNDLED_FONT_FAMILIES, ensureBundledReaderFont } from "./bundled-fonts.
 import { cloneJson, createSerialTaskQueue, isPlainRecord, mergeReadingProgress, readJsonRecordStore, writeVerifiedJsonRecord } from "./storage.js";
 import { createReaderLoadCoordinator, isReaderLoadAbort, throwIfReaderLoadAborted, waitForReaderFrame } from "./reader-load.js";
 import { contextProvider, findAgent, notifyContextChanged } from "./qiaomu-context.js";
+import { notifyHomeChanged } from "./qiaomu-home.js";
+import { createHomeProvider } from "./home.js";
 import { AI_ASSISTANT_ROUTES, readerSnapshot, shouldUseAgent } from "./agent-bridge.js";
 import { EnglishLookupController } from "./english-lookup.js";
 import { EnglishDictionaryModal } from "./english-dictionary-modal.js";
 import { resolveEnglishReviewFormat, upsertEnglishReviewCard } from "./english-review.js";
+import { externalBookSearchUrls, gutenbergSearchUrl, gutenbergDetailUrl, parseGutenbergSearch, parseGutenbergEpub, validGutenbergEpub, safeBookFileName } from "./book-discovery.js";
 
 // Interface language is local to this plugin; dictionaries are bundled offline.
 let qiaomuReaderLanguage = "zh";
@@ -1505,6 +1508,8 @@ const QiaomuBookReader = class extends Plugin {
     this._registerReaderViews();
     // Shares the open book with Qiaomu Agent (Qiaomu Context Protocol, see qiaomu-context.js).
     this.qiaomuContext = contextProvider((leaf) => readerLeafSnapshot(this, leaf));
+    // Shows books in progress on Qiaomu Home (Qiaomu Home Protocol, see qiaomu-home.js).
+    this.qiaomuHome = createHomeProvider(this, qiaomuReaderTranslate);
     this._registerBookProtocol();
     this._registerReaderExtensions();
     this._addRibbonEntry();
@@ -2259,6 +2264,7 @@ const QiaomuBookReader = class extends Plugin {
     if (Object.keys(this.thumbCache).length) this._saveThumbCache();
   }
   _saveThumbCache() {
+    notifyHomeChanged(this.app, this.manifest.id);
     this._thumbSaveChain = (this._thumbSaveChain || Promise.resolve()).then(
       () => this.app.vault.adapter.write(this._thumbCachePath(), JSON.stringify({ ver: 2, artworkVersion: 1, cache: this.thumbCache }))
     ).catch((e) => console.warn("Qiaomu Reader: thumb cache save failed", e));
@@ -2554,6 +2560,7 @@ const QiaomuBookReader = class extends Plugin {
     if (typeof block === "number" && block >= 0) record.block = block;
     if (cfi) record.cfi = cfi;
     this.progress[bookPath] = record;
+    notifyHomeChanged(this.app, this.manifest.id);
     const persisted = this._commitProgressStore();
     this._syncProgressFrontmatter(bookPath);
     return persisted;
@@ -9690,6 +9697,7 @@ async function persistCurrentReaderPosition(reader) {
     return;
   }
   const pager = reader.pager;
+  if (!pager.flow) return;
   const total = Math.max(1, pager.total || 1);
   let current = Math.max(0, Math.min(pager.spread || 0, total - 1));
   // The final scroll event may still be inside the paginator's debounce window
@@ -10140,7 +10148,12 @@ const ReaderView = class extends ItemView {
       w = this.areaEl.clientWidth;
       a++;
     }
-    if (!w) return;
+    if (!w) {
+      this._readingAnchor = typeof savedBlock === "number" && savedBlock >= 0
+        ? { block: savedBlock, offset: 0, pct: savedPct }
+        : { pct: savedPct };
+      return;
+    }
     this.areaEl.addClass("qiaomu-reader-booting");
     qiaomuReaderShowVeil(this);
     qiaomuReaderMarkSlowLayout(this);
@@ -10241,7 +10254,6 @@ const ReaderView = class extends ItemView {
   async repaginate() {
     if (!this.bookHtml || this._openingBook || this._closed) return;
     if (this.engine) { this.applyVars(); this._setRelayout(false); return; }
-    if (!readerIsPdf(this)) return;
     if (!this.areaEl.clientWidth || this.containerEl.offsetParent === null) return;
     return queueReadingLayout(this, (anchor) => this._repaginateAnchored(anchor));
   }
@@ -10418,11 +10430,12 @@ const ReaderView = class extends ItemView {
   }
   _layoutWidthStale() {
     if (this._openingBook) return false;
-    if (!this.bookHtml || !this.pager || !this.pager.builtWidth) return false;
+    if (!this.bookHtml || !this.pager) return false;
     if (this.containerEl.offsetParent === null) return false;
-    if (this._staleGaveUpAt === this.pager.builtWidth) return false;
     const now = this.areaEl.clientWidth;
     if (!now) return false;
+    if (!this.pager.builtWidth) return true;
+    if (this._staleGaveUpAt === this.pager.builtWidth) return false;
     return Math.abs(now - this.pager.builtWidth) >= 8 || Math.abs(this.areaEl.clientHeight - (this.pager.builtHeight || 0)) >= 8;
   }
   exportHighlights(evt) {
@@ -11053,6 +11066,8 @@ const LibraryModal = class extends Modal {
     svgIcon(add, "plus");
     add.createSpan({ cls: "qiaomu-reader-lib-add-label", text: addText });
     this._activateOnClick(add, () => this._pickBooks());
+    const discover = headline.createEl("button", { cls: "qiaomu-reader-lib-find", text: qiaomuReaderTranslate("find-books") });
+    discover.addEventListener("click", () => new BookDiscoveryModal(this.app, this.plugin, this).open());
     return hdr;
   }
   _buildLibTools(hdr) {
@@ -11220,7 +11235,7 @@ const LibraryModal = class extends Modal {
     }
     if (picked.length === 0) {
       if (!rejected.length) new Notice(qiaomuReaderTranslate("no-files-selected"));
-      return;
+      return 0;
     }
     const target = this._targetDir();
     if (target && !this.app.vault.getAbstractFileByPath(target)) {
@@ -11241,6 +11256,7 @@ const LibraryModal = class extends Modal {
     if (ok) new Notice(qiaomuReaderTranslate("books-added-0", ok) + (rejected.length ? " · " + qiaomuReaderTranslate("skipped-0", rejected.length) : ""));
     if (errors.length) new Notice(qiaomuReaderTranslate("could-not-add-0", errors.join(", ")));
     if (ok > 0) this._refresh();
+    return ok;
   }
   _refresh() {
     this.contentEl.empty();
@@ -11493,6 +11509,140 @@ const LibraryModal = class extends Modal {
     // Flush any covers generated this session before the library closes.
     window.clearTimeout(this._thumbSaveT);
     if (this._thumbDirty) { this._thumbDirty = false; this.plugin.saveAll(); }
+    this.contentEl.empty();
+  }
+};
+
+// Search only on an explicit user action. External catalogs open in the browser;
+// Gutenberg's OPDS feed supplies downloadable EPUBs inside the plugin.
+const ANNA_SOURCE_NAME = "Anna’s Archive";
+const BookDiscoveryModal = class extends Modal {
+  constructor(app, plugin, library) {
+    super(app);
+    this.plugin = plugin;
+    this.library = library;
+    this._request = 0;
+  }
+  onOpen() {
+    this._open = true;
+    this.modalEl.addClass("qiaomu-reader-book-discovery");
+    const root = this.contentEl;
+    root.empty();
+    root.createEl("h2", { text: qiaomuReaderTranslate("find-books") });
+    root.createDiv({ cls: "qiaomu-reader-discovery-intro", text: qiaomuReaderTranslate("find-books-intro") });
+    const form = root.createEl("form", { cls: "qiaomu-reader-discovery-search" });
+    const label = form.createEl("label", { text: qiaomuReaderTranslate("book-title-or-author") });
+    const field = label.createEl("input", { attr: { type: "search", autocomplete: "off", placeholder: qiaomuReaderTranslate("book-title-or-author") } });
+    form.createEl("button", { attr: { type: "submit" }, text: qiaomuReaderTranslate("search") });
+    const primary = root.createEl("section", { cls: "qiaomu-reader-discovery-primary" });
+    primary.createEl("h3", { text: qiaomuReaderTranslate("browser-book-sources") });
+    const primaryLinks = primary.createDiv({ cls: "qiaomu-reader-discovery-primary-links" });
+    const anna = primaryLinks.createEl("a", { href: "https://annas-archive.gl/", attr: { target: "_blank", rel: "noopener noreferrer" } });
+    anna.textContent = ANNA_SOURCE_NAME;
+    setIcon(anna.createSpan({ cls: "qiaomu-reader-discovery-link-icon" }), "arrow-up-right");
+    const zlibrary = primaryLinks.createEl("a", { href: "https://z-library.sk/", attr: { target: "_blank", rel: "noopener noreferrer" } });
+    zlibrary.createSpan({ text: "Z-Library" });
+    setIcon(zlibrary.createSpan({ cls: "qiaomu-reader-discovery-link-icon" }), "arrow-up-right");
+    const gutenberg = root.createEl("section", { cls: "qiaomu-reader-discovery-gutenberg" });
+    gutenberg.createEl("h3", { text: qiaomuReaderTranslate("search-gutenberg") });
+    const status = gutenberg.createDiv({ cls: "qiaomu-reader-discovery-status" });
+    status.setAttribute("role", "status");
+    const results = gutenberg.createDiv({ cls: "qiaomu-reader-discovery-results" });
+    const updateLinks = () => {
+      const urls = externalBookSearchUrls(field.value);
+      anna.href = urls?.anna || "https://annas-archive.gl/";
+      zlibrary.href = urls?.zlibrary || "https://z-library.sk/";
+      for (const { link, base, parameter } of links) {
+        const target = new URL(base);
+        if (field.value.trim()) target.searchParams.set(parameter, field.value.trim());
+        link.href = !field.value.trim() && parameter === "search" ? "https://zh.wikisource.org/" : target.href;
+      }
+    };
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const urls = externalBookSearchUrls(field.value);
+      if (!urls) return;
+      window.open(urls.anna, "_blank", "noopener");
+      window.open(urls.zlibrary, "_blank", "noopener");
+      void this._search(field.value, status, results);
+    });
+    field.addEventListener("input", updateLinks);
+    const other = root.createEl("section", { cls: "qiaomu-reader-discovery-other" });
+    other.createEl("h3", { text: qiaomuReaderTranslate("other-book-sources") });
+    const external = other.createDiv({ cls: "qiaomu-reader-discovery-sources" });
+    const sources = [
+      ["Standard Ebooks", "https://standardebooks.org/ebooks", "query"],
+      [qiaomuReaderTranslate("wikisource"), "https://zh.wikisource.org/w/index.php", "search"]
+    ];
+    const links = sources.map(([name, base, parameter]) => ({
+      link: external.createEl("a", { text: name, href: base, attr: { target: "_blank", rel: "noopener noreferrer" } }),
+      base, parameter
+    }));
+    other.createDiv({ cls: "qiaomu-reader-discovery-hint", text: qiaomuReaderTranslate("external-book-source-hint") });
+    field.focus();
+  }
+  async _search(query, status, results) {
+    const value = String(query || "").trim();
+    if (!value) return;
+    const request = ++this._request;
+    results.empty();
+    status.setText(qiaomuReaderTranslate("searching-books"));
+    try {
+      const response = await requestUrl({ url: gutenbergSearchUrl(value), method: "GET", throw: false });
+      if (!this._open || request !== this._request) return;
+      if (response.status !== 200) throw new Error(`HTTP ${response.status}`);
+      const books = parseGutenbergSearch(response.text, (xml) => new DOMParser().parseFromString(xml, "application/xml"));
+      status.setText(books.length ? qiaomuReaderTranslate("gutenberg-results-note") : qiaomuReaderTranslate("no-books-found"));
+      for (const book of books) {
+        const row = results.createDiv({ cls: "qiaomu-reader-discovery-result" });
+        const info = row.createDiv({ cls: "qiaomu-reader-discovery-result-info" });
+        info.createEl("strong", { text: book.title });
+        if (book.author) info.createSpan({ text: book.author });
+        row.createEl("a", { text: qiaomuReaderTranslate("book-page"), href: book.pageUrl, attr: { target: "_blank", rel: "noopener noreferrer" } });
+        const download = row.createEl("button", { text: qiaomuReaderTranslate("download-to-library") });
+        download.addEventListener("click", () => void this._download(book, download, status));
+      }
+    } catch (error) {
+      if (!this._open || request !== this._request) return;
+      console.warn("Qiaomu Reader: book search failed", error);
+      status.setText(qiaomuReaderTranslate("book-search-failed"));
+    }
+  }
+  async _download(book, button, status) {
+    if (button.disabled) return;
+    const fileName = safeBookFileName(book.title, book.id);
+    if (this.app.vault.getFiles().some((file) => file.name.endsWith(`(Gutenberg ${book.id}).epub`))) {
+      status.setText(qiaomuReaderTranslate("book-already-in-library"));
+      return;
+    }
+    button.disabled = true;
+    button.setText(qiaomuReaderTranslate("downloading-book"));
+    try {
+      const detail = await requestUrl({ url: gutenbergDetailUrl(book.id), method: "GET", throw: false });
+      if (!this._open) return;
+      if (detail.status !== 200) throw new Error(`Catalog HTTP ${detail.status}`);
+      const epub = parseGutenbergEpub(detail.text, book.id, (xml) => new DOMParser().parseFromString(xml, "application/xml"));
+      if (!epub) throw new Error("No EPUB acquisition link");
+      const response = await requestUrl({ url: epub.url, method: "GET", throw: false });
+      if (!this._open) return;
+      if (response.status !== 200 || !validGutenbergEpub(response.arrayBuffer)) throw new Error("Invalid EPUB response");
+      const imported = await this.library._importBooks([{ name: fileName, type: "application/epub+zip", arrayBuffer: async () => response.arrayBuffer }]);
+      if (!imported) throw new Error("Vault import failed");
+      status.setText(qiaomuReaderTranslate("book-import-finished"));
+    } catch (error) {
+      if (!this._open) return;
+      console.warn("Qiaomu Reader: book download failed", error);
+      status.setText(qiaomuReaderTranslate("book-download-failed"));
+    } finally {
+      if (this._open) {
+        button.disabled = false;
+        button.setText(qiaomuReaderTranslate("download-to-library"));
+      }
+    }
+  }
+  onClose() {
+    this._open = false;
+    this._request += 1;
     this.contentEl.empty();
   }
 };
