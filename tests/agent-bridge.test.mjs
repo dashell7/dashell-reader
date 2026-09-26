@@ -20,7 +20,7 @@ test("a selection carries the current page as surrounding text", () => {
     { kind: "selection", text: " 系统一 ", page: "第 3 章", bookFile: epub },
     { kind: "page", text: "整页内容", page: "第 3 章" });
   assert.deepEqual(snapshot, {
-    sourceId: "qiaomu-reader", sourceName: "Qiaomu Reader", kind: "book", title: "思考快与慢", path: "Books/思考快与慢.epub",
+    sourceId: "qiaomu-reader", sourceName: "Qiaomu Reader English", kind: "book", title: "思考快与慢", path: "Books/思考快与慢.epub",
     location: "第 3 章", text: "整页内容", truncated: undefined, selection: { text: "系统一", location: "第 3 章" },
   });
 });

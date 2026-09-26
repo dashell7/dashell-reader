@@ -7,7 +7,7 @@
    responsive-token block under :root. */
 
 /* ── Reader shell, paginated flow, text selection ─────────────────────────── */
-.workspace-leaf-content[data-type="qiaomu-reader"] > .view-header { display:none; }
+.workspace-leaf-content[data-type="qiaomu-reader-english"] > .view-header { display:none; }
 .view-content.qiaomu-reader-view { display:flex; flex-direction:column; height:100%; background:var(--qiaomu-reader-bg,var(--background-primary)); overflow:hidden; position:relative; padding:0; margin:0; box-sizing:border-box; }
 .qiaomu-reader-content img { max-width:100%; height:auto; display:block; margin:8px auto; }
 .qiaomu-reader-content figure { margin:8px auto; text-align:center; }
@@ -1486,3 +1486,89 @@ button.qiaomu-reader-find-item.qiaomu-reader-toc-active { background: var(--back
 .qiaomu-reader-translation-save { display: flex; gap: 2px; }
 .qiaomu-reader-translation-save svg { width: 16px; height: 16px; }
 .qiaomu-reader-translation-status { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; color: var(--text-muted); font-size: var(--font-ui-small); margin-top: 12px; }
+.qiaomu-reader-dict-popup {
+  position: fixed;
+  z-index: 10000;
+  width: max-content;
+  max-width: min(320px, calc(100vw - 16px));
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: #2b2b2f;
+  color: #e0e0e0;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, .5);
+  font-family: var(--font-interface);
+  font-size: 14px;
+  line-height: 1.45;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+.theme-light .qiaomu-reader-dict-popup {
+  background: #fff;
+  color: #1a1a1a;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, .15), 0 0 0 1px rgba(0, 0, 0, .06);
+}
+.qiaomu-reader-dict-popup-on { opacity: 1; visibility: visible; pointer-events: auto; }
+.qiaomu-reader-dict-body { display: flex; flex-direction: column; align-items: center; padding: 6px 8px; max-height: min(240px, calc(100vh - 16px)); overflow-y: auto; }
+.qiaomu-reader-dict-state, .qiaomu-reader-dict-meaning { width: 100%; text-align: center; overflow-wrap: anywhere; }
+.qiaomu-reader-dict-state { color: var(--text-muted); }
+.qiaomu-reader-dict-meaning + .qiaomu-reader-dict-meaning { margin-top: 2px; }
+.qiaomu-reader-dict-actions { display: flex; gap: 4px; margin-top: 5px; }
+.qiaomu-reader-dict-actions button {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; min-width: 26px; padding: 0;
+  border: 0; border-radius: 6px; box-shadow: none;
+  background: rgba(255, 255, 255, .08);
+}
+.qiaomu-reader-dict-actions button:hover { background: rgba(255, 255, 255, .14); }
+.theme-light .qiaomu-reader-dict-actions button { background: rgba(0, 0, 0, .06); }
+.theme-light .qiaomu-reader-dict-actions button:hover { background: rgba(0, 0, 0, .1); }
+.qiaomu-reader-dict-speak { color: #5b9bd5; }
+.qiaomu-reader-dict-review { color: #e8a838; }
+.qiaomu-reader-dict-details { color: #5cb85c; }
+.theme-light .qiaomu-reader-dict-speak { color: #1971c2; }
+.theme-light .qiaomu-reader-dict-review { color: #986000; }
+.theme-light .qiaomu-reader-dict-details { color: #2d8a2d; }
+.qiaomu-reader-dict-actions button:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: 2px; }
+.qiaomu-reader-dict-actions button:disabled { opacity: .55; cursor: default; }
+.qiaomu-reader-dict-action-icon { display: inline-flex; width: 16px; height: 16px; }
+.qiaomu-reader-dict-action-icon svg { width: 16px; height: 16px; }
+.qiaomu-reader-dict-action-name {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+.qiaomu-reader-dictionary-modal { width: min(520px, calc(100vw - 24px)); }
+.qiaomu-reader-dictionary { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.qiaomu-reader-dictionary h2 { margin: 0; font-size: 20px; }
+.qiaomu-reader-dictionary-search { display: flex; align-items: end; gap: 8px; }
+.qiaomu-reader-dictionary-search label { display: flex; flex: 1; flex-direction: column; gap: 5px; min-width: 0; font-size: var(--font-ui-small); color: var(--text-muted); }
+.qiaomu-reader-dictionary-search input { width: 100%; min-width: 0; color: var(--text-normal); }
+.qiaomu-reader-dictionary-search button, .qiaomu-reader-dictionary-actions button:not(.mod-cta) {
+  display: inline-flex; align-items: center; justify-content: center; flex: none;
+  width: 32px; height: 32px; padding: 0;
+}
+.qiaomu-reader-dictionary-search button svg, .qiaomu-reader-dictionary-actions button svg { width: 16px; height: 16px; }
+.qiaomu-reader-dictionary-status { min-height: 18px; color: var(--text-muted); font-size: var(--font-ui-small); }
+.qiaomu-reader-dictionary-status:empty { min-height: 0; }
+.qiaomu-reader-dictionary-status button { margin-left: 8px; }
+.qiaomu-reader-dictionary-result { display: flex; flex-direction: column; gap: 6px; max-height: 160px; overflow-y: auto; }
+.qiaomu-reader-dictionary-phonetic { color: var(--text-muted); }
+.qiaomu-reader-dictionary-meaning { overflow-wrap: anywhere; }
+.qiaomu-reader-dictionary-examples { display: flex; flex-direction: column; gap: 6px; max-height: 150px; overflow-y: auto; }
+.qiaomu-reader-dictionary-examples-heading { font-size: var(--font-ui-small); color: var(--text-muted); }
+.qiaomu-reader-dictionary-example { font-size: var(--font-ui-small); overflow-wrap: anywhere; }
+.qiaomu-reader-dictionary-example-translation { color: var(--text-muted); }
+.qiaomu-reader-dictionary-field { display: flex; flex-direction: column; gap: 5px; font-size: var(--font-ui-small); color: var(--text-muted); }
+.qiaomu-reader-dictionary-field textarea { width: 100%; min-width: 0; resize: vertical; color: var(--text-normal); }
+.qiaomu-reader-dictionary-actions { display: flex; align-items: center; gap: 6px; }
+.qiaomu-reader-dictionary-actions .mod-cta { margin-left: auto; }
+.qiaomu-reader-dictionary-visually-hidden {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+.qiaomu-reader-hl-lookup { background: color-mix(in srgb, var(--qiaomu-reader-text) 6%, transparent); color: var(--qiaomu-reader-text); border-color: transparent; }
+.qiaomu-reader-hl-lookup svg { width: 15px; height: 15px; }
+.qiaomu-reader-flow .markdown-rendered { max-width: 72ch; margin-inline: auto; overflow-wrap: anywhere; }

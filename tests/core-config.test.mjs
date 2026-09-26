@@ -332,8 +332,8 @@ test("fixed-layout PDF pages show a reserved loading state instead of a blank sh
 test("runtime diagnostics use the maintained plugin identity", () => {
   const source = fs.readFileSync(new URL("../src/main.js", import.meta.url), "utf8");
   assert.doesNotMatch(source, /console\.(?:error|warn|log)\("Book Reader:/);
-  assert.match(source, /const VIEW_TYPE = "qiaomu-reader"/);
-  assert.match(source, /const LIB_VIEW_TYPE = "qiaomu-reader-library"/);
+  assert.match(source, /const VIEW_TYPE = "qiaomu-reader-english"/);
+  assert.match(source, /const LIB_VIEW_TYPE = "qiaomu-reader-english-library"/);
   assert.match(source, /const QiaomuBookReader = class extends Plugin/);
   assert.match(source, /export default QiaomuBookReader/);
 });
@@ -743,7 +743,7 @@ test("AI dialog uses built-in quick prompts and keeps reasoning separate", () =>
 test("desktop AI chat keeps per-book threads and structured document or selection context", () => {
   const source = fs.readFileSync(new URL("../src/main.js", import.meta.url), "utf8");
   const css = fs.readFileSync(new URL("../styles.css", import.meta.url), "utf8");
-  assert.match(source, /const AI_CHAT_VIEW_TYPE = "qiaomu-book-reader-ai-chat"/);
+  assert.match(source, /const AI_CHAT_VIEW_TYPE = "qiaomu-reader-english-ai-chat"/);
   assert.match(source, /\[AI_CHAT_VIEW_TYPE, AiChatView\]/); // view registrations are table-driven in _registerReaderViews
   assert.match(source, /registerView\(viewType, \(leaf\) => new ViewClass\(leaf, this\)\)/);
   assert.match(source, /getRightLeaf\(false\)/);
@@ -895,7 +895,7 @@ test("book-note append asks to open only once", () => {
 test("reader chrome stays white and removes only the reader's redundant host header", () => {
   const css = fs.readFileSync(new URL("../styles.css", import.meta.url), "utf8");
   assert.match(css, /\.qiaomu-reader-top, \.qiaomu-reader-bot \{ background:#fff/);
-  assert.match(css, /\.workspace-leaf-content\[data-type="qiaomu-reader"\] > \.view-header \{ display:none; \}/);
+  assert.match(css, /\.workspace-leaf-content\[data-type="qiaomu-reader-english"\] > \.view-header \{ display:none; \}/);
   assert.match(css, /\.qiaomu-reader-area \{[^}]*background:var\(--qiaomu-reader-bg/s);
 });
 

@@ -1,6 +1,23 @@
 // Russian locale pack. Inherited Russian UI strings keep their original wording;
 // strings that were originally Chinese source keys are translated to Russian here.
 export default {
+  "lookup-word": "Найти слово",
+  "english-hover-lookup": "Поиск слова при наведении",
+  "english-hover-lookup-desc": "Показывать краткое значение после небольшой задержки.",
+  "english-click-lookup": "Поиск слова по нажатию",
+  "english-dictionary": "Источник словаря",
+  "english-dictionary-auto": "Авто (Youdao, затем Google)",
+  "english-dictionary-youdao": "Youdao",
+  "english-dictionary-google": "Google",
+  "english-definition-language": "Язык определения",
+  "english-review-file": "Файл повторения",
+  "english-review-file-desc": "Отдельный файл Markdown для карточек интервального повторения.",
+  "english-review-file-invalid": "Выберите путь Markdown в этом хранилище, кроме review.md.",
+  "english-review-sr-unavailable": "Включите Spaced Repetition и повторите попытку.",
+  "english-review-conflict": "Конфликт карточки. Проверьте файл повторения.",
+  "english-review-write-failed": "Ошибка сохранения. Проверьте файл повторения.",
+  "open-markdown-in-english-reader": "Открыть Markdown в ридере английского",
+  "unsupported-reader-file": "Этот файл нельзя прочитать здесь",
   "selection-toolbar": "Панель выделения",
   "selection-show-labels": "Показывать подписи",
   "selection-hidden-in-more": "Скрытые действия доступны в меню «Ещё» и контекстном меню. Кнопка перевода появляется после его включения.",

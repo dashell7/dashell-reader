@@ -96,8 +96,8 @@ if (!source.includes("BUNDLED_FONT_FAMILIES.zhuque")) {
 if (!source.includes('function backlinkLabel() { return "↩"; }')) {
   errors.push("Reading-note backlinks are not rendered as a quiet icon-only link");
 }
-if (!source.includes('registerObsidianProtocolHandler("qiaomu-book-reader"')) {
-  errors.push("Qiaomu reading-note backlinks are missing");
+if (!source.includes('registerObsidianProtocolHandler("qiaomu-reader-english"')) {
+  errors.push("English reader note backlinks are missing");
 }
 if (!source.includes("iconBacklinksMigrated") || !source.includes("await syncHighlightsToReadingNote(this.app, this, bookPath, items)")) {
   errors.push("Existing managed reading notes are not migrated to icon-only backlinks on upgrade");

@@ -1,6 +1,23 @@
 // Generated from the complete source UI dictionary and reviewed for core reading terms.
 // Keep placeholders, Markdown and HTML structure identical to the source strings.
 export const QIAOMU_READER_ZH_CN = {
+  "lookup-word": "查词",
+  "english-hover-lookup": "悬浮查词",
+  "english-hover-lookup-desc": "鼠标停留约 200 毫秒显示简短释义。",
+  "english-click-lookup": "点击查词",
+  "english-dictionary": "查词来源",
+  "english-dictionary-auto": "自动（有道，失败后 Google）",
+  "english-dictionary-youdao": "有道",
+  "english-dictionary-google": "Google",
+  "english-definition-language": "释义语言",
+  "english-review-file": "复习文件",
+  "english-review-file-desc": "独立于 Language Learner 的复习文件，供 Spaced Repetition 读取。",
+  "english-review-file-invalid": "请选择库内的 Markdown 文件，且不要使用 review.md。",
+  "english-review-sr-unavailable": "请启用 Spaced Repetition，加载完成后重试。",
+  "english-review-conflict": "同名卡片冲突，请检查复习文件。",
+  "english-review-write-failed": "保存失败，请检查复习文件后重试。",
+  "open-markdown-in-english-reader": "在英文阅读器中打开 Markdown",
+  "unsupported-reader-file": "暂不支持读取这个文件",
   "selection-toolbar": "选文工具栏",
   "selection-show-labels": "显示按钮文字",
   "selection-hidden-in-more": "隐藏的功能仍可从“更多”和右键菜单使用。启用翻译后显示翻译按钮。",

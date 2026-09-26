@@ -1,7 +1,15 @@
 {
-  "name": "qiaomu-reader",
+  "name": "qiaomu-reader-english",
   "version": "4.3.0",
-  "description": "中文优先的 Obsidian EPUB 与 PDF 阅读器，支持划线、批注、阅读笔记和进度同步。",
+  "description": "基于 Qiaomu Reader 的 Obsidian 英文阅读器，支持 EPUB、PDF、Markdown 等文本阅读、悬浮查词、选区查词和 Spaced Repetition 复习卡片。",
+  "homepage": "https://github.com/dashell7/qiaomu-reader-english",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dashell7/qiaomu-reader-english.git"
+  },
+  "bugs": {
+    "url": "https://github.com/dashell7/qiaomu-reader-english/issues"
+  },
   "main": "main.js",
   "type": "module",
   "scripts": {

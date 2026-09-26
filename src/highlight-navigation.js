@@ -12,7 +12,7 @@ export function highlightBacklink(vault, book, highlight) {
     params.block = highlight.block;
   } else if (Number.isInteger(highlight.page) && highlight.page > 0) params.page = highlight.page;
   else return "";
-  return `obsidian://qiaomu-reader?${Object.entries(params).filter(([, value]) => value !== undefined && value !== "").map(([key, value]) => `${key}=${encode(value)}`).join("&")}`;
+  return `obsidian://qiaomu-reader-english?${Object.entries(params).filter(([, value]) => value !== undefined && value !== "").map(([key, value]) => `${key}=${encode(value)}`).join("&")}`;
 }
 
 export async function jumpToEngineHighlight(view, highlight) {

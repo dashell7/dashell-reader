@@ -525,9 +525,10 @@ test("visible PDF pages gain selectable text and offscreen pages collapse back t
   dom.window.close();
 });
 
-test("the PDF paginator rejects ebook HTML before layout or parsing", async () => {
+test("the measured paginator accepts rendered Markdown as well as PDF text layers", () => {
   const start = source.indexOf('const PdfPaginator = class');
   const end = source.indexOf('function createPdfPaginator(', start);
-  const PdfPaginator = vm.runInNewContext(`${source.slice(start, end)}\nPdfPaginator`, { PDF_ZOOM_DEFAULT: 1 });
-  await assert.rejects(new PdfPaginator().build({}, '<p>ebook text</p>', {}, 0), /PDF page surfaces required/);
+  const paginator = source.slice(start, end);
+  assert.match(paginator, /this\._mountBookHtml\(bookHtml, cfg, geo, cjk, reuse\)/);
+  assert.doesNotMatch(paginator, /PDF page surfaces required/);
 });

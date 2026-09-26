@@ -17,6 +17,9 @@ import { coverPalette, migrateCoverCache } from "./book-cover.js";
 // One place decides which extensions the reader opens: the rendering engine
 // handles everything here except PDF, which keeps its dedicated pdf.js path.
 const BOOK_EXTENSIONS = new Set([...ENGINE_EXTENSIONS, "pdf"]);
+// Markdown is opened on demand in the reader and is deliberately excluded
+// from the library import list so normal notes keep their native editor.
+const READER_EXTENSIONS = new Set([...BOOK_EXTENSIONS, "md"]);
 // Obsidian's Electron can lag the latest Chromium proposal set. The regular
 // pdf.js 6 build calls Map#getOrInsertComputed, which is not available there and
 // makes every page render fail. The supported legacy browser build includes the
@@ -51,6 +54,9 @@ import { cloneJson, createSerialTaskQueue, isPlainRecord, mergeReadingProgress, 
 import { createReaderLoadCoordinator, isReaderLoadAbort, throwIfReaderLoadAborted, waitForReaderFrame } from "./reader-load.js";
 import { contextProvider, findAgent, notifyContextChanged } from "./qiaomu-context.js";
 import { AI_ASSISTANT_ROUTES, readerSnapshot, shouldUseAgent } from "./agent-bridge.js";
+import { EnglishLookupController } from "./english-lookup.js";
+import { EnglishDictionaryModal } from "./english-dictionary-modal.js";
+import { resolveEnglishReviewFormat, upsertEnglishReviewCard } from "./english-review.js";
 
 // Interface language is local to this plugin; dictionaries are bundled offline.
 let qiaomuReaderLanguage = "zh";
@@ -66,8 +72,10 @@ function qiaomuReaderLocale() {
   return uiLanguageMetadata(qiaomuReaderLanguage).locale;
 }
 
-const VIEW_TYPE = "qiaomu-reader";
-const AI_CHAT_VIEW_TYPE = "qiaomu-book-reader-ai-chat";
+// The English-learning fork intentionally uses separate view/protocol IDs so
+// the upstream Qiaomu Reader can be installed and updated beside it.
+const VIEW_TYPE = "qiaomu-reader-english";
+const AI_CHAT_VIEW_TYPE = "qiaomu-reader-english-ai-chat";
 // Settings defaults are assembled from concern-grouped fragments below. The
 // fragments are spread in the original key order, so the resulting object keeps
 // the exact persisted key layout: same keys, same values, same ordering.
@@ -89,6 +97,14 @@ const DEFAULT_APPEARANCE = {
 };
 const DEFAULT_TRANSLATION = {
   translateEnabled: false, translateTo: "zh-CN",
+};
+const DEFAULT_ENGLISH_LEARNING = {
+  englishLookupEnabled: true,
+  englishClickLookup: true,
+  englishHoverDelay: 200,
+  englishLookupProvider: "auto",
+  englishLookupLanguage: "zh",
+  englishReviewFile: "Qiaomu Reader/English Review.md",
 };
 const DEFAULT_LIBRARY_UI = {
   bookNoteLinks: {}, locationMarks: [], bookNotePrompted: {}, coverFits: {},
@@ -161,7 +177,7 @@ const DEFAULT_READING_FLOW = {
 };
 const DEFAULT = Object.assign(
   {},
-  DEFAULT_SHELF, DEFAULT_APPEARANCE, DEFAULT_TRANSLATION, DEFAULT_LIBRARY_UI,
+  DEFAULT_SHELF, DEFAULT_APPEARANCE, DEFAULT_TRANSLATION, DEFAULT_ENGLISH_LEARNING, DEFAULT_LIBRARY_UI,
   DEFAULT_READER_SESSION, DEFAULT_AI, DEFAULT_READING_FLOW
 );
 
@@ -1460,6 +1476,13 @@ async function setupWorker(app) {
   }
   workerReady = true;
 }
+function englishReviewPath(raw) {
+  const value = String(raw || "Qiaomu Reader/English Review.md").trim().replace(/\\/g, "/");
+  const parts = value.split("/");
+  if (!parts.length || parts.some((part) => !part || part === "." || part === ".." || /[<>:"|?*\r\n]/.test(part))) return "";
+  if (!value.toLowerCase().endsWith(".md") || value.toLowerCase() === "review.md") return "";
+  return normalizePath(value);
+}
 const QiaomuBookReader = class extends Plugin {
   constructor() {
     super(...arguments);
@@ -1469,6 +1492,7 @@ const QiaomuBookReader = class extends Plugin {
     this.highlights = {};
     this.progressBackups = {};
     this._progressQueue = createSerialTaskQueue();
+    this._reviewQueue = createSerialTaskQueue();
     this._localDataQueue = createSerialTaskQueue();
     this._corruptStoreNotices = new Set();
     this._blockedStores = new Set();
@@ -1591,24 +1615,12 @@ const QiaomuBookReader = class extends Plugin {
       const book = params.book || "";
       void this.openBookAt(book, params.block, params.page, params.highlight, params.cfi);
     };
-    this.registerObsidianProtocolHandler("qiaomu-reader", openBacklink);
-    // Existing reading notes keep working after users switch to the new plugin ID.
-    this.registerObsidianProtocolHandler("qiaomu-book-reader", openBacklink);
+    this.registerObsidianProtocolHandler("qiaomu-reader-english", openBacklink);
+    this.registerObsidianProtocolHandler("qiaomu-reader-english-book-reader", openBacklink);
   }
   _registerReaderExtensions() {
-    this.registerExtensions(["epub"], VIEW_TYPE);
-    // The rendering engine formats: each gets its own guarded registration so
-    // a conflict with another plugin over one extension never takes the rest
-    // of the reader down.
-    for (const ext of ENGINE_EXTENSIONS) {
-      if (ext === "epub") continue;
-      try { this.registerExtensions([ext], VIEW_TYPE); }
-      catch (e) { console.warn(`Qiaomu Reader: could not register .${ext}`, e); }
-    }
-    // PDFs open in the reader too, falling back to the right-click menu when
-    // another plugin has claimed the extension.
-    try { this.registerExtensions(["pdf"], VIEW_TYPE); }
-    catch (e) { console.warn("Qiaomu Reader: could not register .pdf; use the file menu to open it in Qiaomu Reader", e); }
+    // The upstream reader owns normal EPUB/PDF file opening. This fork is
+    // entered from its library, file menu or command, including for Markdown.
   }
   _addRibbonEntry() {
     const libraryLabel = `Qiaomu Reader — ${qiaomuReaderTranslate("library")}`;
@@ -1630,6 +1642,15 @@ const QiaomuBookReader = class extends Plugin {
           const active = this.app.workspace.getActiveFile();
           if (!active || active.extension !== "pdf") return false;
           if (!probe) this.openFile(active);
+          return true;
+        },
+      },
+      {
+        id: "open-markdown-reader", name: qiaomuReaderTranslate("open-markdown-in-english-reader"),
+        checkCallback: (probe) => {
+          const active = this.app.workspace.getActiveFile();
+          if (!active || active.extension !== "md") return false;
+          if (!probe) void this.openFile(active);
           return true;
         },
       },
@@ -1693,12 +1714,33 @@ const QiaomuBookReader = class extends Plugin {
   }
   _registerPdfFileMenu() {
     const onFileMenu = (menu, file) => {
-      if (!(file instanceof TFile) || file.extension !== "pdf") return;
-      menu.addItem((item) => item.setTitle(qiaomuReaderTranslate("open-in-book-reader")).setIcon("book-open").onClick(() => this.openFile(file)));
+      if (!(file instanceof TFile) || !READER_EXTENSIONS.has(file.extension)) return;
+      const label = file.extension === "md"
+        ? qiaomuReaderTranslate("open-markdown-in-english-reader")
+        : qiaomuReaderTranslate("open-in-book-reader");
+      menu.addItem((item) => item.setTitle(label).setIcon("book-open").onClick(() => this.openFile(file)));
     };
     this.registerEvent(this.app.workspace.on("file-menu", onFileMenu));
   }
   _watchBookFiles() {
+    this.registerEvent(this.app.vault.on("modify", (file) => {
+      if (!(file instanceof TFile) || file.extension !== "md") return;
+      const readers = this.app.workspace.getLeavesOfType(VIEW_TYPE).map((leaf) => leaf.view);
+      if (this._openReaderModal) readers.push(this._openReaderModal);
+      for (const reader of readers) {
+        if (reader.file?.path !== file.path || reader._closed) continue;
+        window.clearTimeout(reader._markdownRefreshTimer);
+        reader._markdownRefreshTimer = window.setTimeout(() => {
+          reader._markdownRefreshTimer = null;
+          if (reader.file?.path !== file.path || reader._closed) return;
+          if (reader instanceof ReaderModal) {
+            void persistCurrentReaderPosition(reader).then(() => reader._loadBook());
+          } else {
+            void reader.openFile(file);
+          }
+        }, 300);
+      }
+    }));
     this.registerEvent(this.app.vault.on("rename", (file, oldPath) => {
       let changed = false;
       for (const [book, target] of Object.entries(this.settings.bookNoteLinks || {})) {
@@ -1751,6 +1793,9 @@ const QiaomuBookReader = class extends Plugin {
   }
   onunload() {
     this._unloading = true;
+    for (const modal of [...(this._englishDictionaryModals || [])]) modal.close();
+    for (const controller of this._lookupControllers || []) controller.destroy();
+    this._lookupControllers?.clear();
     this._aiQuoteJumpController?.abort();
     disposeReaderFonts(this);
     disposeCliAiSessions();
@@ -1760,6 +1805,7 @@ const QiaomuBookReader = class extends Plugin {
     this.flushReadingTime();
     const pending = [
       this._progressQueue?.drain?.(),
+      this._reviewQueue?.drain?.(),
       this._localDataQueue?.drain?.(),
       this._hlChain,
       this._thumbSaveChain,
@@ -1767,6 +1813,10 @@ const QiaomuBookReader = class extends Plugin {
     void Promise.allSettled(pending);
   }
   async openFile(file) {
+    if (!(file instanceof TFile) || !READER_EXTENSIONS.has(file.extension)) {
+      new Notice(qiaomuReaderTranslate("unsupported-reader-file"));
+      return null;
+    }
     if (this.app.isMobile) {
       const modal = new ReaderModal(this.app, this, file);
       modal.open();
@@ -1778,6 +1828,82 @@ const QiaomuBookReader = class extends Plugin {
     await this.app.workspace.revealLeaf(leaf);
     void this._showCompanionForBook(leaf.view);
     return leaf.view;
+  }
+  async addEnglishReviewCard(card = {}) {
+    const path5 = englishReviewPath(this.settings.englishReviewFile);
+    if (!path5) return false;
+    const srPlugin = this.app.plugins?.plugins?.["obsidian-spaced-repetition"];
+    const format = resolveEnglishReviewFormat(srPlugin);
+    if (!format) {
+      new Notice(qiaomuReaderTranslate("english-review-sr-unavailable"));
+      return false;
+    }
+    const reviewCard = { ...card, meanings: card.meanings?.length ? card.meanings : ["待补充释义"] };
+    try {
+      return await this._reviewQueue.run(async () => {
+        const prepared = upsertEnglishReviewCard(`${format.tag}\n`, reviewCard, format);
+        if (prepared.status !== "created") return false;
+        const parent = path5.includes("/") ? path5.slice(0, path5.lastIndexOf("/")) : "";
+        if (parent) {
+          let current = "";
+          for (const segment of parent.split("/")) {
+            current = current ? `${current}/${segment}` : segment;
+            if (!this.app.vault.getAbstractFileByPath(current)) await this.app.vault.createFolder(current);
+          }
+        }
+        let file = this.app.vault.getAbstractFileByPath(path5);
+        let created = false;
+        if (!(file instanceof TFile)) {
+          try { file = await this.app.vault.create(path5, prepared.text); created = true; }
+          catch (error) {
+            file = this.app.vault.getAbstractFileByPath(path5);
+            if (!(file instanceof TFile)) throw error;
+          }
+        }
+        if (!created) {
+          await this.app.vault.process(file, (old) => {
+            const result = upsertEnglishReviewCard(old.trim() ? old : `${format.tag}\n`, reviewCard, format);
+            if (result.status === "invalid" || result.status === "conflict") {
+              throw Object.assign(new Error("Review card cannot be safely updated"), { code: result.status });
+            }
+            return result.text;
+          });
+        }
+        const stored = await this.app.vault.read(file);
+        if (upsertEnglishReviewCard(stored, reviewCard, format).status !== "unchanged") {
+          throw new Error("Review card verification failed");
+        }
+        return true;
+      });
+    } catch (error) {
+      if (error?.code === "conflict") new Notice(qiaomuReaderTranslate("english-review-conflict"));
+      else {
+        new Notice(qiaomuReaderTranslate("english-review-write-failed"));
+        console.warn("Qiaomu Reader English: could not add review card", error);
+      }
+      return false;
+    }
+  }
+  openEnglishDictionary(word, context = {}) {
+    const modal = new EnglishDictionaryModal(this.app, {
+      word,
+      sentence: context.sentence,
+      initialResult: context.initialResult,
+      settings: () => this.settings,
+      onAddReview: (card) => this.addEnglishReviewCard(card),
+      onOpenExternal: (query) => this.openEnglishDictionaryWeb(query),
+      onClosed: () => this._englishDictionaryModals?.delete(modal),
+    });
+    (this._englishDictionaryModals ||= new Set()).add(modal);
+    modal.open();
+  }
+  openEnglishDictionaryWeb(word) {
+    const query = encodeURIComponent(String(word || "").trim());
+    if (!query) return;
+    const url = this.settings.englishLookupLanguage === "en"
+      ? `https://dictionary.cambridge.org/dictionary/english/${query}`
+      : `https://dict.youdao.com/result?word=${query}&lang=en`;
+    window.open(url, "_blank", "noopener,noreferrer");
   }
   /** True when Qiaomu Agent took the question: chosen in settings, or while the built-in AI is not set up. */
   async _answerWithAgent(context, options = {}) {
@@ -1887,19 +2013,13 @@ const QiaomuBookReader = class extends Plugin {
     return qiaomuReaderPath(this.settings.booksFolder);
   }
   _progressFilePath() {
-    const folder = this._dataFolder();
-    return qiaomuReaderPath(folder ? `${folder}/reading-progress.json` : "reading-progress.json");
+    return qiaomuReaderPath(`${this.manifest.dir}/reading-progress.json`);
   }
   _progressRecoveryFilePath() {
     return qiaomuReaderPath(`${this.manifest.dir}/reading-progress-recovery.json`);
   }
   _storeRecoveryHint() {
-    const folder = this._dataFolder();
-    if (folder) return qiaomuReaderPath(`${folder}/_reader-rescue`);
-    if (this._lastBookPath && this._lastBookPath.includes("/")) {
-      return qiaomuReaderPath(`${this._lastBookPath.slice(0, this._lastBookPath.lastIndexOf("/"))}/_reader-rescue`);
-    }
-    return "";
+    return qiaomuReaderPath(`${this.manifest.dir}/_reader-rescue`);
   }
   async loadAll() { // persisted data in, normalized settings + migrated state + restored reading state out
     const saved = await this.loadData();
@@ -1974,8 +2094,8 @@ const QiaomuBookReader = class extends Plugin {
     // The retired service key is preserved as a secret but not selected.
     if (this.settings.aiKey && this.app.secretStorage) {
       const secretId = this.settings.aiProvider
-        ? `qiaomu-book-reader-${this.settings.aiProvider}`
-        : "qiaomu-book-reader-legacy-key";
+        ? `qiaomu-reader-english-${this.settings.aiProvider}`
+        : "qiaomu-reader-english-legacy-key";
       this.app.secretStorage.setSecret(secretId, this.settings.aiKey);
       if (this.settings.aiProvider) this.settings.aiSecret = secretId;
       this.settings.aiKey = "";
@@ -2405,22 +2525,13 @@ const QiaomuBookReader = class extends Plugin {
       let date;
       try { date = window.moment ? window.moment().format("YYYY-MM-DD") : new Date().toISOString().slice(0, 10); }
       catch { date = new Date().toISOString().slice(0, 10); }
-      const bf = this._dataFolder();
-      let base;
-      if (bf) {
-        base = qiaomuReaderPath(`${bf}/_reader-rescue`);
-      } else if (this._lastBookPath && this._lastBookPath.includes("/")) {
-        const bookDir = this._lastBookPath.slice(0, this._lastBookPath.lastIndexOf("/"));
-        base = qiaomuReaderPath(`${bookDir}/_reader-rescue`);
-      } else {
-        return;
-      }
+      const base = this._storeRecoveryHint();
       const dir = qiaomuReaderPath(`${base}/_reader-rescue-${date}`);
       const ad = this.app.vault.adapter;
       if (!await ad.exists(base)) await this.app.vault.createFolder(base).catch(() => {});
       if (!await ad.exists(dir)) await this.app.vault.createFolder(dir).catch(() => {});
-      await ad.write(qiaomuReaderPath(`${dir}/reading-progress.json`), JSON.stringify(this.progress, null, 2));
-      await ad.write(qiaomuReaderPath(`${dir}/reading-highlights.json`), JSON.stringify(this.highlights, null, 2));
+      await ad.write(qiaomuReaderPath(`${dir}/qiaomu-reader-english-progress.json`), JSON.stringify(this.progress, null, 2));
+      await ad.write(qiaomuReaderPath(`${dir}/qiaomu-reader-english-highlights.json`), JSON.stringify(this.highlights, null, 2));
       const dataPath = qiaomuReaderPath(`${this.manifest.dir}/data.json`);
       if (await ad.exists(dataPath)) await ad.write(qiaomuReaderPath(`${dir}/plugin-data.json`), await ad.read(dataPath));
     } catch (e) {
@@ -2512,8 +2623,7 @@ const QiaomuBookReader = class extends Plugin {
     if (fresh) this.progress = fresh;
   }
   _highlightsFilePath() {
-    const folder = this._dataFolder();
-    return qiaomuReaderPath(folder ? `${folder}/reading-highlights.json` : "reading-highlights.json");
+    return qiaomuReaderPath(`${this.manifest.dir}/reading-highlights.json`);
   }
   async _loadHighlightsFromVault() {
     return this._loadJsonStore(this._highlightsFilePath(), qiaomuReaderTranslate("highlights"));
@@ -2641,9 +2751,8 @@ const PdfPaginator = class {
     this.pdfZoom = PDF_ZOOM_DEFAULT;
   }
   async build(area, bookHtml, cfg, anchorSpread) {
-    // This paginator accepts PDF page surfaces only. Reflowable ebooks are
-    // rendered and navigated exclusively by EpubEngine.
-    if (!bookHtml.includes('class="qiaomu-reader-pdf-page-break')) throw new Error("PDF page surfaces required");
+    // The same measured flow is used for PDF text layers and read-only
+    // Markdown. Engine formats are still rendered by EpubEngine.
     await this._ensureFonts(docOf(area), cfg);
     const reuse = !!(this.flow && this.clip && this.flow.parentElement === this.clip
       && this.clip.parentElement === area && this._html === bookHtml);
@@ -4944,6 +5053,12 @@ function syncSelectionToolbar(view) {
 }
 function selectionActions(view) {
   const actions = {
+    lookup: ["qiaomu-reader-hl-lookup", "book-search", "lookup-word", () => {
+      const cur = view._currentHl();
+      if (!cur?.text) return;
+      view._hideHlPopup();
+      view.plugin.openEnglishDictionary(cur.text, { sentence: cur.text });
+    }],
     highlight: ["qiaomu-reader-hl-highlight", "highlighter", "highlight-action", () => view._applyPopupColor(selectionColor(view))],
     comment: ["qiaomu-reader-hl-comment-btn", "message-square", "annotate-action", () => openInlineHighlightComment(view)],
     ai: ["qiaomu-reader-hl-ai", "sparkles", "ask-ai-action", () => openAiSelectionChat(view)],
@@ -7438,7 +7553,7 @@ function wrapBlockRange(block, start, end, hl) {
 }
 function _readerSettings(app) {
   const plugins = app && app.plugins && app.plugins.plugins;
-  const p = plugins ? plugins["qiaomu-reader"] : null;
+  const p = plugins ? plugins["qiaomu-reader-english"] : null;
   return p && p.settings || {};
 }
 function noteTemplatePath(app, bookFile) {
@@ -9608,6 +9723,19 @@ async function loadReaderDocument(file, app, settings, onProgress, options = {})
     throwIfReaderLoadAborted(options.signal);
     return { engine: true, bytes, name: file.name, html: "", lazy: null, outline: null };
   }
+  if (file.extension === "md") {
+    const source = await app.vault.read(file);
+    throwIfReaderLoadAborted(options.signal);
+    const host = document.createElement("div");
+    const component = new Component();
+    try {
+      await MarkdownRenderer.render(app, source, host, file.path, component);
+      throwIfReaderLoadAborted(options.signal);
+      return { engine: false, markdown: true, html: host.innerHTML, lazy: null, outline: [], pdfDocumentContext: null };
+    } finally {
+      component.unload();
+    }
+  }
   return extractPdf(file, app, settings, onProgress, options);
 }
 function renderReaderLoadError(reader, error, retry) {
@@ -9652,6 +9780,7 @@ const ReaderView = class extends ItemView {
     this._lastWidth = 0;
     this._pendingSel = null;
     this._editHlId = null;
+    this.lookupController = null;
   }
   getViewType() {
     return VIEW_TYPE;
@@ -9684,6 +9813,13 @@ const ReaderView = class extends ItemView {
   }
   async onOpen() { // chrome, resize watching and workspace hooks
     this.buildDOM();
+    this.lookupController = new EnglishLookupController({
+      settings: () => this.plugin.settings,
+      hostDocument: docOf(this.contentEl),
+      onAddReview: (card) => this.plugin.addEnglishReviewCard(card),
+      onOpenDictionary: (word, context) => this.plugin.openEnglishDictionary?.(word, context),
+    });
+    (this.plugin._lookupControllers ||= new Set()).add(this.lookupController);
     this.registerDomEvent(docOf(this.contentEl), "visibilitychange", () => renderVisibleFigures(this));
     const obs = this._resizeObs = new ResizeObserver(() => this._onAreaResized());
     obs.observe(this.areaEl);
@@ -9764,6 +9900,8 @@ const ReaderView = class extends ItemView {
     }
   }
   _resetBookState(file) {
+    this.lookupController?.hide();
+    this.lookupController?.detachAttachments();
     this.file = file; this.ext = file.extension;
     this.locEl?.setText(""); this.pctEl?.setText("0%");
     if (this.pbarFill) this.pbarFill.style.removeProperty("width");
@@ -9785,6 +9923,7 @@ const ReaderView = class extends ItemView {
     if (lazy?.destroy) lazy.destroy(); this._pdfLazy = null;
   }
   _releaseEngine() {
+    this.lookupController?.detachAttachments();
     this._selectionMenu?.hide();
     this._hideHlPopup();
     window.clearTimeout(this._engineSelTimer);
@@ -9846,6 +9985,10 @@ const ReaderView = class extends ItemView {
     this._pdfLazy = result.lazy;
     this._pdfOutline = result.outline;
   }
+  _attachEnglishLookupToFlow() {
+    if (!this.lookupController || !this.pager?.flow) return;
+    this.lookupController.attach(docOf(this.pager.flow), { scope: this.pager.flow, replace: true });
+  }
   _finishBookOpen(file) {
     syncReaderAiCapability(this);
     this.buildSettPanel(); this._maybePromptBookNote(file);
@@ -9867,6 +10010,11 @@ const ReaderView = class extends ItemView {
       onHighlightClick: (hit) => openEngineHighlightPopup(this, hit),
       onDocLoaded: ({ doc, index }) => {
         attachEngineChrome(this, doc, index);
+        this.lookupController?.attach(doc, {
+          scope: doc.body || doc.documentElement,
+          frame: doc.defaultView?.frameElement,
+          replace: false,
+        });
         // Each section lives in an iframe the page stylesheet cannot reach:
         // load the selected reading font into it directly.
         try { void ensureSelectedReaderFont(doc, plugin, plugin.settings); }
@@ -10015,6 +10163,7 @@ const ReaderView = class extends ItemView {
     const hasBlock = typeof savedBlock === "number" && savedBlock >= 0;
     const targetSpread = hasBlock ? pager.spreadForBlock(savedBlock) : Math.round(savedPct * Math.max(0, total - 1));
     this._renderFlowHighlights();
+    this._attachEnglishLookupToFlow();
     const [cur, tot] = pager.jumpTo(targetSpread);
     if (hasBlock && pager.scrollMode) restoreReadingAnchor(pager, { block: savedBlock, offset: 0, pct: savedPct });
     this._readingAnchor = captureReadingAnchor(pager);
@@ -10105,6 +10254,7 @@ const ReaderView = class extends ItemView {
       if (pager !== this.pager || !this.bookHtml || this._closed) return;
       this._recordLaidOutWidth();
       this._renderFlowHighlights(); // re-wrap markers on the fresh blocks
+      this._attachEnglishLookupToFlow();
       const [cur, tot] = restoreReadingAnchor(this.pager, anchor);
       restoreAiSource(this);
       if (this.pdfZoomMode === "width") fitPdfWidth(this);
@@ -10612,6 +10762,9 @@ const ReaderView = class extends ItemView {
   async onClose() {
     this._loadCoordinator.cancel();
     this._closed = true;
+    window.clearTimeout(this._markdownRefreshTimer);
+    this.lookupController?.destroy();
+    this.plugin._lookupControllers?.delete(this.lookupController);
     this._resizeObs?.disconnect();
     this._selectionCleanup?.();
     window.clearTimeout(this._contextSettleTimer);
@@ -11353,7 +11506,7 @@ const LibraryModal = class extends Modal {
 // it can be maximised like any other. Same code draws both: the drawing never
 // cared whether it lived in a dialog, only that it had an element to draw into
 // and a way to close itself.
-const LIB_VIEW_TYPE = "qiaomu-reader-library";
+const LIB_VIEW_TYPE = "qiaomu-reader-english-library";
 const LibraryView = class extends ItemView {
   constructor(leaf, plugin) {
     super(leaf);
@@ -11394,6 +11547,7 @@ const ReaderModal = class extends Modal {
     this.panelOpen = null;
     this._pendingSel = null;
     this._editHlId = null;
+    this.lookupController = null;
   }
   async onOpen() {
     const modalEl = this.modalEl;
@@ -11407,6 +11561,13 @@ const ReaderModal = class extends Modal {
     this._applyTopInset(contentEl);
     this._installCloseGuard(modalEl);
     this._applyTheme(); this._buildDOM();
+    this.lookupController = new EnglishLookupController({
+      settings: () => this.plugin.settings,
+      hostDocument: docOf(this.contentEl),
+      onAddReview: (card) => this.plugin.addEnglishReviewCard(card),
+      onOpenDictionary: (word, context) => this.plugin.openEnglishDictionary?.(word, context),
+    });
+    (this.plugin._lookupControllers ||= new Set()).add(this.lookupController);
     const visibilityDoc = docOf(this.contentEl);
     const onVisible = () => { void renderVisibleFigures(this); };
     visibilityDoc.addEventListener("visibilitychange", onVisible);
@@ -11557,6 +11718,7 @@ const ReaderModal = class extends Modal {
     qiaomuReaderShowVeil(this);
     await this.pager.build(this.areaEl, this.bookHtml, this.plugin.settings, 0);
     this._renderFlowHighlights();
+    this._attachEnglishLookupToFlow();
     const [cur, tot] = restoreReadingAnchor(this.pager, anchor);
     restoreAiSource(this);
     if (this.pdfZoomMode === "width") fitPdfWidth(this);
@@ -11664,6 +11826,7 @@ const ReaderModal = class extends Modal {
       ? this.pager.spreadForBlock(saved.block)
       : Math.round(pct * Math.max(0, this.pager.total - 1));
     this._renderFlowHighlights();
+    this._attachEnglishLookupToFlow();
     const [cur, tot] = this.pager.jumpTo(target);
     if (hasBlock && this.pager.scrollMode) restoreReadingAnchor(this.pager, { block: saved.block, offset: 0, pct });
     this._readingAnchor = captureReadingAnchor(this.pager);
@@ -11773,6 +11936,11 @@ const ReaderModal = class extends Modal {
       onHighlightClick: (hit) => openEngineHighlightPopup(this, hit),
       onDocLoaded: ({ doc, index }) => {
         attachEngineChrome(this, doc, index);
+        this.lookupController?.attach(doc, {
+          scope: doc.body || doc.documentElement,
+          frame: doc.defaultView?.frameElement,
+          replace: false,
+        });
         try { void ensureSelectedReaderFont(doc, plugin, plugin.settings); }
         catch (e) { console.warn("Qiaomu Reader: could not load the reading font into a book document", e); }
         try {
@@ -11813,6 +11981,10 @@ const ReaderModal = class extends Modal {
     const s = this.plugin.settings;
     const t = qiaomuReaderTheme(s);
     return readerTextCss(s, t, resolveReaderFont(s, FONTS), this.contentEl);
+  }
+  _attachEnglishLookupToFlow() {
+    if (!this.lookupController || !this.pager?.flow) return;
+    this.lookupController.attach(docOf(this.pager.flow), { scope: this.pager.flow, replace: true });
   }
   _engineSelectionCheck({ doc, index }) {
     if (!this.engine || !this.file) return;
@@ -12124,6 +12296,9 @@ const ReaderModal = class extends Modal {
   }
   async onClose() {
     this._closed = true;
+    window.clearTimeout(this._markdownRefreshTimer);
+    this.lookupController?.destroy();
+    this.plugin._lookupControllers?.delete(this.lookupController);
     this._selectionCleanup?.();
     window.clearTimeout(this._contextSettleTimer);
     clearAiSource(this);
@@ -12379,7 +12554,7 @@ const SettingsTab = class extends PluginSettingTab {
   }
   getSettingDefinitions() {
     return [{
-      name: qiaomuReaderTranslate("qiaomu-book-reader-settings"),
+      name: "Qiaomu Reader English",
       desc: qiaomuReaderTranslate("reading-themes-fonts-notes-ai-translation-folders-syncing-and-da"),
       searchable: true,
       render: (setting) => {
@@ -12413,7 +12588,7 @@ const SettingsTab = class extends PluginSettingTab {
     if (!this._tab || !tabs.some((t) => t.id === this._tab)) { this._tab = "look"; }
     const head = root.createDiv("qiaomu-reader-settings-head");
     const headText = head.createDiv("qiaomu-reader-settings-head-text");
-    headText.createEl("h2", { text: "Qiaomu Reader" });
+    headText.createEl("h2", { text: this.plugin.manifest.name || "Qiaomu Reader" });
 
     const language = head.createEl("select", { cls: "dropdown qiaomu-reader-settings-language" });
     for (const { id: value, label } of UI_LANGUAGES) {
@@ -12540,6 +12715,44 @@ const SettingsTab = class extends PluginSettingTab {
     const s = this.plugin.settings;
     this._sectionIntro(c, t("turning-and-layout"), t("choose-how-you-read-and-turn-pages-the-defaults-handle-the-rest"));
 
+    new Setting(c).setName(t("english-hover-lookup"))
+      .setDesc(t("english-hover-lookup-desc"))
+      .addToggle(toggle => toggle.setValue(s.englishLookupEnabled !== false).onChange(async value => {
+        s.englishLookupEnabled = value; await this.plugin.saveAll();
+      }));
+    new Setting(c).setName(t("english-click-lookup"))
+      .addToggle(toggle => toggle.setValue(s.englishClickLookup === true).onChange(async value => {
+        s.englishClickLookup = value; await this.plugin.saveAll();
+      }));
+    new Setting(c).setName(t("english-dictionary"))
+      .addDropdown(dropdown => dropdown
+        .addOption("auto", t("english-dictionary-auto"))
+        .addOption("youdao", t("english-dictionary-youdao"))
+        .addOption("google", t("english-dictionary-google"))
+        .setValue(s.englishLookupProvider || "auto")
+        .onChange(async value => { s.englishLookupProvider = value; await this.plugin.saveAll(); }));
+    new Setting(c).setName(t("english-definition-language"))
+      .addDropdown(dropdown => dropdown
+        .addOption("zh", t("chinese"))
+        .addOption("en", t("english"))
+        .setValue(s.englishLookupLanguage || "zh")
+        .onChange(async value => { s.englishLookupLanguage = value; await this.plugin.saveAll(); }));
+    new Setting(c).setName(t("english-review-file"))
+      .setDesc(t("english-review-file-desc"))
+      .addText(text => {
+        text.setValue(s.englishReviewFile || "Qiaomu Reader/English Review.md");
+        text.inputEl.addEventListener("change", async () => {
+          const path5 = englishReviewPath(text.inputEl.value);
+          if (!path5) {
+            text.setValue(s.englishReviewFile || "Qiaomu Reader/English Review.md");
+            new Notice(t("english-review-file-invalid"));
+            return;
+          }
+          s.englishReviewFile = path5;
+          await this.plugin.saveAll();
+        });
+      });
+
     this._readingDropdown(c,
       "page-turning-2",
       "buttons-arrows-keys-swipe-by-click-clicking-the-left-right-part",
@@ -12653,7 +12866,7 @@ const SettingsTab = class extends PluginSettingTab {
         }));
       host.createEl("p", { cls: "qiaomu-reader-set-note", text: t("selection-hidden-in-more") });
       const items = selectionActionPreferences(s.selectionActions);
-      const labels = { highlight: "highlight-action", comment: "annotate-action", ai: "ask-ai-action", translate: "translate", copy: "copy" };
+      const labels = { lookup: "lookup-word", highlight: "highlight-action", comment: "annotate-action", ai: "ask-ai-action", translate: "translate", copy: "copy" };
       const save = async (focus) => {
         s.selectionActions = items; await this.plugin.saveAll(); render();
         if (focus) host.querySelector(focus)?.focus();
@@ -13519,7 +13732,7 @@ const SettingsTab = class extends PluginSettingTab {
       .setName(qiaomuReaderTranslate("feedback-and-bugs"))
       .setDesc(qiaomuReaderTranslate("report-a-bug-or-suggest-a-feature-and-we-will-follow-up-on-githu"))
       .addButton((b) => b.setCta().setButtonText(qiaomuReaderTranslate("open-github-issues")).onClick(() => {
-        window.open("https://github.com/joeseesun/qiaomu-reader/issues", "_blank");
+        window.open("https://github.com/dashell7/qiaomu-reader-english/issues", "_blank");
       }));
     new Setting(c)
       .setName(qiaomuReaderTranslate("plugin-guide"))

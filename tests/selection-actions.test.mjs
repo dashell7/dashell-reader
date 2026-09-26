@@ -78,7 +78,7 @@ test("toolbar exposes stable labeled actions and a separate three-color menu", (
   const f = setup(); const { api, view, menus } = f;
   api.addBarButtons(view, view.hlPopup);
   const labels = [...view.hlPopup.querySelectorAll("button")].map(b => b.getAttribute("aria-label"));
-  assert.deepEqual(labels, ["highlight-action", "highlight-colors", "annotate-action", "ask-ai-action", "copy", "more"]);
+  assert.deepEqual(labels, ["lookup-word", "highlight-action", "highlight-colors", "annotate-action", "ask-ai-action", "copy", "more"]);
   view.hlPopup.querySelector(".qiaomu-reader-hl-colors").click();
   assert.equal(menus.length, 0, "colors use an attached dropdown, not an OS context menu");
   assert.equal(view.hlPopup.querySelectorAll('[role="radio"]').length, 3);
@@ -100,7 +100,7 @@ test("right-click in a book iframe captures selection before the native menu and
   api.openReaderSelectionContext(view, event, doc, 12);
   assert.equal(event.defaultPrevented, true);
   const menu = menus[0]; assert.equal(menu.pos.x, 130); assert.equal(menu.pos.y, 90);
-  assert.deepEqual(menu.items.slice(0, 4).map(i => i.title), ["highlight-action", "annotate-action", "ask-ai-action", "copy"]);
+  assert.deepEqual(menu.items.slice(0, 5).map(i => i.title), ["lookup-word", "highlight-action", "annotate-action", "ask-ai-action", "copy"]);
   doc.getSelection().removeAllRanges(); view._hideHlPopup();
   await menu.items.find(i => i.title === "copy-position-link").run(); await tick();
   assert.match(copied[0], /cfi=epubcfi%28/);
@@ -182,7 +182,7 @@ test("icon-only defaults keep accessible names, translated text is opt-in", () =
   f.view.plugin.settings.selectionShowLabels = true;
   f.api.syncSelectionToolbar(f.view);
   assert.equal(f.view.hlPopup.querySelectorAll(".qiaomu-reader-hl-actions").length, 1);
-  assert.equal(f.view.hlPopup.querySelectorAll(".qiaomu-reader-selection-label").length, 4);
+  assert.equal(f.view.hlPopup.querySelectorAll(".qiaomu-reader-selection-label").length, 5);
   f.close();
 });
 
@@ -205,15 +205,15 @@ test("configured order is shared with right click and hidden actions remain in M
   f.api.openSelectionMoreMenu(f.view, {}, false);
   assert.equal(f.menus[0].items[0].title, "highlight-action");
   f.api.openSelectionMoreMenu(f.view, {}, true);
-  assert.deepEqual(f.menus[1].items.slice(0, 4).map(i => i.title), ["copy", "highlight-action", "annotate-action", "ask-ai-action"]);
+  assert.deepEqual(f.menus[1].items.slice(0, 5).map(i => i.title), ["copy", "highlight-action", "lookup-word", "annotate-action", "ask-ai-action"]);
   f.close();
 });
 
 test("preferences recover malformed values and preserve deliberate all-hidden state", () => {
   const defaults = selectionActionPreferences(null);
-  assert.equal(defaults.length, 5);
+  assert.equal(defaults.length, 6);
   const normalized = selectionActionPreferences([null, {id:"bogus"}, {id:"copy",visible:false}, {id:"copy"}]);
-  assert.equal(normalized.length, 5); assert.equal(normalized[0].visible, false);
+  assert.equal(normalized.length, 6); assert.equal(normalized[0].visible, false);
   const f = setup(); f.view.plugin.settings.selectionActions = defaults.map(x => ({...x, visible:false}));
   f.api.addBarButtons(f.view, f.view.hlPopup);
   assert.equal(f.view.hlPopup.querySelectorAll("button").length, 1);

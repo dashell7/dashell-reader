@@ -26,8 +26,8 @@ export function readerSnapshot(sourceId, context, surrounding = null) {
   const location = String((selection ? surrounding?.page || context.page : context.page) || "").trim();
   return {
     sourceId,
-    sourceName: "Qiaomu Reader",
-    kind: file.extension === "pdf" ? "document" : "book",
+    sourceName: "Qiaomu Reader English",
+    kind: file.extension === "pdf" || file.extension === "md" ? "document" : "book",
     title: String(file.basename || file.name || file.path),
     path: file.path,
     location: location || undefined,
