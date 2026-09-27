@@ -1,5 +1,5 @@
 /* Language Learner Settings — aligned with Obsidian's native settings style.
-   Keeps a lightweight tab navigation (5 categories) but lets every setting row
+   Keeps a lightweight tab navigation but lets every setting row
    render with stock Obsidian styling: no per-item cards, native font sizes,
    native section headings (via setHeading()). */
 
@@ -11,72 +11,10 @@
     padding: 4px 0 12px;
 }
 
-.ll-settings-search {
-    position: sticky;
-    top: 0;
-    z-index: 30;
-    padding: 4px 0 8px;
-    background: var(--background-primary);
-}
-
-.ll-settings-search input {
-    box-sizing: border-box;
-    width: 100%;
-    min-height: 40px;
-    padding: 8px 12px;
-    border: 1px solid var(--background-modifier-border);
-    border-radius: 6px;
-    background: var(--background-primary);
-    color: var(--text-normal);
-}
-
-.ll-settings-search input:focus {
-    border-color: var(--interactive-accent);
-    box-shadow: 0 0 0 2px rgba(var(--interactive-accent-rgb), 0.16);
-    outline: none;
-}
-
-.ll-settings-search-results {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 6px;
-}
-
-.ll-settings-search-results:empty {
-    display: none;
-}
-
-.ll-settings-search-label,
-.ll-settings-search-empty {
-    color: var(--text-muted);
-    font-size: var(--font-ui-smaller);
-}
-
-.ll-settings-search-result {
-    min-height: 28px;
-    padding: 2px 8px;
-    border: 1px solid var(--background-modifier-border);
-    border-radius: 4px;
-    background: var(--background-primary);
-    color: var(--text-normal);
-    font-size: var(--font-ui-smaller);
-    cursor: pointer;
-}
-
-.ll-settings-search-result:hover {
-    background: var(--background-modifier-hover);
-}
-
-.ll-settings-search-result:focus-visible {
-    outline: 2px solid var(--interactive-accent);
-    outline-offset: 2px;
-}
-
 /* ── Tab navigation (underline style, blends with Obsidian chrome) ────────── */
 .ll-tab-headers {
     position: sticky;
-    top: 52px;
+    top: 0;
     z-index: 20;
     display: flex;
     gap: 2px;

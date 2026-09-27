@@ -22,6 +22,8 @@ export class QiaomuEnglishLearning extends LanguageLearner {
 
   addSettingTab(tab) { this.settingTab = tab; }
 
+  supportsLegacyReadingView() { return false; }
+
   registerCustomViews() {
     this.registerView(SEARCH_PANEL_VIEW, (leaf) => new SearchPanelView(leaf, this));
     this.addRibbonIcon(SEARCH_ICON, t("Open word search panel"), () => void this.activateView(SEARCH_PANEL_VIEW, "left"));
@@ -34,7 +36,6 @@ export class QiaomuEnglishLearning extends LanguageLearner {
     return this.app.workspace.ensureSideLeaf(type, side, { active: false, split: false, reveal: true });
   }
 
-  registerReadingToggle() {}
   registerContextMenu() {}
   registerLeftClick() {}
   registerMouseup() {}
@@ -51,7 +52,7 @@ export class QiaomuEnglishLearning extends LanguageLearner {
   lookup(word, context = {}) {
     const target = context.target || this.host.app.workspace.activeLeaf?.view?.containerEl || null;
     const position = context.position || undefined;
-    return this.queryWord(word, target, position, context.sentence);
+    return this.queryWord(word, target, position, context.sentence, true);
   }
 
   hover(word, context = {}) {

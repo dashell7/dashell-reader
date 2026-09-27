@@ -3,9 +3,10 @@ import fs from "node:fs";
 import test from "node:test";
 import vm from "node:vm";
 import { JSDOM } from "jsdom";
+import { ParseEnglish } from "parse-english";
 
 const source = fs.readFileSync(new URL("../src/english-lookup.js", import.meta.url), "utf8")
-  .replace(/^import .*\r?\n/m, "")
+  .replace(/^import .*\r?\n/gm, "")
   .replace(/^export /gm, "");
 
 function setup(options = {}) {
@@ -14,6 +15,7 @@ function setup(options = {}) {
     document: dom.window.document, window: dom.window, AbortController, setTimeout, clearTimeout,
     requestUrl: options.request || (async () => ({ json: { ec: { word: [{ trs: [{ tran: "释义" }] }] } } })),
     setIcon: (el, icon) => { el.textContent = icon; },
+    ParseEnglish,
   };
   const api = vm.runInNewContext(`${source}\n({EnglishLookupController, lookupEnglishWord, normalizeEnglishLookup, parseYoudaoResult, sentenceFromTarget, wordAtPoint, wordFromTextAtOffset})`, context);
   const opened = [];
@@ -71,6 +73,40 @@ test("a PDF text span supplies the source sentence", () => {
   line.remove();
   layer.textContent = "A plain text PDF line.";
   assert.equal(api.sentenceFromTarget(layer), "A plain text PDF line.");
+  controller.destroy(); dom.window.close();
+});
+
+test("click lookup sends only the sentence containing a word in a long EPUB paragraph", () => {
+  const { dom, controller, opened } = setup();
+  const doc = dom.window.document;
+  const paragraph = doc.querySelector("p");
+  paragraph.textContent = "As you learn these protocols, you will discover why they work. Because each is based on known aspects of our physiology, they work with our bodies. The science is important for two reasons.";
+  const node = paragraph.firstChild;
+  doc.caretRangeFromPoint = () => ({ startContainer: node, startOffset: node.nodeValue.indexOf("bodies") + 2 });
+  controller.attach(doc, { scope: paragraph });
+  paragraph.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true, cancelable: true, clientX: 50, clientY: 50 }));
+  assert.equal(opened[0]?.word, "bodies");
+  assert.equal(opened[0]?.context.sentence, "Because each is based on known aspects of our physiology, they work with our bodies.");
+  controller.destroy(); dom.window.close();
+});
+
+test("sentence context spans inline formatting and keeps English abbreviations intact", () => {
+  const { dom, api, controller } = setup();
+  const paragraph = dom.window.document.querySelector("p");
+  paragraph.innerHTML = "First sentence. Dr. Smith studies <em>human bodies</em> every day. Another sentence.";
+  const node = paragraph.querySelector("em").firstChild;
+  assert.equal(api.sentenceFromTarget(paragraph.querySelector("em"), { node, offset: 8 }), "Dr. Smith studies human bodies every day.");
+  controller.destroy(); dom.window.close();
+});
+
+test("PDF sentence context joins adjacent text spans without taking the whole page", () => {
+  const { dom, api, controller } = setup();
+  const layer = dom.window.document.createElement("div");
+  layer.className = "qiaomu-reader-pdf-text-layer";
+  layer.innerHTML = "<span>Earlier sentence. </span><span>Our bodies work</span><span> in concert. </span><span>Later sentence.</span>";
+  dom.window.document.body.appendChild(layer);
+  const node = layer.children[1].firstChild;
+  assert.equal(api.sentenceFromTarget(layer.children[1], { node, offset: 5 }), "Our bodies work in concert.");
   controller.destroy(); dom.window.close();
 });
 
@@ -218,6 +254,25 @@ test("reader selection follows the original modifier setting", async () => {
   assert.equal(opened.length, 0);
   paragraph.dispatchEvent(new dom.window.PointerEvent("pointerup", { bubbles: true, ctrlKey: true }));
   assert.equal(opened[0]?.word, "reader");
+  controller.destroy(); dom.window.close();
+});
+
+test("selected text uses the sentence at the selection start", () => {
+  const { dom, controller, opened } = setup({
+    settings: () => ({ englishLookupEnabled: true, englishClickLookup: true, function_key: "ctrlKey", isMobile: false }),
+  });
+  const doc = dom.window.document;
+  const paragraph = doc.querySelector("p");
+  paragraph.textContent = "The first sentence ends here. Our bodies adapt quickly. A final sentence follows.";
+  const node = paragraph.firstChild;
+  const range = doc.createRange();
+  const start = node.nodeValue.indexOf("bodies");
+  range.setStart(node, start);
+  range.setEnd(node, start + "bodies".length);
+  doc.getSelection().addRange(range);
+  controller.attach(doc, { scope: paragraph });
+  paragraph.dispatchEvent(new dom.window.PointerEvent("pointerup", { bubbles: true, ctrlKey: true }));
+  assert.equal(opened[0]?.context.sentence, "Our bodies adapt quickly.");
   controller.destroy(); dom.window.close();
 });
 

@@ -89,6 +89,8 @@ export default {
     "Delete sentence": "删除例句",
     "Switch to AI translation": "切换到 AI 翻译",
     "Switch to machine translation": "切换到机器翻译",
+    "Translation in progress": "翻译中",
+    "Translation failed": "翻译失败，请重试",
 
     // Test.vue
     "Day Ignore": "单日-无视",
@@ -316,7 +318,7 @@ export default {
     "British": "英式",
     "Delimiter": "分隔符",
     "Click words only look up": "点击单词仅查词",
-    "Click words only look up Desc": "开启后，LinguaFlow 字幕和阅读模式点击单词只打开词典，不自动弹出生词录入面板",
+    "Click words only look up Desc": "开启后，点击单词只打开词典，不自动打开新词面板",
 
     "As Server": "成为服务器",
     "Self as Server": "开启服务器功能",
@@ -401,14 +403,11 @@ export default {
     "Meaning is empty!": "含义不应为空",
 
     // 设置与词典状态
-    "Search settings": "搜索设置",
     "General settings": "通用",
     "Dictionary settings": "词典",
     "Reading settings": "阅读",
     "Vocabulary and review settings": "词库与复习",
     "AI settings": "AI",
-    "Matching settings": "匹配分组",
-    "No matching settings": "没有匹配的设置",
     "MDict disabled": "已停用",
     "MDict desktop status": "仅桌面版可用",
     "MDict file missing": "文件不可用，请重新选择文件",
@@ -429,6 +428,7 @@ export default {
     "Review db sync failed": "复习数据库刷新失败",
     "Review db sr preserved": "条复习进度已保留",
     "words count": "个单词",
+    "No definition found": "未找到释义",
 
     // Review reflux (SR scheduling → word status)
     "Review Reflux": "根据复习进度更新词汇状态",

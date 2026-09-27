@@ -1657,8 +1657,17 @@ const QiaomuBookReader = class extends Plugin {
     this.registerObsidianProtocolHandler("qiaomu-reader-english-book-reader", openBacklink);
   }
   _registerReaderExtensions() {
-    // The upstream reader owns normal EPUB/PDF file opening. This fork is
-    // entered from its library, file menu or command, including for Markdown.
+    // Upstream registers EPUB without a conflict guard. Let it own the default
+    // association when both plugins are enabled, regardless of load order.
+    if (this.app.plugins?.enabledPlugins?.has?.("qiaomu-reader")) return;
+    // Markdown keeps Obsidian's native editor; book files open in this reader
+    // when no other plugin has already claimed their extension.
+    for (const ext of BOOK_EXTENSIONS) {
+      try { this.registerExtensions([ext], VIEW_TYPE); }
+      catch (error) {
+        console.warn(`Qiaomu Reader English: could not register .${ext}; use the file menu to open it in the reader`, error);
+      }
+    }
   }
   _addRibbonEntry() {
     const libraryLabel = `Qiaomu Reader — ${qiaomuReaderTranslate("library")}`;
@@ -3735,7 +3744,6 @@ function settleReader(view, delay = 220) {
     if (!readerIsPdf(view)) {
       const chapter = chapterForBlock(view.tocItems || [], view._readingAnchor?.block || 0);
       view.locEl?.setText(chapter || qiaomuReaderTranslate("reading-position"));
-      view.locEl?.setAttribute("title", chapter || qiaomuReaderTranslate("reading-position"));
       view.pctEl?.setText(`${Math.round(view.pager.currentPct * 100)}%`);
     }
   }, delay);
@@ -4131,7 +4139,6 @@ function syncPdfZoomControls(view) {
     const label = pdfZoomPercent(zoom);
     view.pdfZoomLabelEl.setText(label);
     view.pdfZoomLabelEl.setAttribute("aria-label", qiaomuReaderTranslate("pdf-zoom-options-0", label));
-    view.pdfZoomLabelEl.setAttribute("title", qiaomuReaderTranslate(view.pdfZoomMode === "width" ? "fit-width" : "pdf-zoom-options-0", label));
   }
   if (view?.pdfZoomSettingsLabelEl) view.pdfZoomSettingsLabelEl.setText(pdfZoomPercent(zoom));
   if (view?.pdfZoomOutEl) view.pdfZoomOutEl.disabled = !isPdf || zoom <= PDF_ZOOM_MIN + 0.001;

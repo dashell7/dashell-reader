@@ -8,7 +8,7 @@
 
 /* ── Reader shell, paginated flow, text selection ─────────────────────────── */
 .workspace-leaf-content[data-type="qiaomu-reader-english"] > .view-header { display:none; }
-.view-content.qiaomu-reader-view { display:flex; flex-direction:column; height:100%; background:var(--qiaomu-reader-bg,var(--background-primary)); overflow:hidden; position:relative; padding:0; margin:0; box-sizing:border-box; }
+.workspace-leaf-content[data-type="qiaomu-reader-english"] > .view-content.qiaomu-reader-view { display:flex; flex-direction:column; height:100%; background:var(--qiaomu-reader-bg,var(--background-primary)); overflow:hidden; position:relative; padding:0; margin:0; box-sizing:border-box; }
 .qiaomu-reader-content img { max-width:100%; height:auto; display:block; margin:8px auto; }
 .qiaomu-reader-content figure { margin:8px auto; text-align:center; }
 .qiaomu-reader-content figure img { margin:0 auto; }
@@ -1698,7 +1698,14 @@ body[data-qiaomu-english-theme] .workspace-leaf-content[data-type="qiaomu-englis
   color: var(--qiaomu-english-text);
 }
 
-body[data-qiaomu-english-theme] :is(#qiaomu-english-search, #qiaomu-english-learn-panel, #popup-search) {
+body[data-qiaomu-english-theme] :is(
+  #qiaomu-english-search,
+  #qiaomu-english-learn-panel,
+  #popup-search,
+  .workspace-leaf-content[data-type="qiaomu-reader-english-ai-chat"],
+  .modal.qiaomu-reader-ai-modal,
+  .modal.qiaomu-reader-ai-history-modal
+) {
   --background-primary: var(--qiaomu-english-bg);
   --background-primary-alt: var(--qiaomu-english-ui);
   --background-secondary: var(--qiaomu-english-ui);
@@ -1707,6 +1714,8 @@ body[data-qiaomu-english-theme] :is(#qiaomu-english-search, #qiaomu-english-lear
   --background-modifier-hover: color-mix(in srgb, var(--qiaomu-english-ui) 90%, var(--qiaomu-english-text));
   --background-modifier-active-hover: var(--qiaomu-english-ui);
   --background-modifier-form-field: var(--qiaomu-english-bg);
+  --interactive-normal: var(--qiaomu-english-ui);
+  --interactive-hover: color-mix(in srgb, var(--qiaomu-english-ui) 88%, var(--qiaomu-english-text));
   --text-normal: var(--qiaomu-english-text);
   --text-muted: var(--qiaomu-english-muted);
   --text-faint: var(--qiaomu-english-muted);
@@ -1714,13 +1723,30 @@ body[data-qiaomu-english-theme] :is(#qiaomu-english-search, #qiaomu-english-lear
   --interactive-accent: var(--qiaomu-english-accent);
   --interactive-accent-hover: color-mix(in srgb, var(--qiaomu-english-accent) 85%, var(--qiaomu-english-text));
   --text-on-accent: var(--qiaomu-english-bg);
+  --code-background: var(--qiaomu-english-ui);
+  --code-normal: var(--qiaomu-english-text);
   background-color: var(--qiaomu-english-bg);
   color: var(--qiaomu-english-text);
   color-scheme: light;
 }
 
-body[data-qiaomu-english-theme="night"] :is(#qiaomu-english-search, #qiaomu-english-learn-panel, #popup-search) {
+body[data-qiaomu-english-theme="night"] :is(
+  #qiaomu-english-search,
+  #qiaomu-english-learn-panel,
+  #popup-search,
+  .workspace-leaf-content[data-type="qiaomu-reader-english-ai-chat"],
+  .modal.qiaomu-reader-ai-modal,
+  .modal.qiaomu-reader-ai-history-modal
+) {
   color-scheme: dark;
+}
+
+body[data-qiaomu-english-theme] .workspace-leaf-content[data-type="qiaomu-reader-english-ai-chat"] > .view-header {
+  background: var(--qiaomu-english-bg);
+  color: var(--qiaomu-english-text);
+  border-bottom: 1px solid var(--qiaomu-english-border);
+  --icon-color: var(--qiaomu-english-muted);
+  --icon-color-hover: var(--qiaomu-english-text);
 }
 
 /* Obsidian's native button rule outranks Naive UI's --n-color on its own. */
@@ -1743,12 +1769,30 @@ body[data-qiaomu-english-theme] .langr-subtitle-popup .stp-meaning { color: var(
 body[data-qiaomu-english-theme] .langr-subtitle-popup .stp-loading { color: var(--qiaomu-english-muted); }
 body[data-qiaomu-english-theme] .langr-subtitle-popup .stp-actions button {
   background: var(--qiaomu-english-ui);
-  color: var(--qiaomu-english-text);
+  color: var(--qiaomu-english-muted);
 }
 body[data-qiaomu-english-theme] .langr-subtitle-popup .stp-actions button:hover {
   background: color-mix(in srgb, var(--qiaomu-english-ui) 85%, var(--qiaomu-english-accent));
 }
-body[data-qiaomu-english-theme] .langr-subtitle-popup .stp-actions button.stp-btn-active {
-  background: color-mix(in srgb, var(--qiaomu-english-bg) 75%, var(--qiaomu-english-accent));
-  color: var(--qiaomu-english-accent);
+body[data-qiaomu-english-theme] .langr-subtitle-popup .stp-actions .stp-btn-speak {
+  color: #1765a3;
+}
+body[data-qiaomu-english-theme] .langr-subtitle-popup .stp-actions .stp-btn-learn {
+  color: #a96b11;
+}
+body[data-qiaomu-english-theme] .langr-subtitle-popup .stp-actions .stp-btn-known.stp-btn-active,
+body[data-qiaomu-english-theme] .langr-subtitle-popup .stp-actions .stp-btn-learn.stp-btn-active {
+  background: color-mix(in srgb, var(--qiaomu-english-ui) 78%, #26a65b);
+  color: #187a3d;
+  box-shadow: inset 0 0 0 1px #26a65b;
+}
+body[data-qiaomu-english-theme="night"] .langr-subtitle-popup .stp-actions .stp-btn-speak {
+  color: #89c6f4;
+}
+body[data-qiaomu-english-theme="night"] .langr-subtitle-popup .stp-actions .stp-btn-learn {
+  color: #ffd17a;
+}
+body[data-qiaomu-english-theme="night"] .langr-subtitle-popup .stp-actions .stp-btn-known.stp-btn-active,
+body[data-qiaomu-english-theme="night"] .langr-subtitle-popup .stp-actions .stp-btn-learn.stp-btn-active {
+  color: #78dfa0;
 }

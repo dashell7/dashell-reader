@@ -4,9 +4,6 @@
 import { App, Notice, PluginSettingTab, Setting, Modal, FuzzySuggestModal, DropdownComponent, setIcon, moment, debounce, requestUrl, TFolder, Platform } from 'obsidian';
 import LanguageLearner from '../plugin';
 import { t } from '../lang/helper';
-import en from '../lang/locale/en';
-import zh from '../lang/locale/zh';
-import zhTW from '../lang/locale/zh-TW';
 import { dicts } from '@dict/list';
 import store from '../store';
 import type { MyPluginSettings, HoverTranslationProvider, ReadingWidthMode } from './types';
@@ -23,16 +20,6 @@ import { withTimeout } from '../dictionary/helpers';
 import '../styles/settings.css';
 
 const SYSTEM_READING_FONT = '"Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif';
-
-const searchLocales: Array<Partial<Record<keyof typeof en, string>>> = [en, zh, zhTW];
-const settingNameAliases = new Map<string, string>();
-for (const key of Object.keys(en) as Array<keyof typeof en>) {
-    const terms = [key, ...searchLocales.map((locale) => locale[key])].filter((term): term is string => !!term);
-    for (const term of terms) {
-        const normalized = term.trim().toLocaleLowerCase();
-        settingNameAliases.set(normalized, `${settingNameAliases.get(normalized) || ''} ${terms.join(' ')}`);
-    }
-}
 
 const READING_FONT_CANDIDATES = [
     { name: 'Segoe UI', label: 'Segoe UI' },
@@ -190,8 +177,9 @@ export class SettingTab extends PluginSettingTab {
         } catch {
             // Private/locked-down webviews can deny localStorage; use General.
         }
-        const tabs = ["general", "dictionaries", "reading", "database"];
-        if (!this.isQiaomuIntegration()) tabs.push("ai");
+        const tabs = this.isQiaomuIntegration()
+            ? ["general", "dictionaries", "database"]
+            : ["general", "dictionaries", "reading", "database", "ai"];
         this.activeTab = storedTab && tabs.includes(storedTab)
             ? storedTab
             : "general";
@@ -205,6 +193,7 @@ export class SettingTab extends PluginSettingTab {
         this.stopMdictStatusRefresh();
         const { containerEl } = this;
         containerEl.empty();
+        const integrated = this.isQiaomuIntegration();
 
         // Add custom CSS
         this.addStyles(containerEl);
@@ -212,13 +201,6 @@ export class SettingTab extends PluginSettingTab {
         // Main Container
         const mainContainer = containerEl.createDiv({ cls: "ll-settings-container" });
 
-        const searchWrap = mainContainer.createDiv({ cls: "ll-settings-search" });
-        const searchInput = searchWrap.createEl("input", {
-            type: "search",
-            placeholder: t("Search settings"),
-            attr: { "aria-label": t("Search settings") },
-        });
-        const searchResults = searchWrap.createDiv({ cls: "ll-settings-search-results" });
         const tabLabels: Record<string, string> = {
             general: t("General settings"),
             dictionaries: t("Dictionary settings"),
@@ -226,75 +208,6 @@ export class SettingTab extends PluginSettingTab {
             database: t("Vocabulary and review settings"),
             ai: t("AI settings"),
         };
-        const filterSettings = () => {
-            const query = searchInput.value.trim().toLocaleLowerCase();
-            const matchesByTab: Array<{ id: string; count: number }> = [];
-            this.containerEl.querySelectorAll<HTMLElement>(".ll-tab-content").forEach((panel) => {
-                const rows = Array.from(panel.querySelectorAll<HTMLElement>(".setting-item:not(.setting-item-heading), .ll-mdict-row"))
-                    .filter((row) => !row.closest<HTMLElement>('.ll-reflux-settings')?.style.display);
-                const matchedHeadings = new Set<HTMLElement>();
-                const matches = rows.filter((row) => {
-                    const name = row.querySelector<HTMLElement>('.setting-item-name')?.textContent?.trim().toLocaleLowerCase() || '';
-                    const aliases = settingNameAliases.get(name) || '';
-                    const searchable = `${row.textContent || ""} ${row.dataset.searchTerms || ""} ${aliases}`.toLocaleLowerCase();
-                    const matches = !query || searchable.includes(query);
-                    row.style.display = matches ? "" : "none";
-                    if (matches && query) {
-                        let current: Element | null = row;
-                        while (current && current !== panel) {
-                            let previous = current.previousElementSibling;
-                            while (previous && !previous.matches('.setting-item-heading')) previous = previous.previousElementSibling;
-                            if (previous instanceof HTMLElement) {
-                                matchedHeadings.add(previous);
-                                break;
-                            }
-                            current = current.parentElement;
-                        }
-                    }
-                    return matches;
-                });
-                panel.querySelectorAll<HTMLElement>(".setting-item-heading").forEach((heading) => {
-                    heading.style.display = !query || matchedHeadings.has(heading) ? "" : "none";
-                });
-                const mdictList = panel.querySelector<HTMLElement>(".ll-mdict-list");
-                if (mdictList) mdictList.style.display = !query || matches.some((row) => row.classList.contains("ll-mdict-row")) ? "" : "none";
-                const mdictDescription = panel.querySelector<HTMLElement>(".ll-mdict-description");
-                if (mdictDescription) mdictDescription.style.display = !query || matches.some((row) => row.classList.contains("ll-mdict-row")) ? "" : "none";
-                panel.querySelectorAll<HTMLDetailsElement>(".ll-collapsible-settings").forEach((details) => {
-                    if (query && matches.some((row) => details.contains(row))) details.open = true;
-                });
-                const id = panel.dataset.tab || "";
-                if (query && id && matches.length > 0) matchesByTab.push({ id, count: matches.length });
-            });
-
-            searchResults.empty();
-            if (query) {
-                if (matchesByTab.length === 0) {
-                    searchResults.createDiv({ text: t("No matching settings"), cls: "ll-settings-search-empty" });
-                } else {
-                    searchResults.createSpan({ text: t("Matching settings"), cls: "ll-settings-search-label" });
-                    matchesByTab.forEach(({ id, count }) => {
-                        const button = searchResults.createEl("button", {
-                            text: `${tabLabels[id] || id} · ${count}`,
-                            cls: "ll-settings-search-result",
-                            attr: { type: "button" },
-                        });
-                        button.addEventListener("click", () => {
-                            this.switchTab(id);
-                            const first = Array.from(this.containerEl.querySelectorAll<HTMLElement>(
-                                `.ll-tab-content[data-tab="${id}"] .setting-item:not(.setting-item-heading), .ll-tab-content[data-tab="${id}"] .ll-mdict-row`
-                            )).find((row) => row.style.display !== "none");
-                            first?.scrollIntoView({ block: "nearest" });
-                        });
-                    });
-                    if (!matchesByTab.some((match) => match.id === this.activeTab)) {
-                        this.switchTab(matchesByTab[0].id);
-                    }
-                }
-            }
-        };
-        searchInput.addEventListener("input", filterSettings);
-
         // (No plugin-name heading — Obsidian shows it in the tab title already.)
 
         // Create tab container
@@ -305,9 +218,9 @@ export class SettingTab extends PluginSettingTab {
         tabHeaders.setAttribute("role", "tablist");
         this.createTabHeader(tabHeaders, "general", tabLabels.general);
         this.createTabHeader(tabHeaders, "dictionaries", tabLabels.dictionaries);
-        this.createTabHeader(tabHeaders, "reading", tabLabels.reading);
+        if (!integrated) this.createTabHeader(tabHeaders, "reading", tabLabels.reading);
         this.createTabHeader(tabHeaders, "database", tabLabels.database);
-        if (!this.isQiaomuIntegration()) this.createTabHeader(tabHeaders, "ai", tabLabels.ai);
+        if (!integrated) this.createTabHeader(tabHeaders, "ai", tabLabels.ai);
 
         // Create tab contents wrapper for card effect
         const contentWrapper = tabContainer.createDiv({ cls: "ll-content-wrapper" });
@@ -321,9 +234,10 @@ export class SettingTab extends PluginSettingTab {
         const dictsTab = tabContents.createDiv({ cls: "ll-tab-content", attr: { "data-tab": "dictionaries", id: "ll-panel-dictionaries", role: "tabpanel", "aria-labelledby": "ll-tab-dictionaries", tabindex: "0" } });
         this.dictionarySettings(dictsTab);
 
-        // Tab 3: Reading
-        const readingTab = tabContents.createDiv({ cls: "ll-tab-content", attr: { "data-tab": "reading", id: "ll-panel-reading", role: "tabpanel", "aria-labelledby": "ll-tab-reading", tabindex: "0" } });
-        this.readingSettings(readingTab);
+        if (!integrated) {
+            const readingTab = tabContents.createDiv({ cls: "ll-tab-content", attr: { "data-tab": "reading", id: "ll-panel-reading", role: "tabpanel", "aria-labelledby": "ll-tab-reading", tabindex: "0" } });
+            this.readingSettings(readingTab);
+        }
 
         // Tab 4: Vocabulary & Review
         const dbTab = tabContents.createDiv({ cls: "ll-tab-content", attr: { "data-tab": "database", id: "ll-panel-database", role: "tabpanel", "aria-labelledby": "ll-tab-database", tabindex: "0" } });
@@ -331,18 +245,17 @@ export class SettingTab extends PluginSettingTab {
         this.textDBSettings(dbTab);
         this.reviewSettings(dbTab);
 
-        if (!this.isQiaomuIntegration()) {
+        if (!integrated) {
             const aiTab = tabContents.createDiv({ cls: "ll-tab-content", attr: { "data-tab": "ai", id: "ll-panel-ai", role: "tabpanel", "aria-labelledby": "ll-tab-ai", tabindex: "0" } });
             this.aiSettings(aiTab);
         }
 
         // Show active tab
         this.switchTab(this.activeTab);
-        filterSettings();
         this.plugin.requestMdictWindowStatuses();
         this.mdictStatusTimer = window.setInterval(() => {
             this.plugin.requestMdictWindowStatuses();
-            if (this.refreshMdictStatuses()) filterSettings();
+            this.refreshMdictStatuses();
         }, 1000);
     }
 
@@ -358,14 +271,7 @@ export class SettingTab extends PluginSettingTab {
         }
     }
 
-    private withSearchAliases(setting: Setting, ...keys: Array<keyof typeof en>): Setting {
-        setting.settingEl.dataset.searchTerms = keys.flatMap((key) => [key, ...searchLocales.map((locale) => locale[key])])
-            .filter(Boolean).join(" ");
-        return setting;
-    }
-
-    private refreshMdictStatuses(): boolean {
-        let changed = false;
+    private refreshMdictStatuses(): void {
         const fs = Platform.isDesktopApp ? (window as any).require?.('fs') : null;
         this.containerEl.querySelectorAll<HTMLElement>('.ll-mdict-row').forEach((row) => {
             const index = Number(row.dataset.mdictIndex);
@@ -403,11 +309,9 @@ export class SettingTab extends PluginSettingTab {
             if (statusEl.textContent !== label || statusEl.dataset.state !== state) {
                 statusEl.setText(label);
                 statusEl.dataset.state = state;
-                changed = true;
             }
             recoverEl?.classList.toggle('is-visible', fileMissing);
         });
-        return changed;
     }
 
     private createTabHeader(container: HTMLElement, id: string, label: string) {
@@ -538,7 +442,6 @@ export class SettingTab extends PluginSettingTab {
 
         setting.addButton(button => button
             .setButtonText(t("Choose"))
-            .setTooltip(title)
             .onClick(() => {
                 new VaultPathSuggestModal(
                     this.app,
@@ -580,7 +483,7 @@ export class SettingTab extends PluginSettingTab {
         const promptAdvanced = containerEl.createEl("details", { cls: "qiaomu-reader-settings-disclosure" });
         promptAdvanced.createEl("summary", { text: t("English learning prompts") });
         const body = promptAdvanced.createDiv({ cls: "qiaomu-reader-settings-disclosure-body" });
-        this.withSearchAliases(new Setting(body), "System Prompt")
+        new Setting(body)
             .setName(t("System Prompt"))
             .setDesc(t("Prompt for dictionary definition"))
             .addTextArea(text => {
@@ -593,7 +496,7 @@ export class SettingTab extends PluginSettingTab {
                 text.inputEl.addEventListener("blur", () => { void apply(text.inputEl.value); });
                 text.inputEl.addClass("ll-prompt-input");
             });
-        this.withSearchAliases(new Setting(body), "Translation Prompt")
+        new Setting(body)
             .setName(t("Translation Prompt"))
             .setDesc(t("Prompt for sentence translation"))
             .addTextArea(text => {
@@ -611,7 +514,7 @@ export class SettingTab extends PluginSettingTab {
     aiSettings(containerEl: HTMLElement) {
         new Setting(containerEl).setName(t("AI Settings")).setHeading();
 
-        this.withSearchAliases(new Setting(containerEl), "Provider", "Select AI Provider")
+        new Setting(containerEl)
             .setName(t("Provider"))
             .setDesc(t("Select AI Provider"))
             .addDropdown(dropdown => {
@@ -637,7 +540,7 @@ export class SettingTab extends PluginSettingTab {
         connectionAdvanced.createEl("summary", { text: t("Advanced connection settings") });
 
         let apiUrlInput: HTMLInputElement | null = null;
-        this.withSearchAliases(new Setting(connectionAdvanced), "API URL", "API Endpoint URL")
+        new Setting(connectionAdvanced)
             .setName(t("API URL"))
             .setDesc(t("API Endpoint URL"))
             .addText(text => {
@@ -654,7 +557,7 @@ export class SettingTab extends PluginSettingTab {
             });
 
         let apiKeyInput: HTMLInputElement | null = null;
-        const apiKeySetting = this.withSearchAliases(new Setting(containerEl), "API Key")
+        const apiKeySetting = new Setting(containerEl)
             .setName(t("API Key"))
             .setDesc(t("Enter your API Key"))
             .addText(text => {
@@ -698,7 +601,7 @@ export class SettingTab extends PluginSettingTab {
         // Add dropdown for model selection if provider has models
         const currentProvider = AI_PROVIDERS[this.plugin.settings.ai.provider as keyof typeof AI_PROVIDERS];
         if (currentProvider && currentProvider.models.length > 0) {
-            this.withSearchAliases(new Setting(containerEl), "Select Model")
+            new Setting(containerEl)
                 .setName(t("Select Model"))
                 .setDesc(t("Choose from available models"))
                 .addDropdown(dropdown => {
@@ -717,7 +620,7 @@ export class SettingTab extends PluginSettingTab {
                         });
                 });
         } else {
-            this.withSearchAliases(new Setting(containerEl), "Model Name")
+            new Setting(containerEl)
                 .setName(t("Model Name"))
                 .setDesc(t("Enter the model name"))
                 .addText(text => text
@@ -732,7 +635,7 @@ export class SettingTab extends PluginSettingTab {
         const promptAdvanced = containerEl.createEl("details", { cls: "ll-collapsible-settings" });
         promptAdvanced.createEl("summary", { text: t("Prompt customization") });
 
-        this.withSearchAliases(new Setting(promptAdvanced), "System Prompt")
+        new Setting(promptAdvanced)
             .setName(t("System Prompt"))
             .setDesc(t("Prompt for dictionary definition"))
             .addTextArea(text => {
@@ -747,7 +650,7 @@ export class SettingTab extends PluginSettingTab {
                 text.inputEl.addClass("ll-prompt-input");
             });
 
-        this.withSearchAliases(new Setting(promptAdvanced), "Translation Prompt")
+        new Setting(promptAdvanced)
             .setName(t("Translation Prompt"))
             .setDesc(t("Prompt for sentence translation"))
             .addTextArea(text => {
@@ -768,7 +671,7 @@ export class SettingTab extends PluginSettingTab {
             testFeedback.setText(message);
             testFeedback.dataset.state = state;
         };
-        this.withSearchAliases(new Setting(containerEl), "Test Connection")
+        new Setting(containerEl)
             .setName(t("Test Connection"))
             .setDesc(t("Test if the API configuration is correct"))
             .addButton(button => button
@@ -1062,16 +965,10 @@ export class SettingTab extends PluginSettingTab {
             files.forEach((entry, idx) => {
                 const row = listContainer.createDiv({ cls: "ll-mdict-row" });
                 row.dataset.mdictIndex = String(idx);
-                row.dataset.searchTerms = [
-                    'MDict',
-                    ...searchLocales.map((locale) => locale['Local MDict Dictionaries']),
-                ].filter(Boolean).join(' ');
-
                 // Toggle
                 const toggleEl = row.createEl("input", { type: "checkbox" }) as HTMLInputElement;
                 toggleEl.checked = entry.enabled;
                 toggleEl.setAttribute("aria-label", `${t("Enable dictionary")}: ${entry.name}`);
-                toggleEl.title = t("Enable or disable dictionary");
                 toggleEl.addEventListener("change", async () => {
                     this.plugin.settings.mdict_files[idx].enabled = toggleEl.checked;
                     await this.plugin.saveSettings();
@@ -1099,7 +996,6 @@ export class SettingTab extends PluginSettingTab {
 
                 // Priority (position in dict panel)
                 const priEl = row.createEl("select", { cls: "ll-mdict-priority" }) as HTMLSelectElement;
-                priEl.title = t("Lower number appears earlier");
                 priEl.setAttribute("aria-label", `${t("Priority")}: ${entry.name}`);
                 for (let p = 1; p <= 10; p++) {
                     const opt = priEl.createEl("option", { text: String(p), value: String(p) });
@@ -1123,19 +1019,16 @@ export class SettingTab extends PluginSettingTab {
                 const orderIndex = order.indexOf(dictId);
                 const upBtn = row.createEl("button", { cls: "ll-mdict-order-btn", attr: { type: "button", "aria-label": t("Move up") } });
                 setIcon(upBtn, "arrow-up");
-                upBtn.title = t("Move up");
                 upBtn.disabled = orderIndex <= 0;
                 upBtn.addEventListener("click", () => { void this.moveDictionary(dictId, -1); });
                 const downBtn = row.createEl("button", { cls: "ll-mdict-order-btn", attr: { type: "button", "aria-label": t("Move down") } });
                 setIcon(downBtn, "arrow-down");
-                downBtn.title = t("Move down");
                 downBtn.disabled = orderIndex < 0 || orderIndex >= order.length - 1;
                 downBtn.addEventListener("click", () => { void this.moveDictionary(dictId, 1); });
 
                 // Delete button
                 const delBtn = row.createEl("button", { cls: "ll-mdict-del", attr: { type: "button", "aria-label": `${t("Delete dictionary")}: ${entry.name}` } });
                 setIcon(delBtn, "trash-2");
-                delBtn.title = t("Delete dictionary");
                 delBtn.addEventListener("click", async () => {
                     const mdictSettings = this.plugin.settings.mdict_files.map((_, index) =>
                         this.plugin.settings.dictionaries[`mdict_${index}`]
@@ -1217,6 +1110,7 @@ export class SettingTab extends PluginSettingTab {
                     }
                 }));
         }
+        if (this.isQiaomuIntegration()) this.lookupSettings(containerEl);
     }
 
     private async addMdictFile(path: string, name: string): Promise<void> {
@@ -1519,6 +1413,23 @@ export class SettingTab extends PluginSettingTab {
             );
 
         new Setting(containerEl)
+            .setName(t("Open count bar"))
+            .setDesc(t("Count the word number of different type of article"))
+            .addToggle(toggle => toggle
+                .setValue(this.plugin.settings.word_count)
+                .onChange(async (value) => {
+                    this.plugin.settings.word_count = value;
+                    await this.plugin.saveSettings();
+                })
+            );
+
+        this.lookupSettings(containerEl);
+    }
+
+    private lookupSettings(containerEl: HTMLElement) {
+        if (this.isQiaomuIntegration()) new Setting(containerEl).setName(t("Lookup")).setHeading();
+
+        new Setting(containerEl)
             .setName(t("Use Machine Translation"))
             .setDesc(t("Auto translate sentences"))
             .addToggle(toggle => toggle
@@ -1528,13 +1439,14 @@ export class SettingTab extends PluginSettingTab {
                     await this.plugin.saveSettings();
                 })
             );
+
         new Setting(containerEl)
-            .setName(t("Open count bar"))
-            .setDesc(t("Count the word number of different type of article"))
+            .setName(t("Click words only look up"))
+            .setDesc(t("Click words only look up Desc"))
             .addToggle(toggle => toggle
-                .setValue(this.plugin.settings.word_count)
+                .setValue(this.plugin.settings.subtitle_click_lookup_only)
                 .onChange(async (value) => {
-                    this.plugin.settings.word_count = value;
+                    this.plugin.settings.subtitle_click_lookup_only = value;
                     await this.plugin.saveSettings();
                 })
             );
@@ -1548,17 +1460,6 @@ export class SettingTab extends PluginSettingTab {
                 .setValue(this.plugin.settings.hover_definition_enabled)
                 .onChange(async (value) => {
                     this.plugin.settings.hover_definition_enabled = value;
-                    await this.plugin.saveSettings();
-                })
-            );
-
-        new Setting(containerEl)
-            .setName(t("Click words only look up"))
-            .setDesc(t("Click words only look up Desc"))
-            .addToggle(toggle => toggle
-                .setValue(this.plugin.settings.subtitle_click_lookup_only)
-                .onChange(async (value) => {
-                    this.plugin.settings.subtitle_click_lookup_only = value;
                     await this.plugin.saveSettings();
                 })
             );
@@ -1625,7 +1526,7 @@ export class SettingTab extends PluginSettingTab {
                 })
             );
 
-        this.withSearchAliases(new Setting(containerEl), "Review Reflux", "Reflux familiar days", "Reflux known days", "Reflux learned days")
+        new Setting(containerEl)
             .setName(t("Review Reflux"))
             .setDesc(t("Review reflux desc"))
             .addToggle(toggle => toggle

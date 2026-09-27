@@ -115,7 +115,7 @@ PDF 保留原始版式，支持独立缩放。有可靠文字层时，可选择�
 <details>
 <summary>与官方 Qiaomu Reader 并存</summary>
 
-官方插件 ID 是 `qiaomu-reader`，定制版 ID 是 `qiaomu-reader-english`，两者可以同时启用。定制版通过明确的命令或文件菜单入口打开 Markdown，不接管官方电子书默认打开方式。
+官方插件 ID 是 `qiaomu-reader`，定制版 ID 是 `qiaomu-reader-english`，两者可以同时启用。仅启用定制版时，单击 EPUB、MOBI 等电子书文件会直接进入英文阅读器；Obsidian 自带的 PDF 视图仍接管 PDF 单击，PDF 可从文件右键菜单或书库进入英文阅读器。Markdown 仍通过命令或文件菜单显式打开。两版同时启用时，官方版保留电子书的默认文件关联，定制版可从文件右键菜单或自己的书库打开。
 
 定制版使用独立的插件设置、阅读进度、高亮和英文复习文件；不会读取或覆盖 Language Learner 的数据。
 

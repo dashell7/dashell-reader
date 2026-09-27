@@ -90,18 +90,18 @@
 						<button type="button"
 							class="action-btn translate-btn" 
 							:class="{ 'ai-mode': isAiMode(index) }"
+							:disabled="isTranslating(index)"
+							:aria-busy="isTranslating(index)"
 							@click="toggleTransByIndex(index, model.sentences[index])"
-							:title="isAiMode(index) ? t('Switch to machine translation') : t('Switch to AI translation')"
-							:aria-label="isAiMode(index) ? t('Switch to machine translation') : t('Switch to AI translation')"
+							:aria-label="isTranslating(index) ? t('Translation in progress') : (isAiMode(index) ? t('Switch to machine translation') : t('Switch to AI translation'))"
 						>
-							{{ isAiMode(index) ? 'AI' : '机' }}
+							{{ isTranslating(index) ? (isAiMode(index) ? '机…' : 'AI…') : (isAiMode(index) ? 'AI' : '机') }}
 						</button>
 						
 						<!-- 删除按钮 -->
 						<button type="button"
 							class="action-btn delete-btn"
 							@click="() => removeSentence(index)"
-							:title="t('Delete sentence')"
 							:aria-label="t('Delete sentence')"
 						>
 							<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
@@ -111,7 +111,6 @@
 						<button type="button"
 							class="action-btn add-btn"
 							@click="() => insertSentenceAfter(index)"
-							:title="t('Add sentence')"
 							:aria-label="t('Add sentence')"
 						>
 							<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
@@ -630,6 +629,7 @@ useEvent(window, "qiaomu-english-event-search", async (evt: CustomEvent) => {
 // 翻译切换逻辑
 const translationTypes = ref<Record<number, 'machine' | 'ai'>>({});
 const translationCache = ref<Record<string, { machine?: string; ai?: string }>>({});
+const translating = ref(new Set<Sentence>());
 
 const normalizeIndex = (index: string | number) => {
     return typeof index === "number" ? index : Number(index);
@@ -637,6 +637,7 @@ const normalizeIndex = (index: string | number) => {
 
 const toggleTrans = async (index: string | number, element: any) => {
     const normalizedIndex = normalizeIndex(index);
+    if (translating.value.has(element)) return;
     const currentType = translationTypes.value[normalizedIndex] || 'machine';
     const newType = currentType === 'machine' ? 'ai' : 'machine';
     const sentence = element.text; // 注意这里是 text 不是 sentence
@@ -654,6 +655,7 @@ const toggleTrans = async (index: string | number, element: any) => {
     }
 
     // 2. 执行翻译
+    translating.value.add(element);
     try {
         let result = "";
         if (newType === 'ai') {
@@ -664,19 +666,26 @@ const toggleTrans = async (index: string | number, element: any) => {
              result = extractGoogleTranslation(res);
         }
         result = decodeHtmlEntities(result);
+        if (!result.trim()) throw new Error("Empty translation");
+        if (model.value.sentences[normalizedIndex] !== element || element.text !== sentence) return;
 
         // 3. 更新结果和缓存
-        if (result) {
-            element.trans = result;
-            translationCache.value[sentence][newType] = result;
-            translationTypes.value[normalizedIndex] = newType;
-        }
+        element.trans = result;
+        translationCache.value[sentence][newType] = result;
+        translationTypes.value[normalizedIndex] = newType;
     } catch (e) {
+        if (model.value.sentences[normalizedIndex] !== element || element.text !== sentence) return;
         const setupRequired = e instanceof Error
             && (e as Error & { qiaomuReaderReason?: string }).qiaomuReaderReason === 'notconfigured';
-        new Notice(setupRequired ? e.message : "Translation failed");
+        new Notice(setupRequired ? e.message : t("Translation failed"));
         logger.error("Translation failed:", e);
+    } finally {
+        translating.value.delete(element);
     }
+};
+
+const isTranslating = (index: string | number) => {
+    return translating.value.has(model.value.sentences[normalizeIndex(index)]);
 };
 
 const isAiMode = (index: string | number) => {
@@ -700,6 +709,7 @@ const insertSentenceAfter = (index: string | number) => {
 // 监听单词变化，重置状态
 watch(() => model.value, () => {
     translationTypes.value = {};
+    translating.value.clear();
 });
 
 </script>
@@ -764,7 +774,8 @@ watch(() => model.value, () => {
 
         /* 翻译按钮特殊样式 */
         &.translate-btn {
-            font-size: 0.75rem;
+			white-space: nowrap;
+			font-size: 0.65rem;
             
             &.ai-mode {
                 background: var(--interactive-accent);
@@ -774,6 +785,11 @@ watch(() => model.value, () => {
             &:hover:not(.ai-mode) {
                 color: var(--interactive-accent);
             }
+
+			&:disabled {
+				cursor: progress;
+				opacity: 0.75;
+			}
         }
 
         /* 删除按钮特殊样式 */

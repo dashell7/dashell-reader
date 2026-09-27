@@ -1,6 +1,6 @@
 <template>
     <div class="count-widget">
-        <button class="count-bar" type="button" :style="{ width: barWidth }" @click="changeUnit" :title="summaryLabel" :aria-label="summaryLabel">
+        <button class="count-bar" type="button" :style="{ width: barWidth }" @click="changeUnit" :aria-label="summaryLabel">
             <span class="b1" :style="styleA" aria-hidden="true"></span>
             <span class="b2" :style="styleB" aria-hidden="true"></span>
             <span class="b3" :style="styleC" aria-hidden="true"></span>

@@ -90,6 +90,8 @@ export default {
     "Delete sentence": "Delete sentence",
     "Switch to AI translation": "Switch to AI translation",
     "Switch to machine translation": "Switch to machine translation",
+    "Translation in progress": "Translation in progress",
+    "Translation failed": "Translation failed. Please try again",
 
     // Stat.vue
     "Day Ignore": "Day Ignore",
@@ -320,7 +322,7 @@ export default {
     "British": "British",
     "Delimiter": "Delimiter",
     "Click words only look up": "Click words only look up",
-    "Click words only look up Desc": "When enabled, clicking a word in LinguaFlow subtitles or reading mode opens the dictionary without opening the new-word panel",
+    "Click words only look up Desc": "When enabled, clicking a word opens the dictionary without opening the new-word panel",
 
 
     "As Server": "As Server",
@@ -398,14 +400,11 @@ export default {
     "Dictionary replaced": "Dictionary replaced",
 
     // Settings and dictionary status
-    "Search settings": "Search settings",
     "General settings": "General",
     "Dictionary settings": "Dictionaries",
     "Reading settings": "Reading",
     "Vocabulary and review settings": "Vocabulary & Review",
     "AI settings": "AI",
-    "Matching settings": "Found in",
-    "No matching settings": "No matching settings",
     "MDict disabled": "Disabled",
     "MDict desktop status": "Desktop only",
     "MDict file missing": "File unavailable; choose a replacement",
@@ -426,6 +425,7 @@ export default {
     "Review db sync failed": "Review database sync failed",
     "Review db sr preserved": "SR progress entries preserved",
     "words count": "words",
+    "No definition found": "No definition found",
 
     // Review reflux (SR scheduling → word status)
     "Review Reflux": "Update vocabulary status from review progress",

@@ -86,6 +86,8 @@ export default {
     "Delete sentence": "刪除例句",
     "Switch to AI translation": "切換到 AI 翻譯",
     "Switch to machine translation": "切換到機器翻譯",
+    "Translation in progress": "翻譯中",
+    "Translation failed": "翻譯失敗，請重試",
 
     // Test.vue
     "Day Ignore": "單日-忽略",
@@ -258,7 +260,7 @@ export default {
     "British": "英式",
     "Delimiter": "分隔符",
     "Click words only look up": "點擊單字僅查字",
-    "Click words only look up Desc": "開啟後，LinguaFlow 字幕和閱讀模式點擊單字只開啟詞典，不自動彈出生字面板",
+    "Click words only look up Desc": "開啟後，點擊單字只開啟詞典，不自動開啟生字面板",
 
     "As Server": "成為伺服器",
     "Self as Server": "開啟伺服器功能",
@@ -266,14 +268,11 @@ export default {
     "when changing port, you should restart the server": "如果改變埠，請重啟伺服器",
 
     // 設定與詞典狀態
-    "Search settings": "搜尋設定",
     "General settings": "一般",
     "Dictionary settings": "詞典",
     "Reading settings": "閱讀",
     "Vocabulary and review settings": "詞庫與複習",
     "AI settings": "AI",
-    "Matching settings": "符合的分組",
-    "No matching settings": "沒有符合的設定",
     "MDict disabled": "已停用",
     "MDict desktop status": "僅桌面版可用",
     "MDict file missing": "檔案無法使用，請重新選擇檔案",
@@ -315,6 +314,7 @@ export default {
 
     // Review reflux (SR scheduling → word status)
     "Review Reflux": "根據複習進度更新詞彙狀態",
+    "No definition found": "未找到釋義",
     "Review thresholds": "詞彙狀態升級門檻",
     "Review reflux desc": "依 Spaced Repetition 的新複習紀錄自動提升狀態。手動調整後，舊紀錄不會覆蓋你的選擇；忽略的詞不受影響，遺忘時不會自動降級。",
     "Reflux familiar days": "「眼熟」所需間隔（天）",

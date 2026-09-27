@@ -146,7 +146,7 @@ export default class LanguageLearner extends Plugin {
         this.initStore();
         this.addCommands();
         this.registerCustomViews();
-        this.registerReadingToggle();
+        if (this.supportsLegacyReadingView()) this.registerReadingToggle();
         this.registerContextMenu();
         this.registerLeftClick();
         this.registerMouseup();
@@ -473,6 +473,10 @@ export default class LanguageLearner extends Plugin {
         if (notifyDictionaries) this.store.dictsChange = !this.store.dictsChange;
     }
 
+    protected supportsLegacyReadingView(): boolean {
+        return true;
+    }
+
     addCommands() {
         this.addCommand({
             id: "langr-backup-vocabulary",
@@ -532,13 +536,14 @@ export default class LanguageLearner extends Plugin {
             },
         });
 
-        // 一键转为阅读文章
-        this.addCommand({
-            id: "langr-convert-to-reading",
-            name: t("Convert to reading article"),
-            hotkeys: [{ modifiers: ["Mod", "Shift"], key: "l" }],
-            callback: () => this.convertToReadingArticle(),
-        });
+        if (this.supportsLegacyReadingView()) {
+            this.addCommand({
+                id: "langr-convert-to-reading",
+                name: t("Convert to reading article"),
+                hotkeys: [{ modifiers: ["Mod", "Shift"], key: "l" }],
+                callback: () => this.convertToReadingArticle(),
+            });
+        }
 
         // 标记当前文章为已完成 (Learning Hub 集成)
         this.addCommand({
@@ -1055,7 +1060,7 @@ export default class LanguageLearner extends Plugin {
         return para?.textContent?.trim() || "";
     }
 
-    async queryWord(word: string, target?: HTMLElement, evtPosition?: Position, sentenceOverride?: string): Promise<void> {
+    async queryWord(word: string, target?: HTMLElement, evtPosition?: Position, sentenceOverride?: string, readerWord = false): Promise<void> {
         if (!word) return;
         // Deduplicate: skip if the exact same word is queried within 300ms
         const now = Date.now();
@@ -1077,7 +1082,7 @@ export default class LanguageLearner extends Plugin {
                 target.classList?.contains("select") ||
                 !!target.closest(".stns"));
         const shouldOpenLearnPanel = !!target &&
-            !(this.settings.subtitle_click_lookup_only && (isSubtitleWordTarget || isReadingWordTarget));
+            !(this.settings.subtitle_click_lookup_only && (isSubtitleWordTarget || isReadingWordTarget || readerWord));
 
         if (shouldOpenLearnPanel) {
             await this.activateView(LEARN_PANEL_VIEW, "right");

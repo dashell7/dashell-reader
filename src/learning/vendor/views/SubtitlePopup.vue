@@ -12,6 +12,7 @@
         <div class="stp-body">
             <div class="stp-meaning" v-for="(m, i) in meanings.slice(0, 3)" :key="i">{{ m }}</div>
             <div class="stp-meaning stp-loading" v-if="loading && meanings.length === 0">...</div>
+            <div class="stp-meaning" v-if="!loading && meanings.length === 0">{{ t('No definition found') }}</div>
             <!-- Action buttons: 🔊 ✓ 📖, side by side, inline style to avoid CSS conflicts -->
             <div class="stp-actions">
                 <button
@@ -19,9 +20,9 @@
                     style="display:flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:6px;border:none;cursor:pointer;padding:0;box-sizing:border-box;"
                     @click="speakWord"
                     :title="t('Pronounce')"
-                    :aria-label="t('Pronounce')"
                 >
                     <svg viewBox="0 0 24 24" style="width:16px;height:16px;flex-shrink:0;"><path fill="currentColor" d="M3 9v6h4l5 5V4L7 9H3z"/><path fill="currentColor" d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>
+                    <span class="qiaomu-reader-sr-only">{{ t('Pronounce') }}</span>
                 </button>
                 <button
                     class="stp-btn-known"
@@ -29,9 +30,10 @@
                     style="display:flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:6px;border:none;cursor:pointer;padding:0;box-sizing:border-box;"
                     @click="markKnown"
                     :title="currentStatus === 3 ? t('Mark as ignored') : t('Mark as known')"
-                    :aria-label="currentStatus === 3 ? t('Mark as ignored') : t('Mark as known')"
+                    :aria-pressed="currentStatus === 3"
                 >
                     <svg viewBox="0 0 24 24" style="width:16px;height:16px;flex-shrink:0;"><path fill="currentColor" d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                    <span class="qiaomu-reader-sr-only">{{ currentStatus === 3 ? t('Mark as ignored') : t('Mark as known') }}</span>
                 </button>
                 <button
                     class="stp-btn-learn"
@@ -39,9 +41,10 @@
                     style="display:flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:6px;border:none;cursor:pointer;padding:0;box-sizing:border-box;"
                     @click="markLearning"
                     :title="t('Mark as learning')"
-                    :aria-label="t('Mark as learning')"
+                    :aria-pressed="currentStatus === 1"
                 >
                     <svg viewBox="0 0 24 24" style="width:16px;height:16px;flex-shrink:0;"><path fill="currentColor" d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 4h5v8l-2.5-1.5L6 12V4z"/></svg>
+                    <span class="qiaomu-reader-sr-only">{{ t('Mark as learning') }}</span>
                 </button>
             </div>
         </div>
@@ -55,6 +58,7 @@ import type PluginType from '@/plugin';
 import { playAudio } from '@/utils/helpers';
 import { logger } from '@/utils/logger';
 import { t } from '@/lang/helper';
+import { fetchEnglishDefinitions } from './english-definition';
 
 const instance = getCurrentInstance();
 if (!instance) throw new Error('SubtitlePopup: Vue instance not available');
@@ -229,28 +233,6 @@ function withTimeout<T>(promise: Promise<T>, ms = 5000): Promise<T> {
     });
 }
 
-/** Free Dictionary API — returns English definitions */
-async function fetchEnglishDefinition(w: string): Promise<string[]> {
-    try {
-        const resp = await withTimeout(requestUrl({ url: `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(w)}` }));
-        const data = resp.json;
-        if (!Array.isArray(data) || !data[0]?.meanings) return [];
-        const result: string[] = [];
-        for (const m of data[0].meanings) {
-            for (const d of (m.definitions || [])) {
-                if (d.definition && result.length < 3) {
-                    result.push(d.definition);
-                }
-            }
-            if (result.length >= 3) break;
-        }
-        return result;
-    } catch (e) {
-        logger.warn('[SubtitlePopup] fetchEnglishDefinition failed:', e);
-        return [];
-    }
-}
-
 /** Google Translate with dictionary entries */
 async function fetchGoogleTranslate(w: string, tl: string): Promise<string[]> {
     try {
@@ -345,6 +327,7 @@ async function lookupWord(w: string) {
     loading.value = true;
     meanings.value = [];
     currentStatus.value = -1;
+    const hoverLang = (plugin.settings?.hover_definition_lang || '').trim() || 'zh';
 
     // 0. Invalidate cache if language/provider settings changed
     const currentLangKey = `${plugin.settings?.hover_definition_lang || 'zh'}|${plugin.settings?.hover_definition_provider || 'auto'}`;
@@ -366,7 +349,7 @@ async function lookupWord(w: string) {
     try {
         const info = await plugin.db.getExpression(w);
         if (myId !== lookupRequestId) return; // stale request cancelled
-        if (info && info.meaning) {
+        if (info && info.meaning && hoverLang !== 'en') {
             meanings.value = info.meaning.split(/[;；\n]/).map(s => s.trim()).filter(Boolean);
             currentStatus.value = info.status;
             wordCache.set(w.toLowerCase(), { meanings: meanings.value, status: info.status });
@@ -388,21 +371,14 @@ async function lookupWord(w: string) {
     }
 
     // 2. Fetch definition based on settings
-    const hoverLang = (plugin.settings?.hover_definition_lang || '').trim() || 'zh';
     const provider = (plugin.settings?.hover_definition_provider || 'auto').toLowerCase();
 
     try {
         let result: string[] = [];
 
         if (hoverLang === 'en') {
-            // ── English-English: use Free Dictionary API ──
-            result = await fetchEnglishDefinition(w);
+            result = await fetchEnglishDefinitions(w, options => withTimeout(requestUrl(options)));
             if (myId !== lookupRequestId) return; // stale request cancelled
-            // Fallback: Google en→en (sometimes returns synonyms)
-            if (result.length === 0) {
-                result = await fetchGoogleTranslate(w, 'en');
-                if (myId !== lookupRequestId) return; // stale request cancelled
-            }
         } else {
             // ── Translation to target language ──
             if (provider === 'bing') {
@@ -750,33 +726,35 @@ defineExpose({ show, close, cancelClose });
 /* ✓ button */
 .stp-btn-known {
     background: rgba(255, 255, 255, 0.08);
-    color: #5cb85c;
+    color: #b7bdc5;
 }
 .stp-btn-known:hover {
     background: rgba(255, 255, 255, 0.14);
 }
 .stp-btn-known.stp-btn-active {
     background: rgba(92, 184, 92, 0.2);
-    color: #6ed674;
+    color: #78dfa0;
+    box-shadow: inset 0 0 0 1px #45ad6c;
 }
 
 /* 📖 button */
 .stp-btn-learn {
     background: rgba(255, 255, 255, 0.08);
-    color: #e8a838;
+    color: #ffd17a;
 }
 .stp-btn-learn:hover {
     background: rgba(255, 255, 255, 0.14);
 }
 .stp-btn-learn.stp-btn-active {
-    background: rgba(232, 168, 56, 0.2);
-    color: #ffb84d;
+    background: rgba(92, 184, 92, 0.2);
+    color: #78dfa0;
+    box-shadow: inset 0 0 0 1px #45ad6c;
 }
 
 /* ── LIGHT MODE buttons ── */
 .theme-light .stp-btn-speak {
     background: rgba(0, 0, 0, 0.06);
-    color: #1971c2;
+    color: #1765a3;
 }
 .theme-light .stp-btn-speak:hover {
     background: rgba(0, 0, 0, 0.1);
@@ -784,26 +762,28 @@ defineExpose({ show, close, cancelClose });
 
 .theme-light .stp-btn-known {
     background: rgba(0, 0, 0, 0.06);
-    color: #2d8a2d;
+    color: #67727b;
 }
 .theme-light .stp-btn-known:hover {
     background: rgba(0, 0, 0, 0.1);
 }
 .theme-light .stp-btn-known.stp-btn-active {
     background: rgba(45, 138, 45, 0.15);
-    color: #1e7e34;
+    color: #187a3d;
+    box-shadow: inset 0 0 0 1px #26a65b;
 }
 
 .theme-light .stp-btn-learn {
     background: rgba(0, 0, 0, 0.06);
-    color: #c07b1a;
+    color: #a96b11;
 }
 .theme-light .stp-btn-learn:hover {
     background: rgba(0, 0, 0, 0.1);
 }
 .theme-light .stp-btn-learn.stp-btn-active {
-    background: rgba(192, 123, 26, 0.15);
-    color: #d48a00;
+    background: rgba(45, 138, 45, 0.15);
+    color: #187a3d;
+    box-shadow: inset 0 0 0 1px #26a65b;
 }
 
 .is-mobile .stp-btn-speak,
