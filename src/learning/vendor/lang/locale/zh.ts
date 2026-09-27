@@ -89,7 +89,6 @@ export default {
     "Delete sentence": "删除例句",
     "Switch to AI translation": "切换到 AI 翻译",
     "Switch to machine translation": "切换到机器翻译",
-    "Settings exported without API key": "设置已导出（未包含 API Key）",
 
     // Test.vue
     "Day Ignore": "单日-无视",
@@ -401,8 +400,7 @@ export default {
     "Copied to clipboard": "已复制到剪贴板",
     "Meaning is empty!": "含义不应为空",
 
-    // Configuration Management
-    "Configuration Management": "配置管理",
+    // 设置与词典状态
     "Search settings": "搜索设置",
     "General settings": "通用",
     "Dictionary settings": "词典",
@@ -421,15 +419,6 @@ export default {
     "MDict loading": "正在加载索引",
     "MDict ready": "索引已就绪",
     "MDict load failed": "加载失败",
-    "Reset appearance": "重置外观",
-    "Reset reading and dictionary appearance without changing vocabulary or database paths": "只重置阅读和词典外观，不改变词库或数据库路径",
-    "Appearance reset": "外观设置已重置",
-    "Export Settings": "导出配置",
-    "Import Settings": "导入配置",
-    "Export current settings to a JSON file": "将当前配置导出为 JSON 文件",
-    "Import settings from a JSON file": "从 JSON 文件导入配置",
-    "Settings imported successfully!": "配置导入成功！",
-    "Failed to import settings: Invalid JSON": "导入配置失败：无效的 JSON",
 
     // Review database notices
     "Review context changed": "复习文件或设置已变化，请重新同步。",

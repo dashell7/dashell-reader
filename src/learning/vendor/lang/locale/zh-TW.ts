@@ -86,7 +86,6 @@ export default {
     "Delete sentence": "刪除例句",
     "Switch to AI translation": "切換到 AI 翻譯",
     "Switch to machine translation": "切換到機器翻譯",
-    "Settings exported without API key": "設定已匯出（未包含 API Key）",
 
     // Test.vue
     "Day Ignore": "單日-忽略",
@@ -266,8 +265,7 @@ export default {
     "Make plugin a server and interact with chrome extension": "外掛開啟一個伺服器提供API，由此可以與Google瀏覽器外掛互動",
     "when changing port, you should restart the server": "如果改變埠，請重啟伺服器",
 
-    // Configuration Management
-    "Configuration Management": "配置管理",
+    // 設定與詞典狀態
     "Search settings": "搜尋設定",
     "General settings": "一般",
     "Dictionary settings": "詞典",
@@ -286,15 +284,6 @@ export default {
     "MDict loading": "正在載入索引",
     "MDict ready": "索引已就緒",
     "MDict load failed": "載入失敗",
-    "Reset appearance": "重置外觀",
-    "Reset reading and dictionary appearance without changing vocabulary or database paths": "只重置閱讀和詞典外觀，不改變詞庫或資料庫路徑",
-    "Appearance reset": "外觀設定已重置",
-    "Export Settings": "匯出設定",
-    "Import Settings": "匯入設定",
-    "Export current settings to a JSON file": "將目前設定匯出為 JSON 文件",
-    "Import settings from a JSON file": "從 JSON 文件匯入設定",
-    "Settings imported successfully!": "設定匯入成功！",
-    "Failed to import settings: Invalid JSON": "匯入設定失敗：無效的 JSON",
     "Choose": "選擇",
     "Current": "目前",
     "Not set": "未設定",

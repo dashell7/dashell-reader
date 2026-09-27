@@ -151,28 +151,6 @@
     animation: ll-fade-in 0.18s ease;
 }
 
-.ll-maintenance {
-    margin-top: 24px;
-    border-top: 1px solid var(--background-modifier-border);
-    padding-top: 10px;
-}
-
-.ll-maintenance summary {
-    cursor: pointer;
-    color: var(--text-muted);
-    font-size: var(--font-ui-small);
-    font-weight: 600;
-}
-
-.ll-maintenance summary:focus-visible {
-    outline: 2px solid var(--interactive-accent);
-    outline-offset: 2px;
-}
-
-.ll-maintenance[open] summary {
-    margin-bottom: 8px;
-}
-
 .ll-collapsible-settings {
     margin: 12px 0 4px;
     border-top: 1px solid var(--background-modifier-border);

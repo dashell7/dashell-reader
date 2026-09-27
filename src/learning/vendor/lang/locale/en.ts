@@ -90,7 +90,6 @@ export default {
     "Delete sentence": "Delete sentence",
     "Switch to AI translation": "Switch to AI translation",
     "Switch to machine translation": "Switch to machine translation",
-    "Settings exported without API key": "Settings exported without the API key",
 
     // Stat.vue
     "Day Ignore": "Day Ignore",
@@ -398,8 +397,7 @@ export default {
     "Replace MDX File": "Choose replacement file",
     "Dictionary replaced": "Dictionary replaced",
 
-    // Configuration Management
-    "Configuration Management": "Configuration Management",
+    // Settings and dictionary status
     "Search settings": "Search settings",
     "General settings": "General",
     "Dictionary settings": "Dictionaries",
@@ -418,15 +416,6 @@ export default {
     "MDict loading": "Loading index",
     "MDict ready": "Index ready",
     "MDict load failed": "Load failed",
-    "Reset appearance": "Reset appearance",
-    "Reset reading and dictionary appearance without changing vocabulary or database paths": "Reset reading and dictionary appearance without changing vocabulary or database paths",
-    "Appearance reset": "Appearance settings reset",
-    "Export Settings": "Export Settings",
-    "Import Settings": "Import Settings",
-    "Export current settings to a JSON file": "Export current settings to a JSON file",
-    "Import settings from a JSON file": "Import settings from a JSON file",
-    "Settings imported successfully!": "Settings imported successfully!",
-    "Failed to import settings: Invalid JSON": "Failed to import settings: Invalid JSON",
 
     // Review database notices
     "Review context changed": "The review file or settings changed. Please sync again.",

@@ -91,9 +91,8 @@ const scalarBooleanKeys: Array<keyof MyPluginSettings> = [
 ];
 
 /**
- * Validate settings loaded from data.json or an imported JSON file.
- * Unknown fields are ignored; the current API key is retained when an import
- * omits it, which keeps exported settings safe to share.
+ * Validate persisted settings and in-memory edits. Unknown fields are ignored;
+ * values absent from an in-memory update remain in the supplied base settings.
  */
 export function normalizeSettings(
     input: unknown,

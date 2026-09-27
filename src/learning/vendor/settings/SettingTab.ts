@@ -10,7 +10,6 @@ import zhTW from '../lang/locale/zh-TW';
 import { dicts } from '@dict/list';
 import store from '../store';
 import type { MyPluginSettings, HoverTranslationProvider, ReadingWidthMode } from './types';
-import { DEFAULT_SETTINGS } from './defaults';
 import { AI_PROVIDERS } from './types';
 import {
     normalizeDictionaryFontSize,
@@ -18,9 +17,7 @@ import {
     normalizeLineHeight,
     normalizeReadingFontSize,
     normalizeReadingSideSpacing,
-    normalizeSettings,
 } from './validation';
-import { logger } from '../utils/logger';
 import { normalizeRefluxDays } from '../utils/reviewReflux';
 import { withTimeout } from '../dictionary/helpers';
 import '../styles/settings.css';
@@ -242,7 +239,7 @@ export class SettingTab extends PluginSettingTab {
                     const searchable = `${row.textContent || ""} ${row.dataset.searchTerms || ""} ${aliases}`.toLocaleLowerCase();
                     const matches = !query || searchable.includes(query);
                     row.style.display = matches ? "" : "none";
-                    if (matches && query && !row.closest('.ll-maintenance')) {
+                    if (matches && query) {
                         let current: Element | null = row;
                         while (current && current !== panel) {
                             let previous = current.previousElementSibling;
@@ -263,8 +260,6 @@ export class SettingTab extends PluginSettingTab {
                 if (mdictList) mdictList.style.display = !query || matches.some((row) => row.classList.contains("ll-mdict-row")) ? "" : "none";
                 const mdictDescription = panel.querySelector<HTMLElement>(".ll-mdict-description");
                 if (mdictDescription) mdictDescription.style.display = !query || matches.some((row) => row.classList.contains("ll-mdict-row")) ? "" : "none";
-                const maintenance = panel.querySelector<HTMLDetailsElement>(".ll-maintenance");
-                if (maintenance && query && matches.some((row) => maintenance.contains(row))) maintenance.open = true;
                 panel.querySelectorAll<HTMLDetailsElement>(".ll-collapsible-settings").forEach((details) => {
                     if (query && matches.some((row) => details.contains(row))) details.open = true;
                 });
@@ -321,9 +316,6 @@ export class SettingTab extends PluginSettingTab {
         // Tab 1: General
         const generalTab = tabContents.createDiv({ cls: "ll-tab-content", attr: { "data-tab": "general", id: "ll-panel-general", role: "tabpanel", "aria-labelledby": "ll-tab-general", tabindex: "0" } });
         this.queryGeneralSettings(generalTab);
-        const maintenance = generalTab.createEl("details", { cls: "ll-maintenance" });
-        maintenance.createEl("summary", { text: t("Configuration Management") });
-        this.configSettings(maintenance);
 
         // Tab 2: Dictionaries
         const dictsTab = tabContents.createDiv({ cls: "ll-tab-content", attr: { "data-tab": "dictionaries", id: "ll-panel-dictionaries", role: "tabpanel", "aria-labelledby": "ll-tab-dictionaries", tabindex: "0" } });
@@ -918,86 +910,6 @@ export class SettingTab extends PluginSettingTab {
                     await this.plugin.saveSettings();
                 })
             );
-    }
-
-    configSettings(containerEl: HTMLElement) {
-        new Setting(containerEl)
-            .setName(t("Export Settings"))
-            .setDesc(t("Export current settings to a JSON file"))
-            .addButton(button => button
-                .setButtonText(t("Export"))
-                .onClick(() => {
-                    // Never put a usable API key into a portable settings file.
-                    const exportSettings = normalizeSettings(this.plugin.settings, this.plugin.settings);
-                    exportSettings.ai.api_key = "";
-                    const data = JSON.stringify(exportSettings, null, 2);
-                    const blob = new Blob([data], { type: 'application/json' });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = 'language-learner-settings.json';
-                    a.click();
-                    URL.revokeObjectURL(url);
-                    new Notice(t("Settings exported without API key"));
-                }));
-
-        new Setting(containerEl)
-            .setName(t("Import Settings"))
-            .setDesc(t("Import settings from a JSON file"))
-            .addButton(button => button
-                .setButtonText(t("Import"))
-                .onClick(() => {
-                    const input = document.createElement('input');
-                    input.type = 'file';
-                    input.accept = '.json';
-                    input.onchange = async (e: any) => {
-                        const file = e.target.files[0];
-                        if (file) {
-                            const reader = new FileReader();
-                            reader.onload = async (e) => {
-                                try {
-                                    const content = e.target?.result as string;
-                                    const settings = JSON.parse(content);
-                                    this.plugin.settings = normalizeSettings(settings, this.plugin.settings);
-                                    this.plugin.syncStoreFromSettings(true);
-                                    this.plugin.applyWordColorTheme();
-                                    this.plugin.reinitMdictEngines();
-                                    await this.plugin.saveSettings();
-                                    new Notice(t("Settings imported successfully!"));
-                                    this.refreshDisplayPreservingScroll();
-                                } catch (error) {
-                                    new Notice(t("Failed to import settings: Invalid JSON"));
-                                    logger.error('Import failed:', error);
-                                }
-                            };
-                            reader.readAsText(file);
-                        }
-                    };
-                    input.click();
-                }));
-
-        new Setting(containerEl)
-            .setName(t("Reset appearance"))
-            .setDesc(t("Reset reading and dictionary appearance without changing vocabulary or database paths"))
-            .addButton(button => button
-                .setButtonText(t("Reset"))
-                .setWarning()
-                .onClick(async () => {
-                    this.plugin.settings.word_color_theme = DEFAULT_SETTINGS.word_color_theme;
-                    this.plugin.settings.font_size = DEFAULT_SETTINGS.font_size;
-                    this.plugin.settings.font_family = DEFAULT_SETTINGS.font_family;
-                    this.plugin.settings.line_height = DEFAULT_SETTINGS.line_height;
-                    this.plugin.settings.reading_width_mode = DEFAULT_SETTINGS.reading_width_mode;
-                    this.plugin.settings.reading_side_spacing = DEFAULT_SETTINGS.reading_side_spacing;
-                    this.plugin.settings.dict_height = DEFAULT_SETTINGS.dict_height;
-                    this.plugin.settings.dict_font_size = DEFAULT_SETTINGS.dict_font_size;
-                    this.plugin.settings.dict_font_family = DEFAULT_SETTINGS.dict_font_family;
-                    this.plugin.syncStoreFromSettings(true);
-                    this.plugin.applyWordColorTheme();
-                    await this.plugin.saveSettings();
-                    new Notice(t("Appearance reset"));
-                    this.refreshDisplayPreservingScroll();
-                }));
     }
 
     dictionarySettings(containerEl: HTMLElement) {
