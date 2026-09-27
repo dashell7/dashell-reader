@@ -10,7 +10,10 @@ permissions:
 
 jobs:
   verify:
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -24,6 +27,7 @@ jobs:
       - run: npm run verify:release
       - run: npx eslint src/ --max-warnings=0
       - name: Verify committed build artifact
+        if: runner.os == 'Windows'
         run: git diff --exit-code -- main.js styles.css
       - name: Verify community candidate excludes the ACP installer
         run: npm run build:community
