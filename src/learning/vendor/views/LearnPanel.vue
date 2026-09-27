@@ -186,24 +186,74 @@ const theme = computed(() => {
 	return store.dark ? darkTheme : null;
 });
 
+// Naive UI writes its own component colors as inline CSS variables. Point only
+// this learning form at the reader palette so inputs and the teleported tag menu
+// update with the reading theme without changing their behavior or the host UI.
+const panelBg = "var(--qiaomu-english-bg, var(--background-primary))";
+const panelUi = "var(--qiaomu-english-ui, var(--background-secondary))";
+const panelText = "var(--qiaomu-english-text, var(--text-normal))";
+const panelMuted = "var(--qiaomu-english-muted, var(--text-muted))";
+const panelBorder = "var(--qiaomu-english-border, var(--background-modifier-border))";
+const panelAccent = "var(--qiaomu-english-accent, var(--interactive-accent))";
+
 // 样式设置
 const themeOverrides: GlobalThemeOverrides = {
 	common: {},
 	Form: {
+		labelTextColor: panelText,
+		feedbackTextColor: panelMuted,
 		labelFontSizeTopMedium: "15px",
 		feedbackFontSizeMedium: "13px",
 		blankHeightMedium: "5px",
 		feedbackHeightMedium: "22px",
 	},
 	Radio: {
+		color: panelBg,
+		textColor: panelText,
+		buttonColor: panelBg,
+		buttonColorActive: panelUi,
+		buttonTextColor: panelText,
+		buttonTextColorActive: panelAccent,
+		buttonBorderColor: panelBorder,
+		buttonBorderColorActive: panelAccent,
 		buttonBorderRadius: "5px",
 		fontSizeMedium: "13px",
 		fontSizeSmall: "13px",
 		buttonHeightSmall: "22px",
 	},
 	Input: {
+		color: panelBg,
+		colorHover: panelBg,
+		colorFocus: panelBg,
+		textColor: panelText,
+		placeholderColor: panelMuted,
+		border: `1px solid ${panelBorder}`,
+		borderHover: `1px solid ${panelAccent}`,
+		borderFocus: `1px solid ${panelAccent}`,
 		fontSizeSmall: "12px",
 		paddingSmall: "0 5px",
+	},
+	Button: {
+		color: panelUi,
+		colorHover: panelUi,
+		colorPressed: panelUi,
+		colorFocus: panelUi,
+		textColor: panelText,
+		border: `1px solid ${panelBorder}`,
+	},
+	InternalSelection: {
+		color: panelBg,
+		colorActive: panelBg,
+		textColor: panelText,
+		placeholderColor: panelMuted,
+		border: `1px solid ${panelBorder}`,
+		borderActive: `1px solid ${panelAccent}`,
+	},
+	InternalSelectMenu: {
+		color: panelUi,
+		optionTextColor: panelText,
+		groupHeaderTextColor: panelMuted,
+		optionTextColorActive: panelAccent,
 	},
 	DynamicInput: {
 		actionMargin: "0 0 0 5px",

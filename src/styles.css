@@ -1689,3 +1689,66 @@ button.qiaomu-reader-find-item.qiaomu-reader-toc-active { background: var(--back
   --text-on-accent: #181a1b;
   color: var(--text-normal);
 }
+
+/* English study surfaces use the reader's selected paper/text palette. These
+   aliases stay inside our panels; Obsidian and other plugins keep their theme. */
+body[data-qiaomu-english-theme] .workspace-leaf-content[data-type="qiaomu-english-search-panel"] > .view-content,
+body[data-qiaomu-english-theme] .workspace-leaf-content[data-type="qiaomu-english-learn-panel"] > .view-content {
+  background: var(--qiaomu-english-bg);
+  color: var(--qiaomu-english-text);
+}
+
+body[data-qiaomu-english-theme] :is(#qiaomu-english-search, #qiaomu-english-learn-panel, #popup-search) {
+  --background-primary: var(--qiaomu-english-bg);
+  --background-primary-alt: var(--qiaomu-english-ui);
+  --background-secondary: var(--qiaomu-english-ui);
+  --background-secondary-alt: var(--qiaomu-english-bg);
+  --background-modifier-border: var(--qiaomu-english-border);
+  --background-modifier-hover: color-mix(in srgb, var(--qiaomu-english-ui) 90%, var(--qiaomu-english-text));
+  --background-modifier-active-hover: var(--qiaomu-english-ui);
+  --background-modifier-form-field: var(--qiaomu-english-bg);
+  --text-normal: var(--qiaomu-english-text);
+  --text-muted: var(--qiaomu-english-muted);
+  --text-faint: var(--qiaomu-english-muted);
+  --text-accent: var(--qiaomu-english-accent);
+  --interactive-accent: var(--qiaomu-english-accent);
+  --interactive-accent-hover: color-mix(in srgb, var(--qiaomu-english-accent) 85%, var(--qiaomu-english-text));
+  --text-on-accent: var(--qiaomu-english-bg);
+  background-color: var(--qiaomu-english-bg);
+  color: var(--qiaomu-english-text);
+  color-scheme: light;
+}
+
+body[data-qiaomu-english-theme="night"] :is(#qiaomu-english-search, #qiaomu-english-learn-panel, #popup-search) {
+  color-scheme: dark;
+}
+
+/* Obsidian's native button rule outranks Naive UI's --n-color on its own. */
+body[data-qiaomu-english-theme] #qiaomu-english-learn-panel .n-button {
+  background-color: var(--qiaomu-english-ui);
+  color: var(--qiaomu-english-text);
+}
+body[data-qiaomu-english-theme] #qiaomu-english-learn-panel .n-button:hover:not(:disabled) {
+  background-color: color-mix(in srgb, var(--qiaomu-english-ui) 85%, var(--qiaomu-english-accent));
+}
+
+body[data-qiaomu-english-theme] .langr-subtitle-popup {
+  background: var(--qiaomu-english-bg);
+  border: 1px solid var(--qiaomu-english-border);
+  color: var(--qiaomu-english-text);
+  color-scheme: light;
+}
+body[data-qiaomu-english-theme="night"] .langr-subtitle-popup { color-scheme: dark; }
+body[data-qiaomu-english-theme] .langr-subtitle-popup .stp-meaning { color: var(--qiaomu-english-text); }
+body[data-qiaomu-english-theme] .langr-subtitle-popup .stp-loading { color: var(--qiaomu-english-muted); }
+body[data-qiaomu-english-theme] .langr-subtitle-popup .stp-actions button {
+  background: var(--qiaomu-english-ui);
+  color: var(--qiaomu-english-text);
+}
+body[data-qiaomu-english-theme] .langr-subtitle-popup .stp-actions button:hover {
+  background: color-mix(in srgb, var(--qiaomu-english-ui) 85%, var(--qiaomu-english-accent));
+}
+body[data-qiaomu-english-theme] .langr-subtitle-popup .stp-actions button.stp-btn-active {
+  background: color-mix(in srgb, var(--qiaomu-english-bg) 75%, var(--qiaomu-english-accent));
+  color: var(--qiaomu-english-accent);
+}

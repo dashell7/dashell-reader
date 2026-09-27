@@ -50,6 +50,7 @@ import { QIAOMU_READER_ZH_CN } from "./i18n-zh.js";
 import { translateUiText } from "./i18n-runtime.js";
 import { UI_LANGUAGES, normalizeUiLanguage, uiLanguageMetadata } from "./i18n-languages.js";
 import { READER_THEMES, READER_THEME_CHOICES, migrateReaderTheme } from "./reader-themes.js";
+import { applyEnglishLearningTheme, clearEnglishLearningTheme } from "./english-learning-theme.js";
 import { FONT_FILE_ACCEPT, disposeReaderFonts, importedReaderFonts, listSystemFonts, readerFontStore } from "./reader-fonts.js";
 import { normalizeCustomFontFamily, resolveReaderFont, readerTextCss, syncPageButtons } from "./reader-appearance.js";
 import { BUNDLED_FONT_FAMILIES, ensureBundledReaderFont } from "./bundled-fonts.js";
@@ -1543,8 +1544,13 @@ const QiaomuBookReader = class extends Plugin {
       const doc = leaf.view?.containerEl?.ownerDocument;
       if (doc) this._watchQuietUiDocument(doc);
     });
-    this.registerEvent(this.app.workspace.on("window-open", (_workspace, win) => this._watchQuietUiDocument(win.document)));
+    this._syncEnglishLearningTheme();
+    this.registerEvent(this.app.workspace.on("window-open", (_workspace, win) => {
+      this._watchQuietUiDocument(win.document);
+      this._syncEnglishLearningTheme();
+    }));
     this.registerEvent(this.app.workspace.on("window-close", (_workspace, win) => {
+      clearEnglishLearningTheme(win.document);
       this._quietUiDocuments.get(win.document)?.();
       this._quietUiDocuments.delete(win.document);
     }));
@@ -1847,6 +1853,7 @@ const QiaomuBookReader = class extends Plugin {
   }
   onunload() {
     this._unloading = true;
+    for (const doc of this._quietUiDocuments?.keys() || []) clearEnglishLearningTheme(doc);
     void this.learning?.onunload();
     for (const modal of [...(this._englishDictionaryModals || [])]) modal.close();
     for (const controller of this._lookupControllers || []) controller.destroy();
@@ -2292,8 +2299,13 @@ const QiaomuBookReader = class extends Plugin {
     }
   }
   async saveAll() {
+    this._syncEnglishLearningTheme();
     await this._saveLocalData();
     await this._saveProgressToVault();
+  }
+  _syncEnglishLearningTheme() {
+    if (!this._quietUiDocuments) return;
+    for (const doc of this._quietUiDocuments.keys()) applyEnglishLearningTheme(doc, this.settings);
   }
   _saveLocalData() {
     captureDeviceProfile(this.settings);
@@ -8169,6 +8181,7 @@ const ReadSettingsModal = class extends Modal {
   }
   async _apply(нуженПересчёт) {
     const v = this.view;
+    v.plugin._syncEnglishLearningTheme();
     window.clearTimeout(this._saveT);
     this._saveT = window.setTimeout(() => { v.plugin.saveAll(); }, 500);
     if (typeof v.applyVars === "function") v.applyVars();
