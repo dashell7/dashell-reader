@@ -4,7 +4,9 @@ import obsidianmd from "eslint-plugin-obsidianmd";
 // the result as a Scorecard, so warnings matter as much as errors here.
 export default [
   {
-    ignores: ["main.js", "pdf.worker.js", "node_modules/**", "promo-video/**"],
+    // The imported Language Learner tree is checked by typecheck:learning;
+    // its upstream lint debt is tracked separately from fork-owned code.
+    ignores: ["main.js", "pdf.worker.js", "node_modules/**", "promo-video/**", "src/learning/vendor/**", "src/learning/shims.d.ts"],
   },
   ...obsidianmd.configs.recommended,
   // Tests execute in Node, never in the mobile plugin bundle.
