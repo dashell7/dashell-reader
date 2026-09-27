@@ -34,8 +34,8 @@ export function wordFromTextAtOffset(text, offset) {
   return wordSpanAtOffset(text, offset)?.word || "";
 }
 
-/** Resolve the word under a pointer without changing the reader DOM. */
-export function wordAtPoint(doc, x, y, fallbackTarget = null) {
+/** Resolve the word and its visible bounds without changing the reader DOM. */
+function wordHitAtPoint(doc, x, y, fallbackTarget = null) {
   let node = null;
   let offset = 0;
   try {
@@ -52,21 +52,30 @@ export function wordAtPoint(doc, x, y, fallbackTarget = null) {
   }
   if (node?.nodeType === 3) {
     const span = wordSpanAtOffset(node.nodeValue, offset);
-    if (!span) return "";
+    if (!span) return null;
     const range = doc.createRange?.();
+    let rect = null;
     if (range?.getClientRects) {
       range.setStart(node, span.start);
       range.setEnd(node, span.end);
       const boxes = [...range.getClientRects()];
-      if (boxes.length && !boxes.some((box) => x >= box.left - 2 && x <= box.right + 2 && y >= box.top - 2 && y <= box.bottom + 2)) return "";
+      rect = boxes.find((box) => x >= box.left - 2 && x <= box.right + 2 && y >= box.top - 2 && y <= box.bottom + 2) || null;
+      if (boxes.length && !rect) return null;
     }
-    return span.word;
+    return { word: span.word, rect };
   }
   if (fallbackTarget?.firstChild?.nodeType === 3 && fallbackTarget.childNodes.length === 1) {
     const text = fallbackTarget.firstChild.nodeValue || "";
-    if (text.split(/\s+/).length === 1) return normalizeEnglishLookup(text);
+    if (text.split(/\s+/).length === 1) {
+      const word = normalizeEnglishLookup(text);
+      if (word) return { word, rect: fallbackTarget.getBoundingClientRect?.() || null };
+    }
   }
-  return "";
+  return null;
+}
+
+export function wordAtPoint(doc, x, y, fallbackTarget = null) {
+  return wordHitAtPoint(doc, x, y, fallbackTarget)?.word || "";
 }
 
 export function parseYoudaoResult(data) {
@@ -280,24 +289,30 @@ export class EnglishLookupController {
       }
       const selection = doc.getSelection?.();
       if (selection && !selection.isCollapsed) { this.hide(); return; }
-      const point = pointFromEvent(event, frame);
+      const cursorPoint = pointFromEvent(event, frame);
       const hoverPopup = this.hostDocument.querySelector(".langr-subtitle-popup");
       const popupRect = hoverPopup?.getBoundingClientRect();
-      if (popupRect && point.x >= popupRect.left && point.x <= popupRect.right
-        && point.y >= popupRect.top && point.y <= popupRect.bottom) {
+      if (popupRect && cursorPoint.x >= popupRect.left && cursorPoint.x <= popupRect.right
+        && cursorPoint.y >= popupRect.top && cursorPoint.y <= popupRect.bottom) {
         this.clearHoverTimer();
         return;
       }
-      const word = wordAtPoint(doc, event.clientX, event.clientY, event.target);
-      if (!word) {
+      const hit = wordHitAtPoint(doc, event.clientX, event.clientY, event.target);
+      if (!hit) {
         this.clearHoverTimer();
         if (this.active?.doc === doc) this.scheduleClose();
         return;
       }
+      const word = hit.word;
       if (this.active?.doc === doc && this.active?.word === word) return;
       this.clearHoverTimer();
       if (this.closeTimer) this.hostDocument.defaultView.clearTimeout(this.closeTimer);
       this.closeTimer = null;
+      const frameRect = frame?.getBoundingClientRect?.();
+      const point = hit.rect ? {
+        x: (hit.rect.left + hit.rect.right) / 2 + (frameRect?.left || 0),
+        y: hit.rect.top + (frameRect?.top || 0),
+      } : cursorPoint;
       const sentence = sentenceFromTarget(event.target);
       this.active = { doc, scope, frame, target: event.target, word, point, sentence };
       this.timer = doc.defaultView.setTimeout(() => {

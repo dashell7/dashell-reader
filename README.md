@@ -248,6 +248,8 @@ The custom plugin can run beside the official `qiaomu-reader` plugin. Its settin
 
 For updates, use BRAT or replace the three release files from GitHub. This repository is not an official Obsidian directory listing.
 
+On desktop, **Add from Calibre** copies selected books from a local [Calibre](https://calibre-ebook.com/) library into the vault. Search uses `metadata.db` (Python 3) and falls back to `calibredb`. The whole Calibre library is not mounted into Obsidian. This entry is hidden on mobile.
+
 ### Read, highlight and keep notes
 
 Qiaomu Reader is a Chinese-first reader for Obsidian supporting EPUB, PDF, FB2, MOBI, AZW3 and CBZ. PDF files retain their original fixed page layout; pages with a reliable text layer support selection, search, highlights, annotations and full-document or selected-text AI context, while scan-only pages provide original-page reading, progress and one book-level note without pretending OCR is available. The plugin keeps one dedicated Markdown reading note per book inside your vault.

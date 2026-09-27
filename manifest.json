@@ -1,7 +1,7 @@
 {
   "id": "qiaomu-reader-english",
   "name": "Qiaomu Reader English",
-  "version": "4.4.0",
+  "version": "4.4.1",
   "minAppVersion": "1.11.4",
   "description": "Read EPUB, PDF, Markdown and other text documents with highlights, notes, English dictionary lookup and Spaced Repetition review cards.",
   "author": "向阳乔木",

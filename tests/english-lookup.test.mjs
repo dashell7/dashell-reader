@@ -129,6 +129,27 @@ test("reader hover sends its word and sentence to the original lookup UI", async
   controller.destroy(); dom.window.close();
 });
 
+test("hover popup anchors above the word bounds instead of the pointer", async () => {
+  const hovered = [];
+  const { dom, controller } = setup({
+    settings: () => ({ englishLookupEnabled: true, englishHoverDelay: 1 }),
+    onHoverLookup: (word, context) => hovered.push({ word, context }),
+  });
+  const doc = dom.window.document;
+  const paragraph = doc.querySelector("p");
+  doc.caretRangeFromPoint = () => ({ startContainer: paragraph.firstChild, startOffset: 2 });
+  doc.createRange = () => ({
+    setStart() {}, setEnd() {},
+    getClientRects: () => [{ left: 10, right: 70, top: 20, bottom: 40 }],
+  });
+  controller.attach(doc, { scope: paragraph, frame: { getBoundingClientRect: () => ({ left: 100, top: 200 }) } });
+  paragraph.dispatchEvent(new dom.window.MouseEvent("mousemove", { bubbles: true, clientX: 50, clientY: 30 }));
+  await new Promise(resolve => dom.window.setTimeout(resolve, 15));
+  assert.equal(hovered[0]?.word, "reader");
+  assert.deepEqual({ ...hovered[0]?.context.position }, { x: 140, y: 220 });
+  controller.destroy(); dom.window.close();
+});
+
 test("starting a text selection cancels pending hover and dismisses an open hover popup", async () => {
   const hovered = [];
   const closed = [];
