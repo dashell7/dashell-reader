@@ -1,6 +1,6 @@
 {
   "name": "qiaomu-reader-english",
-  "version": "4.4.1",
+  "version": "4.4.2",
   "description": "基于 Qiaomu Reader 的 Obsidian 英文阅读器，支持 EPUB、PDF、Markdown 等文本阅读、悬浮查词、选区查词和 Spaced Repetition 复习卡片。",
   "homepage": "https://github.com/dashell7/qiaomu-reader-english",
   "repository": {
