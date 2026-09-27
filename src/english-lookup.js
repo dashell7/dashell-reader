@@ -228,7 +228,7 @@ function pointFromEvent(event, frame) {
 }
 
 function sentenceFromTarget(target) {
-  return target?.closest?.("p,li,blockquote,.qiaomu-reader-pdf-text-layer span")
+  return target?.closest?.("p,li,blockquote,.qiaomu-reader-pdf-text-layer span,.qiaomu-reader-pdf-text-layer")
     ?.textContent?.replace(/\s+/g, " ").trim().slice(0, 500) || "";
 }
 
@@ -239,6 +239,8 @@ export class EnglishLookupController {
     this.hostDocument = options.hostDocument || document;
     this.onAddReview = options.onAddReview || (() => Promise.resolve(false));
     this.onOpenDictionary = options.onOpenDictionary || (() => {});
+    this.onHoverLookup = options.onHoverLookup || null;
+    this.onHoverClose = options.onHoverClose || null;
     this.request = options.request || requestUrl;
     this.cache = new LruCache();
     this.attachments = [];
@@ -261,7 +263,16 @@ export class EnglishLookupController {
     const frame = options.frame || null;
     const inside = (target) => target && (target === scope || scope.contains?.(target));
     const eligible = (target) => inside(target) && !target.closest?.("a,button,input,textarea,select,code,pre,[contenteditable],.qiaomu-reader-hl-popup");
+    let pointerPressed = false;
     const onMove = (event) => {
+      if (pointerPressed || (event.buttons & 1)) {
+        // Selection is not non-collapsed until the drag advances. Never let a
+        // pending hover fire between pointerdown and the first selected glyph.
+        pointerPressed = !!event.buttons;
+        this.clearHoverTimer();
+        if (this.active?.doc === doc) this.hide();
+        return;
+      }
       if (!this.settings().englishLookupEnabled || !eligible(event.target)) {
         this.clearHoverTimer();
         if (this.active?.doc === doc) this.scheduleClose();
@@ -270,6 +281,13 @@ export class EnglishLookupController {
       const selection = doc.getSelection?.();
       if (selection && !selection.isCollapsed) { this.hide(); return; }
       const point = pointFromEvent(event, frame);
+      const hoverPopup = this.hostDocument.querySelector(".langr-subtitle-popup");
+      const popupRect = hoverPopup?.getBoundingClientRect();
+      if (popupRect && point.x >= popupRect.left && point.x <= popupRect.right
+        && point.y >= popupRect.top && point.y <= popupRect.bottom) {
+        this.clearHoverTimer();
+        return;
+      }
       const word = wordAtPoint(doc, event.clientX, event.clientY, event.target);
       if (!word) {
         this.clearHoverTimer();
@@ -286,13 +304,14 @@ export class EnglishLookupController {
         this.timer = null;
         const current = this.active;
         if (!current || current.word !== word || current.doc !== doc) return;
-        void this.show(word, point, current);
+        if (this.onHoverLookup) this.onHoverLookup(word, { sentence, position: point, target: current.target });
+        else void this.show(word, point, current);
       }, Number(this.settings().englishHoverDelay) || DEFAULT_DELAY);
     };
     const onOut = (event) => {
       if (!inside(event.target)) return;
       const next = event.relatedTarget;
-      if (next && (inside(next) || this.popup?.contains(next))) return;
+      if (next && (inside(next) || this.popup?.contains(next) || next.closest?.(".langr-subtitle-popup"))) return;
       this.clearHoverTimer();
       this.scheduleClose();
     };
@@ -309,18 +328,51 @@ export class EnglishLookupController {
       this.clearHoverTimer();
       const sentence = sentenceFromTarget(event.target);
       this.hide();
-      this.onOpenDictionary(word, { sentence });
+      this.onOpenDictionary(word, { sentence, target: event.target, position: pointFromEvent(event, frame) });
     };
     const onScroll = () => this.hide();
+    const onPointerDown = (event) => {
+      if (!inside(event.target)) return;
+      pointerPressed = true;
+      this.hide();
+    };
+    const onPointerCancel = () => { pointerPressed = false; this.hide(); };
+    const onBlur = () => { pointerPressed = false; };
+    const onSelectionChange = () => {
+      if (this.active?.doc === doc && !doc.getSelection?.()?.isCollapsed) this.hide();
+    };
     doc.addEventListener("mousemove", onMove);
     doc.addEventListener("mouseout", onOut);
     doc.addEventListener("click", onClick, true);
+    const onPointerUp = (event) => {
+      pointerPressed = false;
+      if (!inside(event.target)) return;
+      const selection = doc.getSelection?.()?.toString().trim();
+      if (!selection) return;
+      const modifier = this.settings().function_key;
+      if (modifier === "disable" || (modifier && modifier !== "disable" && !event[modifier] && !this.settings().isMobile)) return;
+      this.hide();
+      this.onOpenDictionary(selection, {
+        sentence: sentenceFromTarget(event.target), target: event.target,
+        position: pointFromEvent(event, frame),
+      });
+    };
+    doc.addEventListener("pointerdown", onPointerDown, true);
+    doc.addEventListener("pointerup", onPointerUp);
+    doc.addEventListener("pointercancel", onPointerCancel);
+    doc.addEventListener("selectionchange", onSelectionChange);
     doc.addEventListener("scroll", onScroll, true);
+    doc.defaultView?.addEventListener("blur", onBlur);
     const stop = () => {
       doc.removeEventListener("mousemove", onMove);
       doc.removeEventListener("mouseout", onOut);
       doc.removeEventListener("click", onClick, true);
+      doc.removeEventListener("pointerdown", onPointerDown, true);
+      doc.removeEventListener("pointerup", onPointerUp);
+      doc.removeEventListener("pointercancel", onPointerCancel);
+      doc.removeEventListener("selectionchange", onSelectionChange);
       doc.removeEventListener("scroll", onScroll, true);
+      doc.defaultView?.removeEventListener("blur", onBlur);
     };
     this.attachments.push({ doc, frame, stop });
   }
@@ -335,7 +387,7 @@ export class EnglishLookupController {
     if (this.closeTimer) return;
     this.closeTimer = this.hostDocument.defaultView.setTimeout(() => {
       this.closeTimer = null;
-      if (!this.popup?.matches(":hover")) this.hide();
+      if (!this.popup?.matches(":hover") && !this.hostDocument.querySelector(".langr-subtitle-popup:hover")) this.hide();
     }, DEFAULT_CLOSE_DELAY);
   }
 
@@ -461,6 +513,7 @@ export class EnglishLookupController {
     this.closeTimer = null;
     this._abort?.abort(); this.sequence++;
     if (this.popup) this.popup.classList.remove("qiaomu-reader-dict-popup-on");
+    this.onHoverClose?.();
     this.active = null;
   }
 

@@ -1,0 +1,490 @@
+/* Language Learner Settings — aligned with Obsidian's native settings style.
+   Keeps a lightweight tab navigation (5 categories) but lets every setting row
+   render with stock Obsidian styling: no per-item cards, native font sizes,
+   native section headings (via setHeading()). */
+
+.ll-settings-root {
+    --ll-radius: 8px;
+}
+
+.ll-settings-container {
+    padding: 4px 0 12px;
+}
+
+.ll-settings-search {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    padding: 4px 0 8px;
+    background: var(--background-primary);
+}
+
+.ll-settings-search input {
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 40px;
+    padding: 8px 12px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+    background: var(--background-primary);
+    color: var(--text-normal);
+}
+
+.ll-settings-search input:focus {
+    border-color: var(--interactive-accent);
+    box-shadow: 0 0 0 2px rgba(var(--interactive-accent-rgb), 0.16);
+    outline: none;
+}
+
+.ll-settings-search-results {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+}
+
+.ll-settings-search-results:empty {
+    display: none;
+}
+
+.ll-settings-search-label,
+.ll-settings-search-empty {
+    color: var(--text-muted);
+    font-size: var(--font-ui-smaller);
+}
+
+.ll-settings-search-result {
+    min-height: 28px;
+    padding: 2px 8px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    background: var(--background-primary);
+    color: var(--text-normal);
+    font-size: var(--font-ui-smaller);
+    cursor: pointer;
+}
+
+.ll-settings-search-result:hover {
+    background: var(--background-modifier-hover);
+}
+
+.ll-settings-search-result:focus-visible {
+    outline: 2px solid var(--interactive-accent);
+    outline-offset: 2px;
+}
+
+/* ── Tab navigation (underline style, blends with Obsidian chrome) ────────── */
+.ll-tab-headers {
+    position: sticky;
+    top: 52px;
+    z-index: 20;
+    display: flex;
+    gap: 2px;
+    overflow-x: auto;
+    border-bottom: 1px solid var(--background-modifier-border);
+    margin-bottom: 14px;
+    padding-top: 4px;
+    background: var(--background-primary);
+    scrollbar-width: none;
+}
+
+.ll-tab-headers::-webkit-scrollbar {
+    display: none;
+}
+
+.ll-tab-header {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    padding: 7px 12px;
+    min-height: 44px;
+    cursor: pointer;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    background: transparent;
+    color: var(--text-normal);
+    font: inherit;
+    margin-bottom: -1px;
+    opacity: 0.7;
+    transition: opacity 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.ll-tab-header:hover {
+    opacity: 1;
+    background: var(--background-modifier-hover);
+    border-radius: 6px 6px 0 0;
+}
+
+.ll-tab-header.active {
+    opacity: 1;
+    border-bottom-color: var(--interactive-accent);
+}
+
+.ll-tab-header:focus-visible {
+    outline: 2px solid var(--interactive-accent);
+    outline-offset: -2px;
+    border-radius: 4px;
+}
+
+.ll-tab-label {
+    font-size: var(--font-ui-small);
+    font-weight: 600;
+    color: var(--text-normal);
+    line-height: 1.2;
+}
+
+.ll-tab-header.active .ll-tab-label {
+    color: var(--interactive-accent);
+}
+
+/* ── Tab content — native settings, no card-izing ────────────────────────── */
+.ll-content-wrapper {
+    min-height: 0;
+}
+
+.ll-tab-content {
+    display: none;
+}
+
+.ll-tab-content.active {
+    display: block;
+    animation: ll-fade-in 0.18s ease;
+}
+
+.ll-maintenance {
+    margin-top: 24px;
+    border-top: 1px solid var(--background-modifier-border);
+    padding-top: 10px;
+}
+
+.ll-maintenance summary {
+    cursor: pointer;
+    color: var(--text-muted);
+    font-size: var(--font-ui-small);
+    font-weight: 600;
+}
+
+.ll-maintenance summary:focus-visible {
+    outline: 2px solid var(--interactive-accent);
+    outline-offset: 2px;
+}
+
+.ll-maintenance[open] summary {
+    margin-bottom: 8px;
+}
+
+.ll-collapsible-settings {
+    margin: 12px 0 4px;
+    border-top: 1px solid var(--background-modifier-border);
+    padding-top: 8px;
+}
+
+.ll-collapsible-settings summary {
+    cursor: pointer;
+    color: var(--text-muted);
+    font-size: var(--font-ui-small);
+    font-weight: 600;
+}
+
+.ll-collapsible-settings summary:focus-visible {
+    outline: 2px solid var(--interactive-accent);
+    outline-offset: 2px;
+}
+
+.ll-collapsible-settings[open] summary {
+    margin-bottom: 4px;
+    color: var(--text-normal);
+}
+
+.ll-settings-root .setting-item {
+    padding-top: 9px;
+    padding-bottom: 9px;
+}
+
+.ll-ai-test-feedback {
+    margin: 2px 0 8px;
+    color: var(--text-muted);
+    font-size: var(--font-ui-small);
+}
+
+.ll-ai-test-feedback:empty {
+    display: none;
+}
+
+.ll-ai-test-feedback[data-state="success"] {
+    color: var(--text-success);
+}
+
+.ll-ai-test-feedback[data-state="error"] {
+    color: var(--text-error);
+}
+
+.ll-ai-key-setting .setting-item-control {
+    flex-wrap: nowrap;
+    min-width: 0;
+    gap: 6px;
+}
+
+.ll-ai-key-setting input.ll-wide-input {
+    flex: 1 1 auto;
+    width: auto !important;
+    min-width: 0;
+}
+
+.ll-ai-key-setting .extra-setting-button {
+    flex: 0 0 auto;
+}
+
+.ll-setting-current {
+    margin-top: 3px;
+    overflow: hidden;
+    color: var(--text-faint);
+    font-size: var(--font-ui-smaller);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ll-wide-input {
+    width: min(420px, 100%) !important;
+    max-width: 100%;
+}
+
+.ll-prompt-input {
+    min-height: 100px;
+    width: min(520px, 100%) !important;
+    max-width: 100%;
+}
+
+.ll-settings-root .setting-item-control {
+    flex-wrap: wrap;
+    max-width: 100%;
+}
+
+.ll-settings-root .setting-item-control select,
+.ll-settings-root .setting-item-control input[type="text"],
+.ll-settings-root .setting-item-control input[type="password"],
+.ll-settings-root .setting-item-control textarea {
+    max-width: 100%;
+}
+
+@keyframes ll-fade-in {
+    from { opacity: 0; transform: translateY(2px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Info card (notes / warnings) ────────────────────────────────────────── */
+.ll-info-card {
+    background: var(--background-secondary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--ll-radius);
+    padding: 8px 10px;
+    margin: 8px 0;
+    font-size: var(--font-ui-smaller);
+    line-height: 1.4;
+    color: var(--text-muted);
+}
+
+.ll-info-card.warning {
+    border-left: 3px solid var(--text-warning, #e6b800);
+}
+
+.ll-info-card.danger {
+    border-left: 3px solid var(--text-error, #ff4444);
+}
+
+/* ── MDict dictionary list (functional custom control) ───────────────────── */
+.ll-mdict-list {
+    margin: 4px 0 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.ll-mdict-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 8px;
+    background: var(--background-secondary);
+    border-radius: 6px;
+    font-size: var(--font-ui-small);
+}
+
+.ll-mdict-row input[type="checkbox"] {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+}
+
+.ll-mdict-name {
+    font-weight: 600;
+    color: var(--text-normal);
+    flex-shrink: 0;
+    min-width: 72px;
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ll-mdict-path {
+    color: var(--text-muted);
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: var(--font-monospace);
+    font-size: var(--font-ui-smaller);
+}
+
+.ll-mdict-status {
+    flex: 0 0 100%;
+    order: 10;
+    padding-left: 28px;
+    color: var(--text-muted);
+    font-size: var(--font-ui-smaller);
+    overflow-wrap: anywhere;
+}
+
+.ll-mdict-status[data-state="ready"] {
+    color: var(--text-success);
+}
+
+.ll-mdict-status[data-state="error"],
+.ll-mdict-status[data-state="unavailable"] {
+    color: var(--text-error);
+}
+
+.ll-mdict-recover {
+    display: none;
+    flex: 0 0 auto;
+    min-height: 32px;
+    padding: 4px 9px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 5px;
+    background: var(--background-primary);
+    color: var(--text-normal);
+    font-size: var(--font-ui-smaller);
+    cursor: pointer;
+}
+
+.ll-mdict-recover.is-visible {
+    display: inline-flex;
+    align-items: center;
+}
+
+.ll-mdict-recover:hover {
+    background: var(--background-modifier-hover);
+}
+
+.ll-mdict-priority {
+    flex-shrink: 0;
+    width: 52px;
+    min-height: 40px;
+    background: var(--background-modifier-form-field);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    color: var(--text-normal);
+    padding: 2px 4px;
+    font-size: var(--font-ui-smaller);
+}
+
+.ll-mdict-del {
+    flex-shrink: 0;
+    background: transparent;
+    border: none;
+    color: var(--text-faint);
+    cursor: pointer;
+    padding: 2px 7px;
+    min-width: 40px;
+    min-height: 40px;
+    border-radius: 4px;
+    transition: color 0.12s ease, background 0.12s ease;
+}
+
+.ll-mdict-order-btn {
+    flex: 0 0 40px;
+    min-width: 40px;
+    min-height: 40px;
+    padding: 0;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 5px;
+    background: var(--background-primary);
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: var(--font-ui-small);
+}
+
+.ll-mdict-order-btn:hover:not(:disabled) {
+    background: var(--background-modifier-hover);
+    color: var(--text-normal);
+}
+
+.ll-mdict-order-btn:disabled {
+    cursor: default;
+    opacity: 0.35;
+}
+
+.ll-mdict-order-btn svg,
+.ll-mdict-del svg {
+    width: 18px;
+    height: 18px;
+}
+
+.ll-mdict-del:hover {
+    color: var(--text-error);
+    background: var(--background-modifier-error);
+}
+
+/* ── Responsive / motion ─────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+    .ll-tab-header {
+        padding: 6px 10px;
+    }
+
+    .ll-settings-root .setting-item {
+        align-items: flex-start;
+    }
+
+    .ll-settings-root .setting-item-control {
+        justify-content: flex-start;
+    }
+
+    .ll-mdict-row {
+        flex-wrap: wrap;
+        align-items: center;
+    }
+
+    .ll-mdict-path {
+        flex-basis: 100%;
+        order: 5;
+        padding-left: 26px;
+    }
+}
+
+@media (max-width: 520px) {
+    .ll-settings-root .setting-item {
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .ll-settings-root .setting-item-info,
+    .ll-settings-root .setting-item-control {
+        width: 100%;
+    }
+
+    .ll-settings-root .setting-item-control {
+        justify-content: flex-start;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ll-tab-header {
+        transition: none;
+    }
+    .ll-tab-content.active {
+        animation: none;
+    }
+}

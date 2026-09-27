@@ -1,0 +1,663 @@
+@import "./stalin.css";
+@import "./styles/stat.css";
+@import "./styles/settings.css";
+
+/* ============================================================
+   Reading Mode — Word status highlighting
+   CSS variables are set by applyWordColorTheme() in plugin.ts.
+   These MUST live here (styles.css) because Vue SFC <style>
+   blocks are NOT injected by the build system.
+   ============================================================ */
+#qiaomu-english-reading {
+  user-select: none;
+}
+
+#qiaomu-english-reading .function-area {
+  padding: 10px 18px 12px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  background: var(--background-primary);
+}
+#qiaomu-english-reading .function-area button {
+  width: auto;
+}
+#qiaomu-english-reading .reading-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 38px;
+}
+#qiaomu-english-reading .reading-toolbar-progress {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  padding: 0 12px;
+}
+#qiaomu-english-reading .reading-toolbar .finish-reading {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+/* Keep the reading progress bar stable when a theme sets a large global
+   interface font size or component styles are loaded late. */
+#qiaomu-english-reading .count-bar {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  height: 22px;
+  overflow: hidden;
+  font-size: var(--font-ui-small, 12px);
+  font-weight: 500;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+#qiaomu-english-reading .reading-toolbar-progress .count-widget {
+  align-items: center;
+  width: 100%;
+  max-width: 720px;
+  min-width: 0;
+}
+#qiaomu-english-reading .reading-toolbar-progress .count-summary {
+  width: 100%;
+}
+#qiaomu-english-reading .count-bar > span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+#qiaomu-english-reading .text-area {
+  /* pan-y: allow native vertical scroll while still receiving tap/click events for word selection */
+  touch-action: pan-y;
+  box-sizing: border-box;
+  padding-inline: max(16px, 5%);
+  background-color: var(--qiaomu-english-reading-surface, transparent);
+}
+
+/* Reading width is a user preference: keep the current comfortable measure,
+   allow a true full-pane layout, or use the same responsive gutter on both
+   sides. The CSS variable is updated live by the settings UI. */
+#qiaomu-english-reading .text-area.reading-width-full {
+  padding-inline: 0;
+}
+
+#qiaomu-english-reading .text-area.reading-width-manual {
+  padding-inline: var(--qiaomu-english-reading-side-spacing, 5%);
+}
+
+#qiaomu-english-reading .text-area .langr-article-body {
+  width: min(100%, 72ch);
+  max-width: 72ch;
+  margin-inline: auto;
+}
+
+#qiaomu-english-reading .text-area.reading-width-full .langr-article-body,
+#qiaomu-english-reading .text-area.reading-width-manual .langr-article-body {
+  width: 100%;
+  max-width: none;
+}
+
+@media (max-width: 600px) {
+  #qiaomu-english-reading .text-area.reading-width-full,
+  #qiaomu-english-reading .text-area.reading-width-manual {
+    padding-inline: max(12px, var(--qiaomu-english-reading-side-spacing, 5%));
+  }
+}
+
+#qiaomu-english-reading .text-area span.word {
+  user-select: contain;
+  cursor: pointer;
+  border-radius: 3px;
+  transition: color 0.14s ease, background-color 0.14s ease, border-color 0.14s ease;
+  padding: 1px 0;
+}
+#qiaomu-english-reading .text-area span.word:focus-visible,
+#qiaomu-english-reading .text-area span.phrase:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+#qiaomu-english-reading .text-area span.phrase {
+  background-color: transparent;
+  padding: 2px 0;
+  cursor: pointer;
+  border-radius: 3px;
+  transition: color 0.14s ease, background-color 0.14s ease, border-color 0.14s ease;
+}
+
+#qiaomu-english-reading .text-area span.stns {
+  border: 1px solid transparent;
+}
+
+#qiaomu-english-reading .text-area span.other {
+  user-select: text;
+}
+
+/* Word status colors — controlled by CSS variables from applyWordColorTheme().
+   !important is required to override Obsidian app.css span resets. */
+#qiaomu-english-reading .text-area span.new      { color: var(--langr-new-color)      !important; background: var(--langr-new-bg)      !important; border-bottom: var(--langr-new-border)      !important; }
+#qiaomu-english-reading .text-area span.learning { color: var(--langr-learning-color) !important; background: var(--langr-learning-bg) !important; border-bottom: var(--langr-learning-border) !important; }
+#qiaomu-english-reading .text-area span.familiar { color: var(--langr-familiar-color) !important; background: var(--langr-familiar-bg) !important; border-bottom: var(--langr-familiar-border) !important; }
+#qiaomu-english-reading .text-area span.known    { color: var(--langr-known-color)    !important; background: var(--langr-known-bg)    !important; border-bottom: var(--langr-known-border)    !important; }
+#qiaomu-english-reading .text-area span.learned  { color: var(--langr-learned-color)  !important; background: var(--langr-learned-bg)  !important; border-bottom: var(--langr-learned-border)  !important; }
+
+/* Theme changes must take effect in the same paint. Keep the regular
+   transition for hover feedback, but do not animate between two palettes. */
+#qiaomu-english-reading.langr-theme-switching .text-area span.word,
+#qiaomu-english-reading.langr-theme-switching .text-area span.phrase {
+  transition: none !important;
+}
+
+/* Word status hover states */
+#qiaomu-english-reading .text-area span.new:hover      { color: var(--langr-new-hover-color, var(--langr-new-color))           !important; background: var(--langr-new-hover-bg, var(--langr-new-bg))           !important; }
+#qiaomu-english-reading .text-area span.learning:hover { color: var(--langr-learning-hover-color, var(--langr-learning-color)) !important; background: var(--langr-learning-hover-bg, var(--langr-learning-bg)) !important; }
+#qiaomu-english-reading .text-area span.familiar:hover { color: var(--langr-familiar-hover-color, var(--langr-familiar-color)) !important; background: var(--langr-familiar-hover-bg, var(--langr-familiar-bg)) !important; }
+#qiaomu-english-reading .text-area span.known:hover    { color: var(--langr-known-hover-color, var(--langr-known-color))       !important; background: var(--langr-known-hover-bg, var(--langr-known-bg))       !important; }
+#qiaomu-english-reading .text-area span.learned:hover  { color: var(--langr-learned-hover-color, var(--langr-learned-color))   !important; background: var(--langr-learned-hover-bg, var(--langr-learned-bg))   !important; }
+
+/* Selected span (phrase selection) */
+#qiaomu-english-reading .text-area .select {
+  background-color: var(--text-selection, rgba(96, 165, 250, 0.22));
+  padding: 2px 0;
+  cursor: pointer;
+  border: 1px solid var(--interactive-accent);
+  border-radius: 3px;
+  transition: background-color 0.14s ease, border-color 0.14s ease;
+}
+#qiaomu-english-reading .text-area .select:hover {
+  background-color: var(--text-selection, rgba(96, 165, 250, 0.28));
+}
+
+/* Keep a missing embed compact instead of rendering a large red error line. */
+.langr-audio-missing {
+  display: inline-flex;
+  align-items: center;
+  margin: 0 4px;
+  padding: 1px 5px;
+  border-bottom: 1px dashed var(--text-faint);
+  color: var(--text-muted);
+  font-size: 0.75em;
+  opacity: 0.8;
+  vertical-align: baseline;
+}
+
+/* ============================================================
+   Reading Mode — Markdown rendered elements
+   ============================================================ */
+.article h1, .article h2, .article h3,
+.article h4, .article h5, .article h6 {
+  color: var(--text-normal);
+  font-weight: 600;
+  margin: 0.8em 0 0.4em;
+  line-height: 1.3;
+}
+.article h1 { font-size: 1.8em; border-bottom: 1px solid var(--background-modifier-border); padding-bottom: 0.2em; }
+.article h2 { font-size: 1.5em; border-bottom: 1px solid var(--background-modifier-border); padding-bottom: 0.15em; }
+.article h3 { font-size: 1.25em; }
+.article h4 { font-size: 1.1em; }
+.article h5 { font-size: 1em; }
+.article h6 { font-size: 0.9em; color: var(--text-muted); }
+
+.article blockquote {
+  border-left: 3px solid var(--interactive-accent);
+  margin: 0.5em 0;
+  padding: 0.3em 0 0.3em 1em;
+  color: var(--text-muted);
+  background: var(--background-secondary);
+  border-radius: 0 4px 4px 0;
+}
+.article blockquote p { margin: 0; }
+
+.article ul, .article ol {
+  margin: 0.5em 0;
+  padding-left: 1.5em;
+}
+.article li {
+  margin: 0.2em 0;
+  line-height: 1.6;
+}
+
+.article pre {
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  padding: 0.8em 1em;
+  overflow-x: auto;
+  margin: 0.5em 0;
+  font-size: 0.9em;
+  line-height: 1.5;
+}
+.article pre code {
+  background: none;
+  padding: 0;
+  border: none;
+  font-family: var(--font-monospace);
+}
+.article code {
+  background: var(--background-secondary);
+  padding: 0.15em 0.35em;
+  border-radius: 3px;
+  font-family: var(--font-monospace);
+  font-size: 0.9em;
+}
+
+.langr-img-wrapper {
+  text-align: center;
+  margin: 0.8em 0;
+}
+.langr-img-wrapper img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+}
+.langr-inline-img {
+  max-height: 1.5em;
+  vertical-align: middle;
+}
+
+.article a {
+  color: var(--text-accent);
+  text-decoration: none;
+}
+.article a:hover {
+  text-decoration: underline;
+}
+
+/* Font smoothing for better text rendering */
+.langr-container, #qiaomu-english-reading, #qiaomu-english-search {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* ============================================================
+   SubtitlePopup — full styles here because Obsidian only loads
+   styles.css (built from src/main.css), NOT the Vue SFC output.
+   ============================================================ */
+.langr-subtitle-popup {
+  position: fixed;
+  z-index: 10000;
+  pointer-events: none;
+  border: none;
+  border-radius: 10px;
+  padding: 0;
+  overflow: hidden;
+  animation: stp-fadein 0.1s ease;
+  max-width: min(320px, 80vw);
+  width: auto;
+}
+.langr-subtitle-popup .stp-actions button { pointer-events: auto; }
+/* Dark mode (default) */
+.langr-subtitle-popup {
+  background: #2b2b2f;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  color: #e0e0e0;
+}
+/* Light mode */
+.theme-light .langr-subtitle-popup {
+  background: #ffffff;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.06);
+  color: #1a1a1a;
+}
+@keyframes stp-fadein {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.stp-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 6px 8px;
+}
+.stp-meaning {
+  font-size: 14px;
+  color: #e0e0e0;
+  line-height: 1.45;
+  cursor: default;
+  white-space: normal;
+  word-break: break-word;
+  text-align: center;
+  width: 100%;
+}
+.theme-light .stp-meaning {
+  color: #1a1a1a;
+}
+.stp-loading {
+  color: #666;
+  font-style: italic;
+}
+.theme-light .stp-loading {
+  color: #999;
+}
+.stp-actions {
+  display: flex;
+  flex-direction: row;
+  gap: 4px;
+  margin-top: 5px;
+}
+.stp-btn-known,
+.stp-btn-learn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, transform 0.1s;
+  padding: 0;
+}
+.stp-btn-known:active,
+.stp-btn-learn:active {
+  transform: scale(0.92);
+}
+/* Dark mode buttons */
+.stp-btn-known {
+  background: rgba(255, 255, 255, 0.08);
+  color: #5cb85c;
+}
+.stp-btn-known:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+.stp-btn-known.stp-btn-active {
+  background: rgba(92, 184, 92, 0.2);
+  color: #6ed674;
+}
+.stp-btn-learn {
+  background: rgba(255, 255, 255, 0.08);
+  color: #e8a838;
+}
+.stp-btn-learn:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+.stp-btn-learn.stp-btn-active {
+  background: rgba(232, 168, 56, 0.2);
+  color: #ffb84d;
+}
+/* Light mode buttons */
+.theme-light .stp-btn-known {
+  background: rgba(0, 0, 0, 0.06);
+  color: #2d8a2d;
+}
+.theme-light .stp-btn-known:hover {
+  background: rgba(0, 0, 0, 0.1);
+}
+.theme-light .stp-btn-known.stp-btn-active {
+  background: rgba(45, 138, 45, 0.15);
+  color: #1e7e34;
+}
+.theme-light .stp-btn-learn {
+  background: rgba(0, 0, 0, 0.06);
+  color: #c07b1a;
+}
+.theme-light .stp-btn-learn:hover {
+  background: rgba(0, 0, 0, 0.1);
+}
+.theme-light .stp-btn-learn.stp-btn-active {
+  background: rgba(192, 123, 26, 0.15);
+  color: #d48a00;
+}
+
+/* ============================================================
+   Mobile & Tablet responsive overrides
+   ============================================================ */
+
+/* Touch targets: all action buttons must be at least 44×44 px */
+.is-mobile #qiaomu-english-reading .function-area button {
+  min-height: 44px;
+  padding: 0 16px;
+  font-size: 0.9375rem;
+}
+.is-mobile #qiaomu-english-reading .reading-toolbar {
+  flex-wrap: wrap;
+}
+.is-mobile #qiaomu-english-reading .reading-toolbar-progress {
+  order: 3;
+  flex-basis: 100%;
+  padding: 4px 0 0;
+}
+
+/* Video toolbar: always visible on touch — no hover state available */
+.is-mobile .mx-toolbar {
+  opacity: 1 !important;
+}
+
+/* Resize handle: make it taller so it's easier to grab with a finger */
+.is-mobile .resize-handle-bottom {
+  height: 24px;
+  touch-action: none; /* prevent scroll while dragging */
+}
+
+/* Subtitle popup: never wider than 90vw on small phones */
+.is-mobile .langr-subtitle-popup {
+  max-width: min(320px, 90vw);
+}
+
+/* Toast: keep within safe-area on notched phones */
+.is-mobile .langr-toast {
+  top: max(16px, env(safe-area-inset-top, 0px) + 8px);
+  right: max(16px, env(safe-area-inset-right, 0px) + 8px);
+  left: auto;
+}
+
+/* Phone landscape: compact the layout so reading area gets maximum space */
+@media (orientation: landscape) and (max-height: 500px) {
+  .is-mobile #qiaomu-english-reading .function-area {
+    padding-bottom: 6px;
+  }
+  .is-mobile #qiaomu-english-reading .pagination {
+    padding-bottom: 8px;
+  }
+  /* Constrain video height in landscape to leave room for text */
+  .is-mobile .resizable-video-wrapper {
+    max-height: 40vh;
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  #qiaomu-english-reading .text-area span.word,
+  #qiaomu-english-reading .text-area span.phrase,
+  #qiaomu-english-reading .text-area .select {
+    transition: none;
+  }
+  .langr-subtitle-popup {
+    animation: none;
+  }
+}
+
+/* ============================================================
+   Android tablet hardening
+   These selectors intentionally live in the plugin stylesheet (rather than
+   relying only on Vue SFC styles) so the published Obsidian mobile bundle
+   keeps the same layout even when a theme supplies aggressive global rules.
+   ============================================================ */
+#qiaomu-english-reading .reading-toolbar {
+  display: grid;
+  grid-template-columns: auto auto auto minmax(220px, 1fr) auto;
+  width: 100%;
+  min-width: 0;
+  gap: 8px;
+}
+#qiaomu-english-reading .reading-toolbar-progress {
+  width: 100%;
+  min-width: 0;
+  grid-column: 4;
+  grid-row: 1;
+  padding: 0;
+}
+#qiaomu-english-reading .reading-toolbar-progress .count-widget {
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+}
+#qiaomu-english-reading .reading-toolbar .finish-reading {
+  grid-column: 5;
+  grid-row: 1;
+  width: auto;
+  min-width: max-content;
+}
+
+/* Dictionary panel reset: stop theme/browser defaults from turning dictionary
+   headings and arrows into oversized boxed controls. */
+#qiaomu-english-search {
+  min-height: 0;
+}
+#qiaomu-english-search .search-bar {
+  position: sticky;
+  top: 0;
+  z-index: 110;
+  box-sizing: border-box;
+  width: 100%;
+  flex: 0 0 auto;
+}
+#qiaomu-english-search .dict-area {
+  box-sizing: border-box;
+  min-height: 0;
+  flex: 1 1 auto;
+  width: 100%;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+}
+#qiaomu-english-search .dict-item {
+  display: block;
+  width: 100%;
+  margin: 0;
+  background: var(--background-primary);
+}
+#qiaomu-english-search .dict-item-header {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 44px;
+  height: auto;
+  padding: 6px 8px;
+  border-top: 1px solid var(--background-modifier-border);
+  background: var(--background-primary);
+}
+#qiaomu-english-search .dict-item-header .dict-name {
+  min-width: 0;
+  padding-left: 8px;
+  overflow: hidden;
+  color: var(--text-normal);
+  font-size: var(--font-ui-small, 13px);
+  font-weight: 600;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#qiaomu-english-search .dict-item-header .dict-icon {
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+  margin-left: 0;
+}
+#qiaomu-english-search .dict-item-header .empty-area {
+  flex: 1 1 auto;
+  min-width: 8px;
+}
+#qiaomu-english-search .dict-item-header > button {
+  display: inline-flex;
+  flex: 0 0 36px;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  min-height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-muted);
+}
+#qiaomu-english-search .dict-item-header > button:hover,
+#qiaomu-english-search .dict-item-header > button:focus-visible {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+#qiaomu-english-search .dict-loading {
+  display: none;
+  flex: 0 0 auto;
+  padding: 0 8px;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller, 11px);
+  line-height: 1.3;
+}
+#qiaomu-english-search .dict-item.loading .dict-loading {
+  display: block;
+  animation: langr-pulse 1.2s ease-in-out infinite;
+}
+#qiaomu-english-search .dict-item-body {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--background-primary);
+  color: var(--text-normal);
+  font-size: inherit;
+  line-height: 1.6;
+}
+#qiaomu-english-search .dict-item-body article,
+#qiaomu-english-search .dict-item-body article * {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+#qiaomu-english-search .dict-empty-state {
+  padding: 28px 16px;
+  color: var(--text-muted);
+  font-size: var(--font-ui-small, 13px);
+  line-height: 1.6;
+  text-align: center;
+}
+
+@media (max-width: 680px) {
+  #qiaomu-english-reading .reading-toolbar {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  #qiaomu-english-reading .reading-toolbar-progress,
+  #qiaomu-english-reading .reading-toolbar .finish-reading {
+    grid-column: 1 / -1;
+    grid-row: auto;
+  }
+  #qiaomu-english-reading .reading-toolbar .finish-reading {
+    width: 100%;
+  }
+  #qiaomu-english-search .search-bar {
+    gap: 8px;
+    padding: 8px;
+  }
+  #qiaomu-english-search .search-input {
+    min-width: 0;
+    font-size: 16px;
+  }
+}
+
+/* Obsidian marks Android tablets as mobile too. At tablet widths retain a
+   single-row reading toolbar while preserving the larger touch targets. */
+@media (min-width: 681px) {
+  .is-mobile #qiaomu-english-reading .reading-toolbar {
+    grid-template-columns: auto auto auto minmax(220px, 1fr) auto;
+  }
+  .is-mobile #qiaomu-english-reading .reading-toolbar-progress {
+    grid-column: 4;
+    grid-row: 1;
+  }
+  .is-mobile #qiaomu-english-reading .reading-toolbar .finish-reading {
+    grid-column: 5;
+    grid-row: 1;
+    width: auto;
+  }
+}

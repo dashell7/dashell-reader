@@ -1,0 +1,815 @@
+<template>
+    <div
+        v-if="visible"
+        class="langr-subtitle-popup"
+        ref="popupEl"
+        :style="{ left: x + 'px', top: y + 'px' }"
+        @click.stop
+        @mouseenter="onPopupEnter"
+        @mouseleave="onPopupLeave"
+    >
+        <!-- Meanings (max 3) + buttons, all vertically stacked -->
+        <div class="stp-body">
+            <div class="stp-meaning" v-for="(m, i) in meanings.slice(0, 3)" :key="i">{{ m }}</div>
+            <div class="stp-meaning stp-loading" v-if="loading && meanings.length === 0">...</div>
+            <!-- Action buttons: 🔊 ✓ 📖, side by side, inline style to avoid CSS conflicts -->
+            <div class="stp-actions">
+                <button
+                    class="stp-btn-speak"
+                    style="display:flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:6px;border:none;cursor:pointer;padding:0;box-sizing:border-box;"
+                    @click="speakWord"
+                    :title="t('Pronounce')"
+                    :aria-label="t('Pronounce')"
+                >
+                    <svg viewBox="0 0 24 24" style="width:16px;height:16px;flex-shrink:0;"><path fill="currentColor" d="M3 9v6h4l5 5V4L7 9H3z"/><path fill="currentColor" d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>
+                </button>
+                <button
+                    class="stp-btn-known"
+                    :class="{ 'stp-btn-active': currentStatus === 3 }"
+                    style="display:flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:6px;border:none;cursor:pointer;padding:0;box-sizing:border-box;"
+                    @click="markKnown"
+                    :title="currentStatus === 3 ? t('Mark as ignored') : t('Mark as known')"
+                    :aria-label="currentStatus === 3 ? t('Mark as ignored') : t('Mark as known')"
+                >
+                    <svg viewBox="0 0 24 24" style="width:16px;height:16px;flex-shrink:0;"><path fill="currentColor" d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                </button>
+                <button
+                    class="stp-btn-learn"
+                    :class="{ 'stp-btn-active': currentStatus === 1 }"
+                    style="display:flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:6px;border:none;cursor:pointer;padding:0;box-sizing:border-box;"
+                    @click="markLearning"
+                    :title="t('Mark as learning')"
+                    :aria-label="t('Mark as learning')"
+                >
+                    <svg viewBox="0 0 24 24" style="width:16px;height:16px;flex-shrink:0;"><path fill="currentColor" d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 4h5v8l-2.5-1.5L6 12V4z"/></svg>
+                </button>
+            </div>
+        </div>
+    </div>
+</template>
+
+<script setup lang="ts">
+import { ref, watch, nextTick, getCurrentInstance, onMounted, onUnmounted } from 'vue';
+import { requestUrl, Notice } from 'obsidian';
+import type PluginType from '@/plugin';
+import { playAudio } from '@/utils/helpers';
+import { logger } from '@/utils/logger';
+import { t } from '@/lang/helper';
+
+const instance = getCurrentInstance();
+if (!instance) throw new Error('SubtitlePopup: Vue instance not available');
+const plugin = instance.appContext.config.globalProperties.plugin as PluginType;
+
+// ── LRU Cache for word lookups ──
+class WordCache {
+    private cache = new Map<string, { meanings: string[]; status: number }>();
+    private maxSize: number;
+    constructor(maxSize = 200) { this.maxSize = maxSize; }
+    get(key: string) {
+        const v = this.cache.get(key);
+        if (v) { // Move to end (most recent)
+            this.cache.delete(key);
+            this.cache.set(key, v);
+        }
+        return v;
+    }
+    set(key: string, value: { meanings: string[]; status: number }) {
+        if (this.cache.size >= this.maxSize) {
+            // Delete oldest (first entry)
+            const oldest = this.cache.keys().next().value;
+            if (oldest !== undefined) this.cache.delete(oldest);
+        }
+        this.cache.set(key, value);
+    }
+    /** Invalidate a specific word (e.g. after status change) */
+    invalidate(key: string) { this.cache.delete(key); }
+    /** Clear all entries (e.g. when language setting changes) */
+    clear() { this.cache.clear(); }
+}
+const wordCache = new WordCache(200);
+/** Track the lang+provider the cache was built with */
+let cachedLangKey = '';
+
+const visible = ref(false);
+const x = ref(0);
+const y = ref(0);
+const word = ref('');
+const sentenceEn = ref('');
+const sentenceZh = ref('');
+const meanings = ref<string[]>([]);
+const phrases = ref<Array<{ text: string; meaning?: string }>>([]);
+const loading = ref(false);
+const currentStatus = ref(-1); // -1 = not in db
+const popupEl = ref<HTMLElement | null>(null);
+let closeTimer: number | null = null;
+// Race condition guard: incrementing ID to cancel stale lookups
+let lookupRequestId = 0;
+// 保存单词位置，用于内容加载后重新定位
+let wordCenterX = 0;
+let wordTopY = 0;
+
+// 鼠标进入弹窗 → 取消关闭
+function onPopupEnter() {
+    if (closeTimer) {
+        window.clearTimeout(closeTimer);
+        closeTimer = null;
+    }
+}
+
+// 鼠标离开弹窗 → 延迟关闭
+function onPopupLeave() {
+    scheduleClose();
+}
+
+function scheduleClose(delay = 300) {
+    if (closeTimer) window.clearTimeout(closeTimer);
+    closeTimer = window.setTimeout(() => {
+        closeTimer = null;
+        close();
+    }, delay);
+}
+
+// 外部调用：当鼠标移到新单词时，取消之前的关闭定时器
+function cancelClose() {
+    if (closeTimer) {
+        window.clearTimeout(closeTimer);
+        closeTimer = null;
+    }
+}
+
+// 重新计算弹窗位置（紧贴单词上方）
+function repositionPopup() {
+    nextTick(() => {
+        const el = popupEl.value;
+        if (!el || !visible.value) { logger.debug('[SubtitlePopup] reposition skipped: el=', !!el, 'visible=', visible.value); return; }
+        const popW = el.offsetWidth;
+        const popH = el.offsetHeight;
+        const viewW = window.innerWidth;
+
+        let px = wordCenterX - popW / 2;
+        let py = wordTopY - popH - 2;
+
+        if (px < 4) px = 4;
+        if (px + popW > viewW - 4) px = viewW - popW - 4;
+        if (py < 4) py = wordTopY + 24; // 下方显示
+
+        logger.debug('[SubtitlePopup] repositioned to:', px, py, 'popSize:', popW, popH);
+        x.value = px;
+        y.value = py;
+    });
+}
+
+// 内容变化时重新定位
+watch(meanings, () => { repositionPopup(); });
+
+// Close when clicking outside
+function onDocumentClick(evt: MouseEvent) {
+    const target = evt.target as HTMLElement;
+    if (popupEl.value && !popupEl.value.contains(target) && !target.closest('.lf-word, .lp-word')) {
+        close();
+    }
+}
+
+function onKeydown(evt: KeyboardEvent) {
+    if (evt.key === 'Escape') close();
+}
+
+onMounted(() => {
+    logger.debug('[SubtitlePopup] mounted successfully');
+    document.addEventListener('click', onDocumentClick, true);
+    document.addEventListener('keydown', onKeydown);
+
+    // 监听鼠标离开 .lf-word / .lp-word 时延迟关闭弹窗
+    document.addEventListener('mouseout', onWordMouseOut, true);
+});
+
+onUnmounted(() => {
+    document.removeEventListener('click', onDocumentClick, true);
+    document.removeEventListener('keydown', onKeydown);
+    document.removeEventListener('mouseout', onWordMouseOut, true);
+    if (closeTimer) window.clearTimeout(closeTimer);
+});
+
+function isHoverWord(el: HTMLElement | null): boolean {
+    if (!el) return false;
+    return el.classList?.contains('lf-word') || el.classList?.contains('lp-word') || el.classList?.contains('word') || el.classList?.contains('phrase');
+}
+
+function onWordMouseOut(evt: MouseEvent) {
+    const target = evt.target as HTMLElement;
+    if (!isHoverWord(target)) return;
+
+    const related = evt.relatedTarget as HTMLElement;
+    // 如果鼠标移到了弹窗上，不关闭
+    if (related && popupEl.value?.contains(related)) return;
+    // 如果鼠标移到了另一个可查词元素上，不关闭（会触发新的 show）
+    if (isHoverWord(related)) return;
+
+    scheduleClose();
+}
+
+function close() {
+    lookupRequestId++;
+    visible.value = false;
+    word.value = '';
+    meanings.value = [];
+    phrases.value = [];
+    currentStatus.value = -1;
+}
+
+// ── Translation helpers (5s timeout each) ──
+
+function withTimeout<T>(promise: Promise<T>, ms = 5000): Promise<T> {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const timeout = new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error('timeout')), ms);
+    });
+    return Promise.race([promise, timeout]).finally(() => {
+        if (timer !== null) clearTimeout(timer);
+    });
+}
+
+/** Free Dictionary API — returns English definitions */
+async function fetchEnglishDefinition(w: string): Promise<string[]> {
+    try {
+        const resp = await withTimeout(requestUrl({ url: `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(w)}` }));
+        const data = resp.json;
+        if (!Array.isArray(data) || !data[0]?.meanings) return [];
+        const result: string[] = [];
+        for (const m of data[0].meanings) {
+            for (const d of (m.definitions || [])) {
+                if (d.definition && result.length < 3) {
+                    result.push(d.definition);
+                }
+            }
+            if (result.length >= 3) break;
+        }
+        return result;
+    } catch (e) {
+        logger.warn('[SubtitlePopup] fetchEnglishDefinition failed:', e);
+        return [];
+    }
+}
+
+/** Google Translate with dictionary entries */
+async function fetchGoogleTranslate(w: string, tl: string): Promise<string[]> {
+    try {
+        const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=${tl}&dt=t&dt=bd&dt=at&q=${encodeURIComponent(w)}`;
+        const resp = await withTimeout(requestUrl({ url }));
+        const data = resp.json;
+        const result: string[] = [];
+        if (data?.[1]) {
+            for (const posGroup of data[1]) {
+                const terms = posGroup[1] as string[];
+                if (terms?.length) {
+                    for (const t of terms) {
+                        if (!result.includes(t)) result.push(t);
+                        if (result.length >= 3) break;
+                    }
+                }
+                if (result.length >= 3) break;
+            }
+        }
+        if (result.length === 0 && data?.[0]?.length > 0) {
+            const translations = data[0].map((item: any) => item[0] as string).filter(Boolean);
+            result.push(...translations);
+        }
+        return result.slice(0, 3);
+    } catch (e) {
+        logger.warn('[SubtitlePopup] fetchGoogleTranslate failed:', e);
+        return [];
+    }
+}
+
+/** Bing Dictionary (Chinese definitions) */
+async function fetchBingDict(w: string): Promise<string[]> {
+    try {
+        const url = `https://cn.bing.com/dict/search?q=${encodeURIComponent(w)}&mkt=zh-cn`;
+        const resp = await withTimeout(requestUrl({ url, method: 'GET' }));
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(resp.text, 'text/html');
+        const items = doc.querySelectorAll('.qdef ul > li');
+        if (!items.length) return [];
+        const defs: string[] = [];
+        items.forEach(li => {
+            const pos = li.querySelector('.pos')?.textContent?.trim() || '';
+            const rawDef = li.querySelector('.def')?.textContent?.trim() || '';
+            if (!rawDef) return;
+            // Only keep first definition per part-of-speech (split by ；or ;)
+            const firstDef = rawDef.split(/[；;]/)[0].trim();
+            if (firstDef) defs.push(pos ? `${pos} ${firstDef}` : firstDef);
+        });
+        return defs;
+    } catch (e) {
+        logger.warn('[SubtitlePopup] fetchBingDict failed:', e);
+        return [];
+    }
+}
+
+/** Youdao Dictionary (Chinese definitions) */
+async function fetchYoudaoDict(w: string): Promise<string[]> {
+    try {
+        const url = `https://dict.youdao.com/jsonapi_s?doctype=json&jsonversion=4&le=en&q=${encodeURIComponent(w)}`;
+        const resp = await withTimeout(requestUrl({ url, method: 'GET' }));
+        const data = resp.json;
+        const ec = data?.ec?.word?.[0]?.trs;
+        if (!ec || ec.length === 0) return [];
+        const defs: string[] = [];
+        for (const tr of ec) {
+            const tran = tr.tran || '';
+            if (tran) defs.push(tran);
+        }
+        return defs.slice(0, 3);
+    } catch (e) {
+        logger.warn('[SubtitlePopup] fetchYoudaoDict failed:', e);
+        return [];
+    }
+}
+
+/** MyMemory translation */
+async function fetchMyMemory(w: string, tl: string): Promise<string[]> {
+    try {
+        const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(w)}&langpair=en|${tl}`;
+        const resp = await withTimeout(requestUrl({ url, method: 'GET' }));
+        const translated = resp.json?.responseData?.translatedText?.trim?.();
+        if (!translated || translated.toLowerCase() === w.toLowerCase()) return [];
+        return [translated];
+    } catch (e) {
+        logger.warn('[SubtitlePopup] fetchMyMemory failed:', e);
+        return [];
+    }
+}
+
+async function lookupWord(w: string) {
+    const myId = ++lookupRequestId;
+    loading.value = true;
+    meanings.value = [];
+    currentStatus.value = -1;
+
+    // 0. Invalidate cache if language/provider settings changed
+    const currentLangKey = `${plugin.settings?.hover_definition_lang || 'zh'}|${plugin.settings?.hover_definition_provider || 'auto'}`;
+    if (currentLangKey !== cachedLangKey) {
+        wordCache.clear();
+        cachedLangKey = currentLangKey;
+    }
+
+    // Check LRU cache first (instant, no async)
+    const cached = wordCache.get(w.toLowerCase());
+    if (cached) {
+        meanings.value = cached.meanings;
+        currentStatus.value = cached.status;
+        loading.value = false;
+        return;
+    }
+
+    // 1. Check local database first
+    try {
+        const info = await plugin.db.getExpression(w);
+        if (myId !== lookupRequestId) return; // stale request cancelled
+        if (info && info.meaning) {
+            meanings.value = info.meaning.split(/[;；\n]/).map(s => s.trim()).filter(Boolean);
+            currentStatus.value = info.status;
+            wordCache.set(w.toLowerCase(), { meanings: meanings.value, status: info.status });
+            loading.value = false;
+            return;
+        }
+        if (info) {
+            currentStatus.value = info.status;
+        }
+    } catch (e: any) {
+        if (myId !== lookupRequestId) return; // stale request cancelled
+        // Differentiate between "not found" and actual database errors
+        const isNotFound = e?.message?.includes('not found') || e?.message?.includes('No record') || e?.name === 'NotFoundError';
+        if (isNotFound) {
+            // Word not in database — expected, continue to API lookup
+        } else {
+            logger.warn('[SubtitlePopup] DB query error for word:', w, e);
+        }
+    }
+
+    // 2. Fetch definition based on settings
+    const hoverLang = (plugin.settings?.hover_definition_lang || '').trim() || 'zh';
+    const provider = (plugin.settings?.hover_definition_provider || 'auto').toLowerCase();
+
+    try {
+        let result: string[] = [];
+
+        if (hoverLang === 'en') {
+            // ── English-English: use Free Dictionary API ──
+            result = await fetchEnglishDefinition(w);
+            if (myId !== lookupRequestId) return; // stale request cancelled
+            // Fallback: Google en→en (sometimes returns synonyms)
+            if (result.length === 0) {
+                result = await fetchGoogleTranslate(w, 'en');
+                if (myId !== lookupRequestId) return; // stale request cancelled
+            }
+        } else {
+            // ── Translation to target language ──
+            if (provider === 'bing') {
+                result = await fetchBingDict(w);
+            } else if (provider === 'youdao') {
+                result = await fetchYoudaoDict(w);
+            } else if (provider === 'google') {
+                result = await fetchGoogleTranslate(w, hoverLang);
+            } else if (provider === 'mymemory') {
+                result = await fetchMyMemory(w, hoverLang);
+            } else {
+                // auto: Google → MyMemory fallback
+                result = await fetchGoogleTranslate(w, hoverLang);
+                if (myId !== lookupRequestId) return; // stale request cancelled
+                if (result.length === 0) {
+                    result = await fetchMyMemory(w, hoverLang);
+                }
+            }
+            if (myId !== lookupRequestId) return; // stale request cancelled
+        }
+
+        meanings.value = result.slice(0, 3);
+        if (meanings.value.length > 0) {
+            wordCache.set(w.toLowerCase(), { meanings: meanings.value, status: currentStatus.value });
+        }
+    } catch (e) {
+        if (myId !== lookupRequestId) return; // stale request cancelled
+        logger.warn('[SubtitlePopup] Translation failed for word:', w, e);
+    }
+    loading.value = false;
+}
+
+async function lookupPhrases(w: string, sentence: string) {
+    phrases.value = [];
+    if (!sentence) return;
+
+    // Check phrases in database via getStoredWords
+    try {
+        const words = sentence.toLowerCase().split(/\s+/).filter(Boolean);
+        const result = await plugin.db.getStoredWords({
+            article: sentence.toLowerCase(),
+            words,
+        });
+        if (result && result.phrases && result.phrases.length > 0) {
+            // Only show phrases containing the clicked word
+            const lowerWord = w.toLowerCase();
+            const relevantPhrases = result.phrases.filter(p =>
+                p.text.toLowerCase().includes(lowerWord)
+            );
+            for (const p of relevantPhrases) {
+                // Get meaning from db
+                const info = await plugin.db.getExpression(p.text);
+                phrases.value.push({
+                    text: p.text,
+                    meaning: info?.meaning || undefined,
+                });
+            }
+        }
+    } catch (e) {
+        logger.warn('[SubtitlePopup] Phrase lookup failed:', e);
+    }
+}
+
+function speakWord() {
+    if (!word.value) return;
+    const w = encodeURIComponent(word.value);
+    // Youdao: type=1 British, type=2 American
+    const type = plugin.settings.hover_pron_accent === 'uk' ? 1 : 2;
+    playAudio(`https://dict.youdao.com/dictvoice?audio=${w}&type=${type}`);
+}
+
+async function markKnown() {
+    if (!word.value) return;
+    const w = word.value.toLowerCase();
+    wordCache.invalidate(w);
+
+    try {
+        const existing = await plugin.db.getExpression(w);
+        if (existing) {
+            // The action is intentionally a simple “known/ignored” toggle.
+            // Any active learning state can be promoted to Known; only Known
+            // toggles back to Ignored.
+            const newStatus = existing.status === 3 ? 0 : 3;
+            existing.status = newStatus;
+            // Also save sentence context
+            if (sentenceEn.value) {
+                const hasSentence = existing.sentences.some(s => s.text === sentenceEn.value);
+                if (!hasSentence) {
+                    existing.sentences.push({
+                        text: sentenceEn.value,
+                        trans: sentenceZh.value || '',
+                        origin: 'LinguaFlow subtitle',
+                    });
+                }
+            }
+            await plugin.db.postExpression(existing);
+            currentStatus.value = newStatus;
+        } else {
+            // A word not yet in the vocabulary is genuinely marked as Known,
+            // never as Ignored. “Not in vocabulary” is a derived UI state.
+            await plugin.db.postExpression({
+                expression: w,
+                meaning: meanings.value.join('; ') || '',
+                status: 3,
+                t: 'WORD',
+                tags: [],
+                notes: [],
+                sentences: sentenceEn.value ? [{
+                    text: sentenceEn.value,
+                    trans: sentenceZh.value || '',
+                    origin: 'LinguaFlow subtitle',
+                }] : [],
+                aliases: [],
+                date: Date.now(),
+            });
+            currentStatus.value = 3;
+        }
+
+        dispatchEvent(new CustomEvent('qiaomu-english-event-refresh', {
+            detail: {
+                expression: w,
+                type: 'WORD',
+                status: currentStatus.value,
+                meaning: meanings.value.join('; '),
+                aliases: [],
+            },
+        }));
+        dispatchEvent(new CustomEvent('qiaomu-english-event-refresh-stat'));
+    } catch (e) {
+        new Notice('Failed to update word status');
+    }
+}
+
+async function markLearning() {
+    if (!word.value) return;
+    const w = word.value.toLowerCase();
+    wordCache.invalidate(w);
+
+    try {
+        const existing = await plugin.db.getExpression(w);
+        if (existing) {
+            existing.status = 1;
+            // Add sentence context if not already present
+            if (sentenceEn.value) {
+                const hasSentence = existing.sentences.some(s => s.text === sentenceEn.value);
+                if (!hasSentence) {
+                    existing.sentences.push({
+                        text: sentenceEn.value,
+                        trans: sentenceZh.value || '',
+                        origin: 'LinguaFlow subtitle',
+                    });
+                }
+            }
+            await plugin.db.postExpression(existing);
+        } else {
+            await plugin.db.postExpression({
+                expression: w,
+                meaning: meanings.value.join('; ') || '',
+                status: 1,
+                t: 'WORD',
+                tags: [],
+                notes: [],
+                sentences: sentenceEn.value ? [{
+                    text: sentenceEn.value,
+                    trans: sentenceZh.value || '',
+                    origin: 'LinguaFlow subtitle',
+                }] : [],
+                aliases: [],
+                date: Date.now(),
+            });
+        }
+        currentStatus.value = 1;
+
+        dispatchEvent(new CustomEvent('qiaomu-english-event-refresh', {
+            detail: {
+                expression: w,
+                type: 'WORD',
+                status: 1,
+                meaning: meanings.value.join('; '),
+                aliases: [],
+            },
+        }));
+        dispatchEvent(new CustomEvent('qiaomu-english-event-refresh-stat'));
+
+        // Also trigger the full search panel for detailed editing
+        dispatchEvent(new CustomEvent('qiaomu-english-event-search', {
+            detail: { selection: w },
+        }));
+    } catch (e) {
+        new Notice('Failed to save word');
+    }
+}
+
+// Exposed method for plugin.ts to call
+function show(data: {
+    word: string;
+    sentenceEn: string;
+    sentenceZh: string;
+    x: number;
+    y: number;
+}) {
+    logger.debug('[SubtitlePopup] show() called with:', data.word, 'x:', data.x, 'y:', data.y);
+    cancelClose();
+    word.value = data.word.replace(/[^a-zA-Z'-]/g, '');
+    if (!word.value) { logger.debug('[SubtitlePopup] word cleaned to empty, skipping'); return; }
+
+    sentenceEn.value = data.sentenceEn;
+    sentenceZh.value = data.sentenceZh;
+
+    // 保存单词位置
+    wordCenterX = data.x;
+    wordTopY = data.y;
+
+    // Show first (off-screen), then measure and reposition
+    x.value = -9999;
+    y.value = -9999;
+    visible.value = true;
+    logger.debug('[SubtitlePopup] visible set to true, starting lookup for:', word.value);
+
+    // Lookup word and phrases
+    lookupWord(word.value);
+    lookupPhrases(word.value, data.sentenceEn);
+
+    // 初次定位
+    repositionPopup();
+}
+
+defineExpose({ show, close, cancelClose });
+</script>
+
+<style>
+/* ============================================================
+   SubtitlePopup — adaptive light/dark theme
+   ============================================================ */
+.langr-subtitle-popup {
+    position: fixed;
+    z-index: 10000;
+    pointer-events: none;
+    border: none;
+    border-radius: 10px;
+    padding: 0;
+    overflow: hidden;
+    animation: stp-fadein 0.1s ease;
+    max-width: min(320px, 80vw);
+    width: auto;
+}
+.langr-subtitle-popup .stp-actions button { pointer-events: auto; }
+
+/* Dark mode (default) */
+.langr-subtitle-popup {
+    background: #2b2b2f;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    color: #e0e0e0;
+}
+
+/* Light mode */
+.theme-light .langr-subtitle-popup {
+    background: #ffffff;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.06);
+    color: #1a1a1a;
+}
+
+@keyframes stp-fadein {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* --- Body --- */
+.stp-body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 6px 8px 6px 8px;
+}
+
+/* Meanings — each on its own line, centered */
+.stp-meaning {
+    font-size: 14px;
+    color: #e0e0e0;
+    line-height: 1.45;
+    cursor: default;
+    white-space: normal;
+    word-break: break-word;
+    text-align: center;
+    width: 100%;
+}
+.theme-light .stp-meaning {
+    color: #1a1a1a;
+}
+
+.stp-loading {
+    color: #666;
+    font-style: italic;
+}
+.theme-light .stp-loading {
+    color: #999;
+}
+
+/* --- Buttons row --- */
+.stp-actions {
+    display: flex;
+    flex-direction: row;
+    gap: 4px;
+    margin-top: 5px;
+}
+
+/* Shared button base */
+.stp-btn-speak,
+.stp-btn-known,
+.stp-btn-learn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s, transform 0.1s;
+    padding: 0;
+}
+.stp-btn-speak:focus-visible,
+.stp-btn-known:focus-visible,
+.stp-btn-learn:focus-visible {
+    outline: 2px solid var(--interactive-accent);
+    outline-offset: 2px;
+}
+
+.stp-btn-speak:active,
+.stp-btn-known:active,
+.stp-btn-learn:active {
+    transform: scale(0.92);
+}
+
+/* ── DARK MODE buttons ── */
+/* 🔊 button */
+.stp-btn-speak {
+    background: rgba(255, 255, 255, 0.08);
+    color: #5b9bd5;
+}
+.stp-btn-speak:hover {
+    background: rgba(255, 255, 255, 0.14);
+}
+
+/* ✓ button */
+.stp-btn-known {
+    background: rgba(255, 255, 255, 0.08);
+    color: #5cb85c;
+}
+.stp-btn-known:hover {
+    background: rgba(255, 255, 255, 0.14);
+}
+.stp-btn-known.stp-btn-active {
+    background: rgba(92, 184, 92, 0.2);
+    color: #6ed674;
+}
+
+/* 📖 button */
+.stp-btn-learn {
+    background: rgba(255, 255, 255, 0.08);
+    color: #e8a838;
+}
+.stp-btn-learn:hover {
+    background: rgba(255, 255, 255, 0.14);
+}
+.stp-btn-learn.stp-btn-active {
+    background: rgba(232, 168, 56, 0.2);
+    color: #ffb84d;
+}
+
+/* ── LIGHT MODE buttons ── */
+.theme-light .stp-btn-speak {
+    background: rgba(0, 0, 0, 0.06);
+    color: #1971c2;
+}
+.theme-light .stp-btn-speak:hover {
+    background: rgba(0, 0, 0, 0.1);
+}
+
+.theme-light .stp-btn-known {
+    background: rgba(0, 0, 0, 0.06);
+    color: #2d8a2d;
+}
+.theme-light .stp-btn-known:hover {
+    background: rgba(0, 0, 0, 0.1);
+}
+.theme-light .stp-btn-known.stp-btn-active {
+    background: rgba(45, 138, 45, 0.15);
+    color: #1e7e34;
+}
+
+.theme-light .stp-btn-learn {
+    background: rgba(0, 0, 0, 0.06);
+    color: #c07b1a;
+}
+.theme-light .stp-btn-learn:hover {
+    background: rgba(0, 0, 0, 0.1);
+}
+.theme-light .stp-btn-learn.stp-btn-active {
+    background: rgba(192, 123, 26, 0.15);
+    color: #d48a00;
+}
+
+.is-mobile .stp-btn-speak,
+.is-mobile .stp-btn-known,
+.is-mobile .stp-btn-learn {
+    width: 38px !important;
+    height: 38px !important;
+}
+</style>

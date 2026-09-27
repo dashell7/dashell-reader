@@ -6,6 +6,8 @@ The upstream source examined for this notice is commit `46c2eb7f63e183ab09e9a741
 
 Bundled dependencies retain their own licenses; esbuild preserves their legal comments in `main.js`. This list identifies their upstream license sources:
 
+The English lookup and vocabulary module contains adapted code from Language Learner 1.2.16, copyright (c) 2026 OBLE, under the MIT license. Its license is retained at `src/learning/vendor/LICENSE`.
+
 - [Foliate.js](https://github.com/johnfactotum/foliate-js) — MIT, John Factotum.
 - [PDF.js](https://github.com/mozilla/pdf.js) — Apache-2.0, Mozilla Foundation.
 - [JSZip](https://github.com/Stuk/jszip) — MIT or GPLv3, Stuart Knightley and contributors.

@@ -15,8 +15,9 @@
   "scripts": {
     "postinstall": "node patch-pdfjs.cjs",
     "dev": "node esbuild.config.mjs",
-    "build": "node scripts/generate-pdf-cmaps.mjs && node esbuild.config.mjs production && node patch-pdfjs.cjs",
-    "build:community": "node scripts/generate-pdf-cmaps.mjs && node esbuild.config.mjs production --profile=community && node scripts/verify-release.mjs --profile=community",
+    "build": "npm run typecheck:learning && node scripts/generate-pdf-cmaps.mjs && node esbuild.config.mjs production && node patch-pdfjs.cjs",
+    "typecheck:learning": "tsc --noEmit --skipLibCheck -p tsconfig.learning.json",
+    "build:community": "npm run typecheck:learning && node scripts/generate-pdf-cmaps.mjs && node esbuild.config.mjs production --profile=community && node scripts/verify-release.mjs --profile=community",
     "check:i18n": "node scripts/check-i18n.mjs",
     "test": "node --test tests/*.test.mjs",
     "verify:release": "node scripts/verify-release.mjs",
@@ -34,19 +35,45 @@
   "author": "向阳乔木",
   "license": "GPL-3.0-only",
   "devDependencies": {
-    "esbuild": "0.28.1",
+    "@the_tree/esbuild-plugin-vue3": "^0.3.1",
+    "@types/downloadjs": "1.4.3",
+    "@types/turndown": "5.0.6",
+    "esbuild": "0.25.12",
     "eslint": "^9.39.5",
     "eslint-plugin-obsidianmd": "^0.4.1",
+    "js-yaml": "^5.4.2",
     "jsdom": "^29.1.1",
-    "obsidian": "latest"
+    "obsidian": "latest",
+    "sass": "1.104.1",
+    "tslib": "^2.3.1",
+    "typescript": "^5.9.3"
   },
   "dependencies": {
+    "@mozilla/readability": "^0.6.0",
+    "@vueuse/core": "^9.13.0",
+    "ac-auto": "^2.0.0",
+    "dexie": "^3.2.7",
+    "dexie-export-import": "^1.0.3",
+    "downloadjs": "^1.4.7",
     "foliate-js": "^1.0.1",
+    "js-mdict": "^6.0.8",
     "jszip": "^3.10.1",
     "localforage": "^1.10.0",
-    "pdfjs-dist": "^6.2.108"
+    "naive-ui": "^2.45.3",
+    "nlcst-to-string": "^3.1.1",
+    "parse-english": "^5.0.0",
+    "pdfjs-dist": "^6.2.108",
+    "retext-english": "^4.1.0",
+    "turndown": "^7.2.4",
+    "turndown-plugin-gfm": "^1.0.2",
+    "unified": "^10.1.2",
+    "unist-util-modify-children": "^3.1.1",
+    "unist-util-visit": "^4.1.2",
+    "vue": "3.2.45"
   },
   "overrides": {
+    "@vue/compiler-sfc": "3.2.45",
+    "esbuild": "0.25.12",
     "@xmldom/xmldom": "^0.9.12",
     "minimatch@3.1.5": {
       "brace-expansion": "2.0.2"

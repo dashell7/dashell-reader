@@ -42,12 +42,12 @@ Qiaomu Reader 是中文优先的 Obsidian EPUB、PDF、FB2、MOBI、AZW3 和 CBZ
 ## 英文学习流程
 
 1. 在 EPUB、FB2、MOBI、AZW/AZW3、带文本层 PDF 或 Markdown 中阅读英文内容。
-2. 鼠标停留在单词上约 200 毫秒，查看 Language Learner 风格的紧凑释义弹层；点击单词或选中短语可打开完整查词。
-3. 在悬浮卡或完整查词面板中主动选择“加入复习”。查词不会自动创建词条或调用 AI。
-4. 词条写入独立的 `Qiaomu Reader/English Review.md`，并读取 Spaced Repetition 的实际标签和卡片分隔符。
+2. 悬浮单词使用移植的 Language Learner 词窗；点击单词或选中短语按设置在弹窗或左侧词典面板查词。
+3. 在右侧“学习新单词”面板编辑词形、释义、状态、标签、笔记和例句，再主动保存到定制版词汇库。
+4. 词汇和复习文件默认保存在 `Qiaomu Reader/` 下；Spaced Repetition 的评分、状态与排程按原版机制同步。
 5. 在 Spaced Repetition 原有入口进行复习。定制版不实现自己的间隔算法，也不新增重复的“开始复习”入口。
 
-当前查词已接入有道、Google Translate 和 Free Dictionary；完整词典面板支持编辑释义与原句。MDict、必应、AI 词典来源和实体移动端验证仍在后续计划中。本轮不做 OCR，扫描 PDF 和纯图片页面只提供阅读，不显示虚假的查词入口。
+查词与学习设置保留 Language Learner 1.2.16 的词典、MDict、词汇和复习选项。AI 词典与例句 AI 翻译共用 Qiaomu「AI 与翻译」中配置的服务；两项学习提示词收在该页的「英语学习提示词」折叠区，划词修饰键仍在「英语学习 → 通用」，不再有第二套 AI 标签或 API Key。桌面宿主已验证 MDict、复习同步和本机模拟接口的 AI 共享调用；真实服务商、其余词典来源、全部格式及实体移动端仍需逐项验收。本轮不做 OCR，扫描 PDF 和纯图片页面只提供阅读。
 
 ## 功能导览
 
@@ -254,9 +254,9 @@ Qiaomu Reader is a Chinese-first reader for Obsidian supporting EPUB, PDF, FB2, 
 
 ### English learning workflow
 
-When reading English text, hover over a word for a compact Language Learner-style definition popup. Click a word or select a phrase to open the full dictionary panel, then choose **Add to review** when you want to save it. Cards are written to a dedicated Markdown file using the active Spaced Repetition tag and separator, so existing scheduling comments and hand-written content survive updates. Review scheduling remains owned by Spaced Repetition.
+When reading English text, hover over a word for the ported Language Learner popup. Click a word or select a phrase to use its dictionary popup or left panel. The separate **Learn new words** panel retains the original fields, vocabulary states, notes, examples, and Spaced Repetition synchronization. Its dictionary and learning settings are also included; vocabulary files belong to this custom plugin.
 
-The current build includes Youdao, Google Translate and Free Dictionary lookup, editable definitions and source sentences, Markdown reading, and text-layer lookup in EPUB/PDF content. OCR, image-only lookup, MDict, Bing and AI dictionary providers are not included yet.
+Dictionary AI and AI sentence translation now use the service configured in Qiaomu's AI & Translation settings while retaining their learning-specific prompts; no second API key is needed. MDict lookup and Spaced Repetition synchronization have been verified in desktop Obsidian. The shared AI call, other dictionary sources, all supported formats, and physical mobile devices still need individual validation. OCR and image-only lookup are outside this build.
 
 ### A reading workflow, not just a chat window
 

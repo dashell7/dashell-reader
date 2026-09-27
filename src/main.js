@@ -57,7 +57,9 @@ import { notifyHomeChanged } from "./qiaomu-home.js";
 import { createHomeProvider } from "./home.js";
 import { AI_ASSISTANT_ROUTES, readerSnapshot, shouldUseAgent } from "./agent-bridge.js";
 import { EnglishLookupController } from "./english-lookup.js";
-import { EnglishDictionaryModal } from "./english-dictionary-modal.js";
+import { EnglishDictionaryView, EnglishReviewView, ENGLISH_DICTIONARY_VIEW_TYPE, ENGLISH_REVIEW_VIEW_TYPE } from "./english-dictionary-view.js";
+import { QiaomuEnglishLearning } from "./learning/integrated.js";
+import { englishLearningAiRequest } from "./learning/qiaomu-ai.js";
 import { resolveEnglishReviewFormat, upsertEnglishReviewCard } from "./english-review.js";
 import { externalBookSearchUrls, gutenbergSearchUrl, gutenbergDetailUrl, parseGutenbergSearch, parseGutenbergEpub, validGutenbergEpub, safeBookFileName } from "./book-discovery.js";
 
@@ -104,6 +106,7 @@ const DEFAULT_TRANSLATION = {
 const DEFAULT_ENGLISH_LEARNING = {
   englishLookupEnabled: true,
   englishClickLookup: true,
+  englishDictionaryPopup: true,
   englishHoverDelay: 200,
   englishLookupProvider: "auto",
   englishLookupLanguage: "zh",
@@ -1500,6 +1503,7 @@ const QiaomuBookReader = class extends Plugin {
     this._corruptStoreNotices = new Set();
     this._blockedStores = new Set();
     this._unreadableStores = new Map();
+    this.learningSettings = {};
   }
   async onload() { // state first (loadAll), then every Obsidian integration, registered in the original order
     await this.loadAll(); await this._attachAiDraftStore();
@@ -1514,6 +1518,12 @@ const QiaomuBookReader = class extends Plugin {
     this._registerReaderExtensions();
     this._addRibbonEntry();
     this._registerCommandsAndSettings();
+    this.learning = new QiaomuEnglishLearning(this);
+    await this.learning.onload();
+    this.app.workspace.onLayoutReady(() => {
+      this.app.workspace.detachLeavesOfType(ENGLISH_DICTIONARY_VIEW_TYPE);
+      this.app.workspace.detachLeavesOfType(ENGLISH_REVIEW_VIEW_TYPE);
+    });
     this._quietUiDocuments = new Map();
     this._watchQuietUiDocument(document);
     this.app.workspace.iterateAllLeaves(leaf => {
@@ -1614,6 +1624,10 @@ const QiaomuBookReader = class extends Plugin {
     for (const [viewType, ViewClass] of viewTypes) {
       this.registerView(viewType, (leaf) => new ViewClass(leaf, this));
     }
+    this.registerView(ENGLISH_DICTIONARY_VIEW_TYPE,
+      (leaf) => new EnglishDictionaryView(leaf, this, qiaomuReaderTranslate));
+    this.registerView(ENGLISH_REVIEW_VIEW_TYPE,
+      (leaf) => new EnglishReviewView(leaf, this, qiaomuReaderTranslate));
   }
   _registerBookProtocol() {
     const openBacklink = (params) => {
@@ -1798,6 +1812,7 @@ const QiaomuBookReader = class extends Plugin {
   }
   onunload() {
     this._unloading = true;
+    void this.learning?.onunload();
     for (const modal of [...(this._englishDictionaryModals || [])]) modal.close();
     for (const controller of this._lookupControllers || []) controller.destroy();
     this._lookupControllers?.clear();
@@ -1890,17 +1905,27 @@ const QiaomuBookReader = class extends Plugin {
     }
   }
   openEnglishDictionary(word, context = {}) {
-    const modal = new EnglishDictionaryModal(this.app, {
-      word,
-      sentence: context.sentence,
-      initialResult: context.initialResult,
-      settings: () => this.settings,
-      onAddReview: (card) => this.addEnglishReviewCard(card),
-      onOpenExternal: (query) => this.openEnglishDictionaryWeb(query),
-      onClosed: () => this._englishDictionaryModals?.delete(modal),
+    return this.learning.lookup(word, context);
+  }
+  async completeEnglishLearningAi(kind, text, prompt) {
+    const { systemPrompt, userPrompt } = englishLearningAiRequest(kind, text, prompt);
+    const state = aiSetupState(this);
+    if (!state.ready || !state.enabled) {
+      const error = new Error(this.settings.language?.startsWith("zh")
+        ? "请先在 Qiaomu 的“AI 与翻译”中配置并启用 AI。"
+        : "Set up and enable AI in Qiaomu's AI & Translation settings first.");
+      error.qiaomuReaderReason = "notconfigured";
+      throw error;
+    }
+    return aiExplain("", this, [{ role: "user", content: userPrompt }], "", {
+      systemPrompt,
+      sessionKey: newAiSessionKey(),
     });
-    (this._englishDictionaryModals ||= new Set()).add(modal);
-    modal.open();
+  }
+  updateEnglishReviewPanel(update) {
+    for (const leaf of this.app.workspace.getLeavesOfType(ENGLISH_REVIEW_VIEW_TYPE)) {
+      leaf.view.update(update);
+    }
   }
   openEnglishDictionaryWeb(word) {
     const query = encodeURIComponent(String(word || "").trim());
@@ -2039,6 +2064,7 @@ const QiaomuBookReader = class extends Plugin {
   }
   _mergeDefaultSettings(saved) {
     this.settings = { ...DEFAULT, ...(saved?.settings ?? {}) };
+    this.learningSettings = saved?.learningSettings || {};
     this.settings.aiCliPaths = { ...(this.settings.aiCliPaths || {}) };
     this.settings.aiAcpPaths = { ...(this.settings.aiAcpPaths || {}) };
     this.settings.aiModels = { ...(this.settings.aiModels || {}) };
@@ -2235,6 +2261,7 @@ const QiaomuBookReader = class extends Plugin {
     captureDeviceProfile(this.settings);
     const snapshot = cloneJson({
       settings: this.settings,
+      learningSettings: this.learningSettings,
       progressBackups: this.progressBackups,
       highlightsBackups: this.highlightsBackups,
       lastBookPath: this._lastBookPath || "",
@@ -4293,6 +4320,7 @@ async function aiExplain(text, plugin, turns, book, options = {}) {
     throw err;
   }
   const messages = aiMessages(text, settings, turns, book);
+  if (options.systemPrompt) messages[0].content = options.systemPrompt;
   if (cfg.transport === "cli") {
     if (!Platform.isDesktopApp) {
       const err = new Error("CLI AI is desktop-only");
@@ -9822,10 +9850,17 @@ const ReaderView = class extends ItemView {
   async onOpen() { // chrome, resize watching and workspace hooks
     this.buildDOM();
     this.lookupController = new EnglishLookupController({
-      settings: () => this.plugin.settings,
+      settings: () => ({
+        englishLookupEnabled: this.plugin.learning.settings.hover_definition_enabled,
+        englishClickLookup: true,
+        englishHoverDelay: this.plugin.settings.englishHoverDelay,
+        function_key: this.plugin.learning.settings.function_key,
+        isMobile: Platform.isMobile,
+      }),
       hostDocument: docOf(this.contentEl),
-      onAddReview: (card) => this.plugin.addEnglishReviewCard(card),
       onOpenDictionary: (word, context) => this.plugin.openEnglishDictionary?.(word, context),
+      onHoverLookup: (word, context) => this.plugin.learning.hover(word, context),
+      onHoverClose: () => this.plugin.learning.closeHover(),
     });
     (this.plugin._lookupControllers ||= new Set()).add(this.lookupController);
     this.registerDomEvent(docOf(this.contentEl), "visibilitychange", () => renderVisibleFigures(this));
@@ -11712,10 +11747,17 @@ const ReaderModal = class extends Modal {
     this._installCloseGuard(modalEl);
     this._applyTheme(); this._buildDOM();
     this.lookupController = new EnglishLookupController({
-      settings: () => this.plugin.settings,
+      settings: () => ({
+        englishLookupEnabled: this.plugin.learning.settings.hover_definition_enabled,
+        englishClickLookup: true,
+        englishHoverDelay: this.plugin.settings.englishHoverDelay,
+        function_key: this.plugin.learning.settings.function_key,
+        isMobile: Platform.isMobile,
+      }),
       hostDocument: docOf(this.contentEl),
-      onAddReview: (card) => this.plugin.addEnglishReviewCard(card),
       onOpenDictionary: (word, context) => this.plugin.openEnglishDictionary?.(word, context),
+      onHoverLookup: (word, context) => this.plugin.learning.hover(word, context),
+      onHoverClose: () => this.plugin.learning.closeHover(),
     });
     (this.plugin._lookupControllers ||= new Set()).add(this.lookupController);
     const visibilityDoc = docOf(this.contentEl);
@@ -12699,6 +12741,7 @@ const SettingsTab = class extends PluginSettingTab {
     this.plugin = plugin;
   }
   hide() {
+    this.plugin.learning?.settingTab?.hide();
     this._settingsCard?.classList.remove("qiaomu-reader-settings-card");
     this._settingsCard = null;
   }
@@ -12731,6 +12774,7 @@ const SettingsTab = class extends PluginSettingTab {
     this._render(this.containerEl);
   }
   _render(root) {
+    this.plugin.learning?.settingTab?.hide();
     this.plugin._watchQuietUiDocument(root.ownerDocument);
     root.empty();
     root.addClass("qiaomu-reader-settings-root");
@@ -12768,6 +12812,7 @@ const SettingsTab = class extends PluginSettingTab {
     return [
       { id: "look", label: qiaomuReaderTranslate("reading-appearance") },
       { id: "read", label: qiaomuReaderTranslate("page-turning-2") },
+      { id: "learn", label: this.plugin.settings.language?.startsWith("zh") ? "英语学习" : "English learning" },
       { id: "notes", label: qiaomuReaderTranslate("notes") },
       { id: "translate", label: qiaomuReaderTranslate("ai-translation") },
       { id: "data", label: qiaomuReaderTranslate("data") },
@@ -12783,6 +12828,10 @@ const SettingsTab = class extends PluginSettingTab {
   _drawSettingsTab(body) {
     const drawers = {
       read: (host) => this._tabReading(host),
+      learn: (host) => {
+        const tab = this.plugin.learning?.settingTab;
+        if (tab) { tab.containerEl = host; tab.display(); }
+      },
       look: (host) => this._groupAppearance(host),
       notes: (host) => this._tabNotes(host),
       translate: (host) => this._tabTranslate(host),
@@ -12864,44 +12913,6 @@ const SettingsTab = class extends PluginSettingTab {
     const t = qiaomuReaderTranslate;
     const s = this.plugin.settings;
     this._sectionIntro(c, t("turning-and-layout"), t("choose-how-you-read-and-turn-pages-the-defaults-handle-the-rest"));
-
-    new Setting(c).setName(t("english-hover-lookup"))
-      .setDesc(t("english-hover-lookup-desc"))
-      .addToggle(toggle => toggle.setValue(s.englishLookupEnabled !== false).onChange(async value => {
-        s.englishLookupEnabled = value; await this.plugin.saveAll();
-      }));
-    new Setting(c).setName(t("english-click-lookup"))
-      .addToggle(toggle => toggle.setValue(s.englishClickLookup === true).onChange(async value => {
-        s.englishClickLookup = value; await this.plugin.saveAll();
-      }));
-    new Setting(c).setName(t("english-dictionary"))
-      .addDropdown(dropdown => dropdown
-        .addOption("auto", t("english-dictionary-auto"))
-        .addOption("youdao", t("english-dictionary-youdao"))
-        .addOption("google", t("english-dictionary-google"))
-        .setValue(s.englishLookupProvider || "auto")
-        .onChange(async value => { s.englishLookupProvider = value; await this.plugin.saveAll(); }));
-    new Setting(c).setName(t("english-definition-language"))
-      .addDropdown(dropdown => dropdown
-        .addOption("zh", t("chinese"))
-        .addOption("en", t("english"))
-        .setValue(s.englishLookupLanguage || "zh")
-        .onChange(async value => { s.englishLookupLanguage = value; await this.plugin.saveAll(); }));
-    new Setting(c).setName(t("english-review-file"))
-      .setDesc(t("english-review-file-desc"))
-      .addText(text => {
-        text.setValue(s.englishReviewFile || "Qiaomu Reader/English Review.md");
-        text.inputEl.addEventListener("change", async () => {
-          const path5 = englishReviewPath(text.inputEl.value);
-          if (!path5) {
-            text.setValue(s.englishReviewFile || "Qiaomu Reader/English Review.md");
-            new Notice(t("english-review-file-invalid"));
-            return;
-          }
-          s.englishReviewFile = path5;
-          await this.plugin.saveAll();
-        });
-      });
 
     this._readingDropdown(c,
       "page-turning-2",
@@ -13640,6 +13651,7 @@ const SettingsTab = class extends PluginSettingTab {
     const state = aiSetupState(this.plugin);
     const cfg = aiConfig(this.plugin);
     this._renderAiStatusSetting(host, state, cfg);
+    this.plugin.learning?.settingTab?.learningAiPromptSettings(host);
     host.createEl("h3", { cls: "qiaomu-reader-set-h", text: qiaomuReaderTranslate("selection-translation") });
     this._translateSelectionRows(host);
     host.createEl("div", { cls: "qiaomu-reader-set-note", text: qiaomuReaderTranslate("translation-is-a-separate-network-request-to-google-if-you-need") });

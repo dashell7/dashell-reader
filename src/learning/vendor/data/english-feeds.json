@@ -1,0 +1,2178 @@
+[
+  {
+    "id": "bbc-6min",
+    "title": "BBC 6 Minute English",
+    "description": "每集6分钟，涵盖时事话题，附完整文字稿，标准英式口音，适合初中级",
+    "websiteUrl": "https://www.bbc.co.uk/learningenglish/english/features/6-minute-english",
+    "rssUrl": "https://podcasts.files.bbci.co.uk/p02pc9pj.rss",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=bbc.co.uk&sz=64",
+    "category": "listening",
+    "subcategory": "english-podcast",
+    "type": "podcast",
+    "level": "beginner",
+    "tags": [
+      "BBC",
+      "英音",
+      "带文字稿"
+    ]
+  },
+  {
+    "id": "voa-learning",
+    "title": "VOA Learning English",
+    "description": "美国之音慢速英语，语速慢、发音清晰，附文字稿，适合初级学习者",
+    "websiteUrl": "https://learningenglish.voanews.com/",
+    "rssUrl": "https://learningenglish.voanews.com/api/zrqoveitmn",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=voanews.com&sz=64",
+    "category": "listening",
+    "subcategory": "english-podcast",
+    "type": "podcast",
+    "level": "beginner",
+    "tags": [
+      "美音",
+      "慢速",
+      "时事"
+    ]
+  },
+  {
+    "id": "all-ears-english",
+    "title": "All Ears English",
+    "description": "聚焦美式英语会话，每集讨论真实生活场景，适合中级学习者",
+    "websiteUrl": "https://www.allearsenglish.com/",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=allearsenglish.com&sz=64",
+    "category": "listening",
+    "subcategory": "english-podcast",
+    "type": "podcast",
+    "level": "intermediate",
+    "tags": [
+      "美音",
+      "会话",
+      "生活"
+    ]
+  },
+  {
+    "id": "lukes-english",
+    "title": "Luke's English Podcast",
+    "description": "英国英语教师Luke主持，内容丰富，涵盖文化、语法、词汇，适合中高级",
+    "websiteUrl": "https://teacherluke.co.uk/",
+    "rssUrl": "https://feeds.acast.com/public/shows/62b0ada25c7ea10012f541cb",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=teacherluke.co.uk&sz=64",
+    "category": "listening",
+    "subcategory": "english-podcast",
+    "type": "podcast",
+    "level": "intermediate",
+    "tags": [
+      "英音",
+      "文化",
+      "幽默"
+    ]
+  },
+  {
+    "id": "coffee-break-english",
+    "title": "Coffee Break English",
+    "description": "Coffee Break Languages出品，结构化英语课程，适合从零开始的学习者",
+    "websiteUrl": "https://coffeebreaklanguages.com/english/",
+    "rssUrl": "https://rss.acast.com/coffeebreakenglish",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=coffeebreaklanguages.com&sz=64",
+    "category": "listening",
+    "subcategory": "english-podcast",
+    "type": "podcast",
+    "level": "beginner",
+    "tags": [
+      "结构化",
+      "课程",
+      "从零开始"
+    ]
+  },
+  {
+    "id": "esl-pod",
+    "title": "ESL Pod",
+    "description": "每集对话+慢速解释，针对英语学习者设计，美国口音，发音清晰",
+    "websiteUrl": "https://www.eslpod.com/",
+    "rssUrl": "http://www.eslpod.com/feed.xml/",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=eslpod.com&sz=64",
+    "category": "listening",
+    "subcategory": "english-podcast",
+    "type": "podcast",
+    "level": "beginner",
+    "tags": [
+      "美音",
+      "对话",
+      "慢速解释"
+    ]
+  },
+  {
+    "id": "leonardo-english",
+    "title": "Leonardo English",
+    "description": "探讨有趣话题，语速适中，附文字稿，适合中高级学习者沉浸式学习",
+    "websiteUrl": "https://www.leonardoenglish.com/podcasts",
+    "rssUrl": "https://feeds.transistor.fm/leonardo-english-english-language-learning-for-curious-minds",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=leonardoenglish.com&sz=64",
+    "category": "listening",
+    "subcategory": "english-podcast",
+    "type": "podcast",
+    "level": "intermediate",
+    "tags": [
+      "带文字稿",
+      "英音",
+      "沉浸式"
+    ]
+  },
+  {
+    "id": "culips-esl",
+    "title": "Culips ESL Podcast",
+    "description": "加拿大英语，聚焦地道习语、俚语和日常表达，适合中级",
+    "websiteUrl": "https://esl.culips.com/",
+    "rssUrl": "https://esl.culips.com/feed/podcast/",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=esl.culips.com&sz=64",
+    "category": "listening",
+    "subcategory": "english-podcast",
+    "type": "podcast",
+    "level": "intermediate",
+    "tags": [
+      "加拿大英语",
+      "习语",
+      "俚语"
+    ]
+  },
+  {
+    "id": "ted-radio-hour",
+    "title": "TED Radio Hour",
+    "description": "NPR出品，围绕TED演讲主题深度探讨，嘉宾采访+演讲片段，适合进阶",
+    "websiteUrl": "https://www.npr.org/programs/ted-radio-hour/",
+    "rssUrl": "https://feeds.npr.org/510298/podcast.xml",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=npr.org&sz=64",
+    "category": "listening",
+    "subcategory": "native-podcast",
+    "type": "podcast",
+    "level": "advanced",
+    "tags": [
+      "TED",
+      "NPR",
+      "思想"
+    ]
+  },
+  {
+    "id": "fresh-air-npr",
+    "title": "Fresh Air",
+    "description": "NPR经典访谈节目，嘉宾涵盖文化、艺术、政治各领域名人，原声英语",
+    "websiteUrl": "https://www.npr.org/programs/fresh-air/",
+    "rssUrl": "https://feeds.npr.org/381444908/podcast.xml",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=npr.org&sz=64",
+    "category": "listening",
+    "subcategory": "native-podcast",
+    "type": "podcast",
+    "level": "native",
+    "tags": [
+      "NPR",
+      "访谈",
+      "文化"
+    ]
+  },
+  {
+    "id": "syntax-fm",
+    "title": "Syntax.fm",
+    "description": "两位 Web 开发者聊前端技术，语速自然，英语地道，适合有技术背景的进阶学习者",
+    "websiteUrl": "https://syntax.fm/",
+    "rssUrl": "https://feed.syntax.fm/rss",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=syntax.fm&sz=64",
+    "category": "listening",
+    "subcategory": "tech-podcast",
+    "type": "podcast",
+    "level": "native",
+    "tags": [
+      "前端",
+      "技术",
+      "美音"
+    ]
+  },
+  {
+    "id": "techcrunch-podcast",
+    "title": "TechCrunch Podcast",
+    "description": "硅谷科技新闻，快速讨论最新科技动态，原声英语",
+    "websiteUrl": "https://techcrunch.com/podcast",
+    "rssUrl": "https://techcrunch.com/feed/",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=techcrunch.com&sz=64",
+    "category": "listening",
+    "subcategory": "tech-podcast",
+    "type": "podcast",
+    "level": "native",
+    "tags": [
+      "科技",
+      "新闻",
+      "硅谷"
+    ]
+  },
+  {
+    "id": "lex-fridman",
+    "title": "Lex Fridman",
+    "description": "AI研究员采访科技、哲学、科学领域大咖，长访谈，英语地道，适合进阶",
+    "websiteUrl": "https://www.youtube.com/@lexfridman",
+    "rssUrl": "https://www.youtube.com/feeds/videos.xml?channel_id=UCSHZKyawb77ixDdsGog4iWA",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=youtube.com&sz=64",
+    "category": "listening",
+    "subcategory": "talk-show",
+    "type": "youtube",
+    "level": "native",
+    "tags": [
+      "AI",
+      "访谈",
+      "哲学"
+    ]
+  },
+  {
+    "id": "andrew-huberman",
+    "title": "Huberman Lab",
+    "description": "斯坦福神经科学教授讲解健康科学，专业词汇丰富，适合进阶学习者",
+    "websiteUrl": "https://www.youtube.com/@hubermanlab",
+    "rssUrl": "https://www.youtube.com/feeds/videos.xml?channel_id=UC2D2CMWXMOVWx7giW1n3LIg",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=youtube.com&sz=64",
+    "category": "listening",
+    "subcategory": "talk-show",
+    "type": "youtube",
+    "level": "advanced",
+    "tags": [
+      "科学",
+      "健康",
+      "学术"
+    ]
+  },
+  {
+    "id": "last-week-tonight",
+    "title": "Last Week Tonight",
+    "description": "John Oliver的讽刺时事节目，幽默风趣，地道美式英语和英式幽默结合",
+    "websiteUrl": "https://www.youtube.com/@LastWeekTonight",
+    "rssUrl": "https://www.youtube.com/feeds/videos.xml?channel_id=UC3XTzVzaHQEd30rQbuvCtTQ",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=youtube.com&sz=64",
+    "category": "listening",
+    "subcategory": "talk-show",
+    "type": "youtube",
+    "level": "native",
+    "tags": [
+      "讽刺",
+      "时事",
+      "幽默"
+    ]
+  },
+  {
+    "id": "italki",
+    "title": "italki",
+    "description": "全球最大语言交流平台，可找外教一对一口语练习或语言伙伴免费互学",
+    "websiteUrl": "https://www.italki.com/",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=italki.com&sz=64",
+    "category": "speaking",
+    "subcategory": "practice",
+    "type": "website",
+    "level": "intermediate",
+    "tags": [
+      "外教",
+      "一对一",
+      "口语"
+    ]
+  },
+  {
+    "id": "hellotalk",
+    "title": "HelloTalk",
+    "description": "语言交换App，与全球母语者互相练习，免费社区互动",
+    "websiteUrl": "https://www.hellotalk.com/",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=hellotalk.com&sz=64",
+    "category": "speaking",
+    "subcategory": "practice",
+    "type": "website",
+    "level": "beginner",
+    "tags": [
+      "语言交换",
+      "免费",
+      "社区"
+    ]
+  },
+  {
+    "id": "youglish",
+    "title": "YouGlish",
+    "description": "在YouTube真实视频中查看单词发音，听母语者如何使用目标单词",
+    "websiteUrl": "https://youglish.com/",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=youglish.com&sz=64",
+    "category": "speaking",
+    "subcategory": "tools",
+    "type": "website",
+    "level": "intermediate",
+    "tags": [
+      "发音",
+      "真实语境",
+      "免费"
+    ]
+  },
+  {
+    "id": "bbc-learning-yt",
+    "title": "BBC Learning English",
+    "description": "BBC官方英语学习频道，语法、词汇、发音、新闻英语全覆盖",
+    "websiteUrl": "https://www.youtube.com/@bbclearningenglish",
+    "rssUrl": "https://www.youtube.com/feeds/videos.xml?channel_id=UCHaHD477h-FeBbVh9Sh7syA",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=bbc.co.uk&sz=64",
+    "category": "video",
+    "subcategory": "youtube-learning",
+    "type": "youtube",
+    "level": "beginner",
+    "tags": [
+      "BBC",
+      "英音",
+      "语法"
+    ]
+  },
+  {
+    "id": "english-with-lucy",
+    "title": "English with Lucy",
+    "description": "英国教师Lucy，专注口语、发音、词汇，视频清晰易懂，千万订阅者",
+    "websiteUrl": "https://www.youtube.com/@EnglishwithLucy",
+    "rssUrl": "https://www.youtube.com/feeds/videos.xml?channel_id=UCz4tgANd4yy8Oe0iXCdSWfA",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=youtube.com&sz=64",
+    "category": "video",
+    "subcategory": "youtube-learning",
+    "type": "youtube",
+    "level": "intermediate",
+    "tags": [
+      "英音",
+      "口语",
+      "发音"
+    ]
+  },
+  {
+    "id": "rachels-english",
+    "title": "Rachel's English",
+    "description": "专注美式英语发音，从音标到连读，口型示范清晰，适合想提升口音的学习者",
+    "websiteUrl": "https://www.youtube.com/@rachelsenglish",
+    "rssUrl": "https://www.youtube.com/feeds/videos.xml?channel_id=UCvn_XCl_mgQmt3sD753zdJA",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=youtube.com&sz=64",
+    "category": "video",
+    "subcategory": "youtube-learning",
+    "type": "youtube",
+    "level": "intermediate",
+    "tags": [
+      "美音",
+      "发音",
+      "音标"
+    ]
+  },
+  {
+    "id": "mmm-english",
+    "title": "mmmEnglish",
+    "description": "澳大利亚英语教师，口语流利度、日常表达、语法，实用性强",
+    "websiteUrl": "https://www.youtube.com/@mmmEnglish",
+    "rssUrl": "https://www.youtube.com/feeds/videos.xml?channel_id=UCrRiVfHqBIIvSgKmgnSY66g",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=youtube.com&sz=64",
+    "category": "video",
+    "subcategory": "youtube-learning",
+    "type": "youtube",
+    "level": "intermediate",
+    "tags": [
+      "澳式英语",
+      "口语",
+      "流利度"
+    ]
+  },
+  {
+    "id": "ted-ed",
+    "title": "TED-Ed",
+    "description": "TED教育动画频道，短视频解释复杂知识，语言地道、节奏适中，寓教于乐",
+    "websiteUrl": "https://www.youtube.com/@TEDEd",
+    "rssUrl": "https://www.youtube.com/feeds/videos.xml?channel_id=UCsooa4yRKGN_zEE8iknghZA",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=ted.com&sz=64",
+    "category": "video",
+    "subcategory": "youtube-learning",
+    "type": "youtube",
+    "level": "advanced",
+    "tags": [
+      "动画",
+      "知识",
+      "TED"
+    ]
+  },
+  {
+    "id": "ted-talks",
+    "title": "TED Talks",
+    "description": "全球顶尖演讲者分享思想，配有字幕，涵盖科技、商业、艺术各领域",
+    "websiteUrl": "https://www.youtube.com/@TED",
+    "rssUrl": "https://www.youtube.com/feeds/videos.xml?channel_id=UCAuUUnT6oDeKwE6v1NGQxug",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=ted.com&sz=64",
+    "category": "video",
+    "subcategory": "youtube-learning",
+    "type": "youtube",
+    "level": "advanced",
+    "tags": [
+      "演讲",
+      "思想",
+      "多领域"
+    ]
+  },
+  {
+    "id": "slow-english-brian",
+    "title": "Slow English With Brian",
+    "description": "语速缓慢清晰，专为英语学习者设计，话题有趣，适合初中级",
+    "websiteUrl": "https://www.youtube.com/@slowenglishwithbrian",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=youtube.com&sz=64",
+    "category": "video",
+    "subcategory": "youtube-learning",
+    "type": "youtube",
+    "level": "beginner",
+    "tags": [
+      "慢速",
+      "清晰",
+      "初级"
+    ]
+  },
+  {
+    "id": "voicetube",
+    "title": "VoiceTube",
+    "description": "台湾英语学习平台，通过真实英语视频学习，支持双语字幕和单词查询",
+    "websiteUrl": "https://www.voicetube.com/",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=voicetube.com&sz=64",
+    "category": "video",
+    "subcategory": "streaming",
+    "type": "website",
+    "level": "intermediate",
+    "tags": [
+      "双语字幕",
+      "视频学习",
+      "词汇"
+    ]
+  },
+  {
+    "id": "breaking-news-english",
+    "title": "Breaking News English",
+    "description": "每日真实新闻改编为多级别（0-6级）阅读材料，含词汇练习和讨论题",
+    "websiteUrl": "https://breakingnewsenglish.com/",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=breakingnewsenglish.com&sz=64",
+    "category": "reading",
+    "subcategory": "graded-news",
+    "type": "website",
+    "level": "beginner",
+    "tags": [
+      "新闻",
+      "多级别",
+      "词汇练习"
+    ]
+  },
+  {
+    "id": "news-in-levels",
+    "title": "News in Levels",
+    "description": "同一新闻用3种难度改写，Level 1-3循序渐进，帮助扩展词汇量",
+    "websiteUrl": "https://www.newsinlevels.com/",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=newsinlevels.com&sz=64",
+    "category": "reading",
+    "subcategory": "graded-news",
+    "type": "website",
+    "level": "beginner",
+    "tags": [
+      "分级",
+      "新闻",
+      "渐进"
+    ]
+  },
+  {
+    "id": "simple-wikipedia",
+    "title": "Simple English Wikipedia",
+    "description": "用简单英语写成的维基百科，基础词汇和句型，适合初中级阅读",
+    "websiteUrl": "https://simple.wikipedia.org/",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=wikipedia.org&sz=64",
+    "category": "reading",
+    "subcategory": "graded-news",
+    "type": "website",
+    "level": "beginner",
+    "tags": [
+      "简单词汇",
+      "百科",
+      "知识"
+    ]
+  },
+  {
+    "id": "the-conversation",
+    "title": "The Conversation",
+    "description": "学者撰写的专业文章，话题严肃，语言规范，适合进阶学术阅读",
+    "websiteUrl": "https://theconversation.com/us",
+    "rssUrl": "https://theconversation.com/us/articles.atom",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=theconversation.com&sz=64",
+    "category": "reading",
+    "subcategory": "native-news",
+    "type": "website",
+    "level": "advanced",
+    "tags": [
+      "学术",
+      "深度",
+      "专业"
+    ]
+  },
+  {
+    "id": "the-guardian",
+    "title": "The Guardian",
+    "description": "英国主流媒体，报道全球新闻，文笔优秀，语言地道，适合高级学习者",
+    "websiteUrl": "https://www.theguardian.com/",
+    "rssUrl": "https://www.theguardian.com/world/rss",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=theguardian.com&sz=64",
+    "category": "reading",
+    "subcategory": "native-news",
+    "type": "website",
+    "level": "native",
+    "tags": [
+      "英国",
+      "新闻",
+      "深度报道"
+    ]
+  },
+  {
+    "id": "bbc-news",
+    "title": "BBC News",
+    "description": "BBC世界新闻，语言标准规范，报道全面，适合进阶到原声阅读",
+    "websiteUrl": "https://www.bbc.com/news",
+    "rssUrl": "http://feeds.bbci.co.uk/news/rss.xml",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=bbc.co.uk&sz=64",
+    "category": "reading",
+    "subcategory": "native-news",
+    "type": "website",
+    "level": "native",
+    "tags": [
+      "BBC",
+      "新闻",
+      "英音"
+    ]
+  },
+  {
+    "id": "longreads",
+    "title": "Longreads",
+    "description": "精选长篇深度报道和文学非虚构，文字精美，适合喜欢深度阅读的进阶学习者",
+    "websiteUrl": "https://longreads.com/",
+    "rssUrl": "https://longreads.com/feed/",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=longreads.com&sz=64",
+    "category": "reading",
+    "subcategory": "books",
+    "type": "website",
+    "level": "native",
+    "tags": [
+      "长篇",
+      "深度",
+      "文学"
+    ]
+  },
+  {
+    "id": "american-literature",
+    "title": "American Literature",
+    "description": "收录大量免费美国经典文学作品，可在线阅读，适合文学爱好者",
+    "websiteUrl": "https://americanliterature.com/",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=americanliterature.com&sz=64",
+    "category": "reading",
+    "subcategory": "books",
+    "type": "website",
+    "level": "advanced",
+    "tags": [
+      "文学",
+      "经典",
+      "免费"
+    ]
+  },
+  {
+    "id": "typelit",
+    "title": "TypeLit",
+    "description": "边打字边阅读经典文学，将打字练习和英语阅读结合，趣味性强",
+    "websiteUrl": "https://www.typelit.io/",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=typelit.io&sz=64",
+    "category": "reading",
+    "subcategory": "books",
+    "type": "website",
+    "level": "intermediate",
+    "tags": [
+      "打字",
+      "文学",
+      "练习"
+    ]
+  },
+  {
+    "id": "games-to-learn-english",
+    "title": "Games to Learn English",
+    "description": "专为英语学习设计的在线游戏集合，词汇、语法、听力全覆盖，适合初学者",
+    "websiteUrl": "https://www.gamestolearnenglish.com/",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=gamestolearnenglish.com&sz=64",
+    "category": "interactive",
+    "subcategory": "games",
+    "type": "website",
+    "level": "beginner",
+    "tags": [
+      "游戏",
+      "词汇",
+      "语法"
+    ]
+  },
+  {
+    "id": "knoword",
+    "title": "Knoword",
+    "description": "限时词汇游戏，根据释义猜单词，提升词汇量的同时训练反应速度",
+    "websiteUrl": "https://knoword.com/",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=knoword.com&sz=64",
+    "category": "interactive",
+    "subcategory": "games",
+    "type": "website",
+    "level": "intermediate",
+    "tags": [
+      "词汇",
+      "游戏",
+      "限时"
+    ]
+  },
+  {
+    "id": "playphrase",
+    "title": "PlayPhrase.me",
+    "description": "输入词组，从影视剧中找到包含该词组的真实对话片段，学地道表达",
+    "websiteUrl": "https://www.playphrase.me/",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=playphrase.me&sz=64",
+    "category": "interactive",
+    "subcategory": "games",
+    "type": "website",
+    "level": "intermediate",
+    "tags": [
+      "影视",
+      "地道表达",
+      "语境"
+    ]
+  },
+  {
+    "id": "ztype",
+    "title": "ZType",
+    "description": "太空打字射击游戏，通过打字消灭敌人，在游戏中练习英语打字速度",
+    "websiteUrl": "https://zty.pe/",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=zty.pe&sz=64",
+    "category": "interactive",
+    "subcategory": "games",
+    "type": "website",
+    "level": "beginner",
+    "tags": [
+      "游戏",
+      "打字",
+      "趣味"
+    ]
+  },
+  {
+    "id": "language-reactor",
+    "title": "Language Reactor",
+    "description": "Netflix/YouTube双语字幕扩展，悬浮查词、保存生词、间隔重复，沉浸式学习神器",
+    "websiteUrl": "https://www.languagereactor.com/",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=languagereactor.com&sz=64",
+    "category": "tools",
+    "subcategory": "extension",
+    "type": "website",
+    "level": "intermediate",
+    "tags": [
+      "浏览器扩展",
+      "双语字幕",
+      "生词"
+    ]
+  },
+  {
+    "id": "anki",
+    "title": "Anki",
+    "description": "最强间隔重复记忆软件，支持自制卡片和共享卡组，记忆单词/语法/发音",
+    "websiteUrl": "https://apps.ankiweb.net/",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=ankiweb.net&sz=64",
+    "category": "tools",
+    "subcategory": "flashcard",
+    "type": "website",
+    "level": "beginner",
+    "tags": [
+      "间隔重复",
+      "记忆",
+      "免费"
+    ]
+  },
+  {
+    "id": "quizlet",
+    "title": "Quizlet",
+    "description": "在线闪卡和学习工具，海量共享卡组，支持多种学习模式",
+    "websiteUrl": "https://quizlet.com/",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=quizlet.com&sz=64",
+    "category": "tools",
+    "subcategory": "flashcard",
+    "type": "website",
+    "level": "beginner",
+    "tags": [
+      "闪卡",
+      "词汇",
+      "共享"
+    ]
+  },
+  {
+    "id": "vocabulary-com",
+    "title": "Vocabulary.com",
+    "description": "智能词汇学习网站，根据语境学习单词，自适应练习，内容丰富",
+    "websiteUrl": "https://www.vocabulary.com/",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=vocabulary.com&sz=64",
+    "category": "tools",
+    "subcategory": "vocabulary",
+    "type": "website",
+    "level": "intermediate",
+    "tags": [
+      "词汇",
+      "语境",
+      "自适应"
+    ]
+  },
+  {
+    "id": "grammarly",
+    "title": "Grammarly",
+    "description": "AI写作助手，实时检查语法、拼写、用词和语气，提升英语写作准确性",
+    "websiteUrl": "https://www.grammarly.com/",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=grammarly.com&sz=64",
+    "category": "tools",
+    "subcategory": "writing",
+    "type": "website",
+    "level": "intermediate",
+    "tags": [
+      "写作",
+      "语法检查",
+      "AI"
+    ]
+  },
+  {
+    "id": "engoo",
+    "title": "Engoo",
+    "description": "每日英语学习材料，按难度分级，适合口语课前预习或自学阅读",
+    "websiteUrl": "https://engoo.com/app/materials/en",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=engoo.com&sz=64",
+    "category": "tools",
+    "subcategory": "vocabulary",
+    "type": "website",
+    "level": "intermediate",
+    "tags": [
+      "分级材料",
+      "口语",
+      "自学"
+    ]
+  },
+  {
+    "id": "coursera-english",
+    "title": "Coursera 英语课程",
+    "description": "来自全球顶尖大学的英语学习课程，含商务英语、学术写作、备考等",
+    "websiteUrl": "https://www.coursera.org/courses?query=english%20speaking",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=coursera.org&sz=64",
+    "category": "courses",
+    "subcategory": "online-course",
+    "type": "website",
+    "level": "intermediate",
+    "tags": [
+      "大学课程",
+      "系统",
+      "证书"
+    ]
+  },
+  {
+    "id": "duolingo",
+    "title": "Duolingo",
+    "description": "游戏化语言学习App，每日打卡练习词汇和语法，适合初学者保持学习习惯",
+    "websiteUrl": "https://www.duolingo.com/",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=duolingo.com&sz=64",
+    "category": "courses",
+    "subcategory": "app",
+    "type": "website",
+    "level": "beginner",
+    "tags": [
+      "游戏化",
+      "打卡",
+      "初学者"
+    ]
+  },
+  {
+    "id": "british-council",
+    "title": "British Council",
+    "description": "英国文化协会提供的免费英语学习资源，从A1到C2全覆盖，官方权威",
+    "websiteUrl": "https://learnenglish.britishcouncil.org/",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=britishcouncil.org&sz=64",
+    "category": "courses",
+    "subcategory": "online-course",
+    "type": "website",
+    "level": "beginner",
+    "tags": [
+      "英音",
+      "系统",
+      "免费"
+    ]
+  },
+  {
+    "id": "crash-course",
+    "title": "Crash Course",
+    "description": "PBS出品教育视频，涵盖历史、科学、文学等，语速快但字幕完整，适合进阶",
+    "websiteUrl": "https://thecrashcourse.com/",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=thecrashcourse.com&sz=64",
+    "category": "courses",
+    "subcategory": "online-course",
+    "type": "website",
+    "level": "advanced",
+    "tags": [
+      "教育",
+      "知识",
+      "视频"
+    ]
+  },
+  {
+    "id": "twitter-grammarenglis",
+    "title": "@grammarenglis",
+    "description": "每日英语语法小贴士，简洁明了",
+    "websiteUrl": "https://x.com/grammarenglis",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=x.com&sz=64",
+    "category": "social",
+    "subcategory": "twitter",
+    "type": "twitter",
+    "level": "beginner",
+    "tags": [
+      "语法",
+      "每日学习",
+      "推特"
+    ]
+  },
+  {
+    "id": "twitter-ajhoge",
+    "title": "@ajhoge",
+    "description": "A.J. Hoge的英语学习方法分享",
+    "websiteUrl": "https://x.com/ajhoge",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=x.com&sz=64",
+    "category": "social",
+    "subcategory": "twitter",
+    "type": "twitter",
+    "level": "beginner",
+    "tags": [
+      "学习方法",
+      "英语教学",
+      "推特"
+    ]
+  },
+  {
+    "id": "twitter-knowiiiedge",
+    "title": "@knowiiiedge",
+    "description": "英语知识和词汇分享账号",
+    "websiteUrl": "https://x.com/knowiiiedge",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=x.com&sz=64",
+    "category": "social",
+    "subcategory": "twitter",
+    "type": "twitter",
+    "level": "intermediate",
+    "tags": [
+      "词汇",
+      "知识",
+      "推特"
+    ]
+  },
+  {
+    "id": "twitter-egrammertipss",
+    "title": "@Egrammertipss",
+    "description": "实用英语语法技巧推送",
+    "websiteUrl": "https://x.com/Egrammertipss",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=x.com&sz=64",
+    "category": "social",
+    "subcategory": "twitter",
+    "type": "twitter",
+    "level": "beginner",
+    "tags": [
+      "语法",
+      "技巧",
+      "推特"
+    ]
+  },
+  {
+    "id": "twitter-learnenglishtip",
+    "title": "@learnenglishtip",
+    "description": "每日英语学习小贴士",
+    "websiteUrl": "https://x.com/learnenglishtip",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=x.com&sz=64",
+    "category": "social",
+    "subcategory": "twitter",
+    "type": "twitter",
+    "level": "beginner",
+    "tags": [
+      "学习技巧",
+      "每日",
+      "推特"
+    ]
+  },
+  {
+    "id": "twitter-englishclasse",
+    "title": "@englishclasse_",
+    "description": "英语课堂知识分享",
+    "websiteUrl": "https://x.com/englishclasse_",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=x.com&sz=64",
+    "category": "social",
+    "subcategory": "twitter",
+    "type": "twitter",
+    "level": "beginner",
+    "tags": [
+      "课堂",
+      "英语学习",
+      "推特"
+    ]
+  },
+  {
+    "id": "twitter-englishlearntip",
+    "title": "@englishlearntip",
+    "description": "英语学习技巧和资源分享",
+    "websiteUrl": "https://x.com/englishlearntip",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=x.com&sz=64",
+    "category": "social",
+    "subcategory": "twitter",
+    "type": "twitter",
+    "level": "beginner",
+    "tags": [
+      "学习技巧",
+      "资源",
+      "推特"
+    ]
+  },
+  {
+    "id": "twitter-iearnengllsh",
+    "title": "@IearnEngIlsh",
+    "description": "英语学习内容每日更新",
+    "websiteUrl": "https://x.com/IearnEngIlsh",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=x.com&sz=64",
+    "category": "social",
+    "subcategory": "twitter",
+    "type": "twitter",
+    "level": "beginner",
+    "tags": [
+      "每日更新",
+      "英语学习",
+      "推特"
+    ]
+  },
+  {
+    "id": "twitter-24hrsiearn",
+    "title": "@24hrsIearn",
+    "description": "全天候英语学习内容推送",
+    "websiteUrl": "https://x.com/24hrsIearn",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=x.com&sz=64",
+    "category": "social",
+    "subcategory": "twitter",
+    "type": "twitter",
+    "level": "beginner",
+    "tags": [
+      "全天候",
+      "英语学习",
+      "推特"
+    ]
+  },
+  {
+    "id": "twitter-duolingo",
+    "title": "@duolingo",
+    "description": "Duolingo官方推特，语言学习趣味内容",
+    "websiteUrl": "https://x.com/duolingo",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=x.com&sz=64",
+    "category": "social",
+    "subcategory": "twitter",
+    "type": "twitter",
+    "level": "beginner",
+    "tags": [
+      "Duolingo",
+      "趣味",
+      "推特"
+    ]
+  },
+  {
+    "id": "twitter-englishclub",
+    "title": "@EnglishClub",
+    "description": "EnglishClub官方账号，英语学习资源分享",
+    "websiteUrl": "https://x.com/EnglishClub",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=x.com&sz=64",
+    "category": "social",
+    "subcategory": "twitter",
+    "type": "twitter",
+    "level": "intermediate",
+    "tags": [
+      "学习资源",
+      "社区",
+      "推特"
+    ]
+  },
+  {
+    "id": "twitter-monicats",
+    "title": "@monicats",
+    "description": "Monica AI英语学习助手官方账号",
+    "websiteUrl": "https://x.com/monicats",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=x.com&sz=64",
+    "category": "social",
+    "subcategory": "twitter",
+    "type": "twitter",
+    "level": "intermediate",
+    "tags": [
+      "AI",
+      "英语助手",
+      "推特"
+    ]
+  },
+  {
+    "id": "bilibili-shawney",
+    "title": "罗肖尼Shawney",
+    "description": "英语口语教学，发音技巧和日常表达",
+    "websiteUrl": "https://space.bilibili.com/323794482",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=bilibili.com&sz=64",
+    "category": "social",
+    "subcategory": "bilibili",
+    "type": "bilibili",
+    "level": "intermediate",
+    "tags": [
+      "口语",
+      "发音",
+      "B站"
+    ]
+  },
+  {
+    "id": "bilibili-english-rabbit",
+    "title": "英语兔",
+    "description": "系统讲解英语语法，动画风格生动有趣",
+    "websiteUrl": "https://space.bilibili.com/483162496",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=bilibili.com&sz=64",
+    "category": "social",
+    "subcategory": "bilibili",
+    "type": "bilibili",
+    "level": "beginner",
+    "tags": [
+      "语法",
+      "动画",
+      "B站"
+    ]
+  },
+  {
+    "id": "bilibili-lai-shixiong",
+    "title": "赖世雄讲英语",
+    "description": "著名英语教育家赖世雄的英语教学频道",
+    "websiteUrl": "https://space.bilibili.com/1322170180",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=bilibili.com&sz=64",
+    "category": "social",
+    "subcategory": "bilibili",
+    "type": "bilibili",
+    "level": "beginner",
+    "tags": [
+      "名师",
+      "基础",
+      "B站"
+    ]
+  },
+  {
+    "id": "bilibili-jackyangmiao",
+    "title": "JackyangMiao",
+    "description": "英语学习方法和实用技巧分享",
+    "websiteUrl": "https://space.bilibili.com/12359115",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=bilibili.com&sz=64",
+    "category": "social",
+    "subcategory": "bilibili",
+    "type": "bilibili",
+    "level": "intermediate",
+    "tags": [
+      "学习方法",
+      "技巧",
+      "B站"
+    ]
+  },
+  {
+    "id": "telegram-british-english",
+    "title": "British English for all",
+    "description": "英式英语学习频道，每日推送语法和词汇",
+    "websiteUrl": "https://t.me/british_english_for_all",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=t.me&sz=64",
+    "category": "social",
+    "subcategory": "telegram",
+    "type": "telegram",
+    "level": "intermediate",
+    "tags": [
+      "英式英语",
+      "语法",
+      "Telegram"
+    ]
+  },
+  {
+    "id": "telegram-grammar-ielts",
+    "title": "English Grammar IELTS TOEFL",
+    "description": "雅思托福语法备考资料推送",
+    "websiteUrl": "https://t.me/english_grammar_ielts_toefl",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=t.me&sz=64",
+    "category": "social",
+    "subcategory": "telegram",
+    "type": "telegram",
+    "level": "advanced",
+    "tags": [
+      "雅思",
+      "托福",
+      "Telegram"
+    ]
+  },
+  {
+    "id": "telegram-podcast-english",
+    "title": "Podcast English listening",
+    "description": "英语播客听力资源分享频道",
+    "websiteUrl": "https://t.me/podcast_english_listening",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=t.me&sz=64",
+    "category": "social",
+    "subcategory": "telegram",
+    "type": "telegram",
+    "level": "intermediate",
+    "tags": [
+      "播客",
+      "听力",
+      "Telegram"
+    ]
+  },
+  {
+    "id": "telegram-improve-english",
+    "title": "Improve Your English",
+    "description": "英语提升技巧和学习资源",
+    "websiteUrl": "https://t.me/improve_your_english",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=t.me&sz=64",
+    "category": "social",
+    "subcategory": "telegram",
+    "type": "telegram",
+    "level": "intermediate",
+    "tags": [
+      "学习资源",
+      "技巧",
+      "Telegram"
+    ]
+  },
+  {
+    "id": "telegram-english-books",
+    "title": "English Books Novels magazines",
+    "description": "英文书籍、小说和杂志资源分享",
+    "websiteUrl": "https://t.me/english_books_novels",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=t.me&sz=64",
+    "category": "social",
+    "subcategory": "telegram",
+    "type": "telegram",
+    "level": "intermediate",
+    "tags": [
+      "书籍",
+      "小说",
+      "Telegram"
+    ]
+  },
+  {
+    "id": "telegram-english-of-the-day",
+    "title": "English of the Day",
+    "description": "每日一句英语学习推送",
+    "websiteUrl": "https://t.me/english_of_the_day",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=t.me&sz=64",
+    "category": "social",
+    "subcategory": "telegram",
+    "type": "telegram",
+    "level": "beginner",
+    "tags": [
+      "每日一句",
+      "学习",
+      "Telegram"
+    ]
+  },
+  {
+    "id": "telegram-english-chatting",
+    "title": "English chatting club Global",
+    "description": "全球英语聊天俱乐部，练习口语交流",
+    "websiteUrl": "https://t.me/english_chatting_club",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=t.me&sz=64",
+    "category": "social",
+    "subcategory": "telegram",
+    "type": "telegram",
+    "level": "intermediate",
+    "tags": [
+      "聊天",
+      "口语练习",
+      "Telegram"
+    ]
+  },
+  {
+    "id": "daily-show",
+    "title": "The Daily Show",
+    "description": "政治讽刺节目，解析时事热点",
+    "websiteUrl": "https://www.youtube.com/c/TheDailyShow",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=youtube.com&sz=64",
+    "category": "listening",
+    "subcategory": "talk-show",
+    "type": "youtube",
+    "level": "native",
+    "tags": [
+      "讽刺",
+      "时事",
+      "政治"
+    ]
+  },
+  {
+    "id": "tonight-show-fallon",
+    "title": "The Tonight Show Jimmy Fallon",
+    "description": "轻松搞笑，明星访谈和趣味游戏",
+    "websiteUrl": "https://www.youtube.com/c/fallontonight",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=youtube.com&sz=64",
+    "category": "listening",
+    "subcategory": "talk-show",
+    "type": "youtube",
+    "level": "native",
+    "tags": [
+      "脱口秀",
+      "明星访谈",
+      "搞笑"
+    ]
+  },
+  {
+    "id": "jimmy-kimmel-live",
+    "title": "Jimmy Kimmel Live",
+    "description": "明星访谈和喜剧短剧",
+    "websiteUrl": "https://www.youtube.com/c/JimmyKimmelLive",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=youtube.com&sz=64",
+    "category": "listening",
+    "subcategory": "talk-show",
+    "type": "youtube",
+    "level": "native",
+    "tags": [
+      "脱口秀",
+      "明星",
+      "喜剧"
+    ]
+  },
+  {
+    "id": "team-coco",
+    "title": "Team Coco",
+    "description": "Conan O'Brien的幽默内容",
+    "websiteUrl": "https://www.youtube.com/c/TeamCoco",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=youtube.com&sz=64",
+    "category": "listening",
+    "subcategory": "talk-show",
+    "type": "youtube",
+    "level": "native",
+    "tags": [
+      "幽默",
+      "脱口秀",
+      "Conan"
+    ]
+  },
+  {
+    "id": "late-show-colbert",
+    "title": "The Late Show Stephen Colbert",
+    "description": "新闻讽刺，结合时事的深夜脱口秀",
+    "websiteUrl": "https://www.youtube.com/@ColbertLateShow",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=youtube.com&sz=64",
+    "category": "listening",
+    "subcategory": "talk-show",
+    "type": "youtube",
+    "level": "native",
+    "tags": [
+      "新闻讽刺",
+      "脱口秀",
+      "时事"
+    ]
+  },
+  {
+    "id": "joe-rogan",
+    "title": "Joe Rogan",
+    "description": "2-3小时深度访谈，话题涵盖各领域",
+    "websiteUrl": "https://www.youtube.com/@joerogan",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=youtube.com&sz=64",
+    "category": "listening",
+    "subcategory": "talk-show",
+    "type": "youtube",
+    "level": "native",
+    "tags": [
+      "深度访谈",
+      "长节目",
+      "多领域"
+    ]
+  },
+  {
+    "id": "tom-bilyeu",
+    "title": "Tom Bilyeu",
+    "description": "成功故事和经验分享，创业与个人成长",
+    "websiteUrl": "https://www.youtube.com/@TomBilyeu",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=youtube.com&sz=64",
+    "category": "listening",
+    "subcategory": "talk-show",
+    "type": "youtube",
+    "level": "advanced",
+    "tags": [
+      "成功故事",
+      "创业",
+      "成长"
+    ]
+  },
+  {
+    "id": "first-we-feast",
+    "title": "First We Feast",
+    "description": "吃辣鸡翅访谈节目，轻松有趣的明星采访",
+    "websiteUrl": "https://www.youtube.com/@FirstWeFeast",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=youtube.com&sz=64",
+    "category": "listening",
+    "subcategory": "talk-show",
+    "type": "youtube",
+    "level": "native",
+    "tags": [
+      "美食",
+      "访谈",
+      "Hot Ones"
+    ]
+  },
+  {
+    "id": "garyvee",
+    "title": "GaryVee",
+    "description": "创业营销个人品牌，Gary Vaynerchuk的商业洞察",
+    "websiteUrl": "https://www.youtube.com/@garyvee",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=youtube.com&sz=64",
+    "category": "listening",
+    "subcategory": "talk-show",
+    "type": "youtube",
+    "level": "advanced",
+    "tags": [
+      "创业",
+      "营销",
+      "个人品牌"
+    ]
+  },
+  {
+    "id": "big-think",
+    "title": "Big Think",
+    "description": "短视频思想领袖访谈，各领域专家分享前沿观点",
+    "websiteUrl": "https://www.youtube.com/@bigthink",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=youtube.com&sz=64",
+    "category": "listening",
+    "subcategory": "talk-show",
+    "type": "youtube",
+    "level": "advanced",
+    "tags": [
+      "思想",
+      "短视频",
+      "专家"
+    ]
+  },
+  {
+    "id": "npr-radio",
+    "title": "NPR",
+    "description": "美国国家公共广播电台，新闻和文化节目",
+    "websiteUrl": "https://www.npr.org/",
+    "rssUrl": "https://feeds.npr.org/1001/rss.xml",
+    "imageUrl": "https://www.google.com/s2/favicons?domain=npr.org&sz=64",
+    "category": "listening",
+    "subcategory": "radio",
+    "type": "radio",
+    "level": "native",
+    "tags": [
+      "公共广播",
+      "新闻",
+      "美音"
+    ]
+  },
+  {
+    "id": "bbc-radio",
+    "title": "BBC Radio",
+    "description": "BBC广播电台，涵盖新闻、音乐、戏剧等多种内容",
+    "websiteUrl": "https://www.bbc.co.uk/sounds",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=bbc.co.uk&sz=64",
+    "category": "listening",
+    "subcategory": "radio",
+    "type": "radio",
+    "level": "native",
+    "tags": [
+      "BBC",
+      "英音",
+      "广播"
+    ]
+  },
+  {
+    "id": "tunein-radio",
+    "title": "TuneIn Radio",
+    "description": "全球广播电台聚合平台，收听各国英语广播",
+    "websiteUrl": "https://tunein.com/",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=tunein.com&sz=64",
+    "category": "listening",
+    "subcategory": "radio",
+    "type": "radio",
+    "level": "native",
+    "tags": [
+      "全球广播",
+      "聚合平台",
+      "电台"
+    ]
+  },
+  {
+    "id": "iheart-radio",
+    "title": "iHeartRadio",
+    "description": "美国最大广播平台，音乐和播客电台",
+    "websiteUrl": "https://www.iheart.com/",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=iheart.com&sz=64",
+    "category": "listening",
+    "subcategory": "radio",
+    "type": "radio",
+    "level": "native",
+    "tags": [
+      "美国电台",
+      "音乐",
+      "播客"
+    ]
+  },
+  {
+    "id": "wnyc-radio",
+    "title": "WNYC",
+    "description": "纽约公共广播电台，高质量新闻和文化节目",
+    "websiteUrl": "https://www.wnyc.org/",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=wnyc.org&sz=64",
+    "category": "listening",
+    "subcategory": "radio",
+    "type": "radio",
+    "level": "native",
+    "tags": [
+      "纽约",
+      "公共广播",
+      "文化"
+    ]
+  },
+  {
+    "id": "radio-garden",
+    "title": "Radio Garden",
+    "description": "3D地球仪界面，收听全球各地实时广播电台",
+    "websiteUrl": "https://radio.garden/",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=radio.garden&sz=64",
+    "category": "listening",
+    "subcategory": "radio",
+    "type": "radio",
+    "level": "native",
+    "tags": [
+      "全球电台",
+      "实时",
+      "互动地图"
+    ]
+  },
+  {
+    "id": "aj-hoge-youtube",
+    "title": "A.J. Hoge",
+    "description": "初学者友好，发音清晰，Effortless English方法",
+    "websiteUrl": "https://www.youtube.com/@AJHogeEffortlessEnglish",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=youtube.com&sz=64",
+    "category": "video",
+    "subcategory": "youtube-learning",
+    "type": "youtube",
+    "level": "beginner",
+    "tags": [
+      "初学者",
+      "发音",
+      "方法论"
+    ]
+  },
+  {
+    "id": "speak-english-vanessa",
+    "title": "Speak English With Vanessa",
+    "description": "发音和自然对话，美式英语教学",
+    "websiteUrl": "https://www.youtube.com/@SpeakEnglishWithVanessa",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=youtube.com&sz=64",
+    "category": "video",
+    "subcategory": "youtube-learning",
+    "type": "youtube",
+    "level": "intermediate",
+    "tags": [
+      "发音",
+      "自然对话",
+      "美音"
+    ]
+  },
+  {
+    "id": "englishclass101",
+    "title": "EnglishClass101",
+    "description": "系统化英语课程，从基础到高级全覆盖",
+    "websiteUrl": "https://www.youtube.com/@ENGLISHCLASS101",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=youtube.com&sz=64",
+    "category": "video",
+    "subcategory": "youtube-learning",
+    "type": "youtube",
+    "level": "beginner",
+    "tags": [
+      "系统课程",
+      "全级别",
+      "结构化"
+    ]
+  },
+  {
+    "id": "learn-english-tv-series",
+    "title": "Learn English with TV Series",
+    "description": "通过美剧学英语，结合影视片段讲解表达",
+    "websiteUrl": "https://www.youtube.com/@LearnEnglishWithTVSeries",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=youtube.com&sz=64",
+    "category": "video",
+    "subcategory": "youtube-learning",
+    "type": "youtube",
+    "level": "intermediate",
+    "tags": [
+      "美剧",
+      "地道表达",
+      "影视"
+    ]
+  },
+  {
+    "id": "english-with-james",
+    "title": "ENGLISH with James",
+    "description": "语法和学术写作，engVid平台教师",
+    "websiteUrl": "https://www.youtube.com/@engvidJames",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=youtube.com&sz=64",
+    "category": "video",
+    "subcategory": "youtube-learning",
+    "type": "youtube",
+    "level": "intermediate",
+    "tags": [
+      "语法",
+      "学术写作",
+      "engVid"
+    ]
+  },
+  {
+    "id": "english-speeches",
+    "title": "English Speeches",
+    "description": "带字幕的演讲视频，名人演讲精选",
+    "websiteUrl": "https://www.youtube.com/@EnglishSpeeches",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=youtube.com&sz=64",
+    "category": "video",
+    "subcategory": "youtube-learning",
+    "type": "youtube",
+    "level": "advanced",
+    "tags": [
+      "演讲",
+      "字幕",
+      "名人"
+    ]
+  },
+  {
+    "id": "steve-kaufmann",
+    "title": "Steve Kaufmann",
+    "description": "多语言学习方法，资深多语者的学习经验",
+    "websiteUrl": "https://www.youtube.com/@thelinguist",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=youtube.com&sz=64",
+    "category": "video",
+    "subcategory": "youtube-learning",
+    "type": "youtube",
+    "level": "intermediate",
+    "tags": [
+      "多语言",
+      "学习方法",
+      "经验"
+    ]
+  },
+  {
+    "id": "reallife-english",
+    "title": "RealLife English",
+    "description": "每周课程，自然对话，地道口语教学",
+    "websiteUrl": "https://www.youtube.com/@RealLifeEnglish1",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=youtube.com&sz=64",
+    "category": "video",
+    "subcategory": "youtube-learning",
+    "type": "youtube",
+    "level": "intermediate",
+    "tags": [
+      "自然对话",
+      "口语",
+      "每周课程"
+    ]
+  },
+  {
+    "id": "english-with-rebecca",
+    "title": "Learn English with Rebecca",
+    "description": "全面的语法词汇资源，engVid平台教师",
+    "websiteUrl": "https://www.youtube.com/@engvidrebecca",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=youtube.com&sz=64",
+    "category": "video",
+    "subcategory": "youtube-learning",
+    "type": "youtube",
+    "level": "beginner",
+    "tags": [
+      "语法",
+      "词汇",
+      "engVid"
+    ]
+  },
+  {
+    "id": "professor-dave-explains",
+    "title": "Professor Dave Explains",
+    "description": "用英语讲科学和数学，学科知识与语言并行",
+    "websiteUrl": "https://www.youtube.com/@ProfessorDaveExplains",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=youtube.com&sz=64",
+    "category": "video",
+    "subcategory": "youtube-learning",
+    "type": "youtube",
+    "level": "advanced",
+    "tags": [
+      "科学",
+      "数学",
+      "学科英语"
+    ]
+  },
+  {
+    "id": "ihavenotv",
+    "title": "iHaveNoTV",
+    "description": "免费纪录片网站，含BBC和PBS高质量纪录片",
+    "websiteUrl": "https://ihavenotv.com/",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=ihavenotv.com&sz=64",
+    "category": "video",
+    "subcategory": "streaming",
+    "type": "website",
+    "level": "advanced",
+    "tags": [
+      "纪录片",
+      "免费",
+      "BBC"
+    ]
+  },
+  {
+    "id": "plex",
+    "title": "Plex",
+    "description": "免费电影和电视节目流媒体平台",
+    "websiteUrl": "https://watch.plex.tv/",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=plex.tv&sz=64",
+    "category": "video",
+    "subcategory": "streaming",
+    "type": "website",
+    "level": "native",
+    "tags": [
+      "免费",
+      "电影",
+      "电视剧"
+    ]
+  },
+  {
+    "id": "z-library",
+    "title": "Z-library",
+    "description": "全球最大免费电子书下载平台",
+    "websiteUrl": "https://z-library.sk/",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=z-library.sk&sz=64",
+    "category": "reading",
+    "subcategory": "books",
+    "type": "website",
+    "level": "intermediate",
+    "tags": [
+      "电子书",
+      "免费",
+      "下载"
+    ]
+  },
+  {
+    "id": "obooko",
+    "title": "obooko",
+    "description": "免费英文原版书下载，种类丰富",
+    "websiteUrl": "https://www.obooko.com/",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=obooko.com&sz=64",
+    "category": "reading",
+    "subcategory": "books",
+    "type": "website",
+    "level": "intermediate",
+    "tags": [
+      "原版书",
+      "免费",
+      "下载"
+    ]
+  },
+  {
+    "id": "english-short-stories",
+    "title": "English Short Stories",
+    "description": "适合初学者的短篇故事集合",
+    "websiteUrl": "https://www.english-for-students.com/Short-Stories.html",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=english-for-students.com&sz=64",
+    "category": "reading",
+    "subcategory": "books",
+    "type": "website",
+    "level": "beginner",
+    "tags": [
+      "短篇故事",
+      "初学者",
+      "免费"
+    ]
+  },
+  {
+    "id": "monkeypen",
+    "title": "MonkeyPen",
+    "description": "免费英文绘本下载，适合儿童和初学者",
+    "websiteUrl": "https://monkeypen.com/",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=monkeypen.com&sz=64",
+    "category": "reading",
+    "subcategory": "books",
+    "type": "website",
+    "level": "beginner",
+    "tags": [
+      "绘本",
+      "儿童",
+      "免费"
+    ]
+  },
+  {
+    "id": "bilinguis",
+    "title": "Bilinguis",
+    "description": "双语阅读平台，中英对照阅读经典著作",
+    "websiteUrl": "https://zh.bilinguis.com/book/",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=bilinguis.com&sz=64",
+    "category": "reading",
+    "subcategory": "books",
+    "type": "website",
+    "level": "intermediate",
+    "tags": [
+      "双语",
+      "对照阅读",
+      "经典"
+    ]
+  },
+  {
+    "id": "webtoon",
+    "title": "Webtoon",
+    "description": "全球最大网络漫画平台，海量英文漫画",
+    "websiteUrl": "https://www.webtoons.com/en/",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=webtoons.com&sz=64",
+    "category": "reading",
+    "subcategory": "comics",
+    "type": "website",
+    "level": "intermediate",
+    "tags": [
+      "漫画",
+      "网络漫画",
+      "免费"
+    ]
+  },
+  {
+    "id": "tapas",
+    "title": "Tapas",
+    "description": "独立漫画家平台，丰富的英文原创漫画",
+    "websiteUrl": "https://tapas.io/",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=tapas.io&sz=64",
+    "category": "reading",
+    "subcategory": "comics",
+    "type": "website",
+    "level": "intermediate",
+    "tags": [
+      "独立漫画",
+      "原创",
+      "免费"
+    ]
+  },
+  {
+    "id": "mangadex",
+    "title": "MangaDex",
+    "description": "在线英文漫画阅读平台，社区翻译",
+    "websiteUrl": "https://mangadex.org/",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=mangadex.org&sz=64",
+    "category": "reading",
+    "subcategory": "comics",
+    "type": "website",
+    "level": "intermediate",
+    "tags": [
+      "漫画",
+      "英文翻译",
+      "社区"
+    ]
+  },
+  {
+    "id": "abcmouse",
+    "title": "ABCMouse",
+    "description": "儿童英语教育平台，游戏化学习体验",
+    "websiteUrl": "https://www.abcmouse.com/games",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=abcmouse.com&sz=64",
+    "category": "interactive",
+    "subcategory": "web-games",
+    "type": "website",
+    "level": "beginner",
+    "tags": [
+      "儿童",
+      "游戏化",
+      "教育"
+    ]
+  },
+  {
+    "id": "little-alchemy-2",
+    "title": "Little Alchemy 2",
+    "description": "元素组合学习游戏，在探索中学英语词汇",
+    "websiteUrl": "https://littlealchemy2.com/",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=littlealchemy2.com&sz=64",
+    "category": "interactive",
+    "subcategory": "web-games",
+    "type": "website",
+    "level": "beginner",
+    "tags": [
+      "元素组合",
+      "词汇",
+      "探索"
+    ]
+  },
+  {
+    "id": "itch-io",
+    "title": "itch.io",
+    "description": "独立游戏平台，含语言学习类游戏",
+    "websiteUrl": "https://itch.io/",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=itch.io&sz=64",
+    "category": "interactive",
+    "subcategory": "web-games",
+    "type": "website",
+    "level": "intermediate",
+    "tags": [
+      "独立游戏",
+      "语言学习",
+      "平台"
+    ]
+  },
+  {
+    "id": "dashplayer",
+    "title": "DashPlayer",
+    "description": "专为英语学习者设计的视频播放器，支持逐句精听",
+    "websiteUrl": "https://github.com/solidSpoon/DashPlayer",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=github.com&sz=64",
+    "category": "tools",
+    "subcategory": "player",
+    "type": "website",
+    "level": "intermediate",
+    "tags": [
+      "视频播放器",
+      "精听",
+      "开源"
+    ]
+  },
+  {
+    "id": "enjoy-ai",
+    "title": "Enjoy",
+    "description": "开源AI英语助教，智能学习辅导",
+    "websiteUrl": "https://1000h.org/",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=1000h.org&sz=64",
+    "category": "tools",
+    "subcategory": "vocabulary",
+    "type": "website",
+    "level": "intermediate",
+    "tags": [
+      "AI",
+      "开源",
+      "助教"
+    ]
+  },
+  {
+    "id": "qwerty-learner",
+    "title": "qwerty learner",
+    "description": "键盘打字记单词，编程与英语学习结合",
+    "websiteUrl": "https://github.com/Kaiyiwing/qwerty-learner",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=github.com&sz=64",
+    "category": "tools",
+    "subcategory": "vocabulary",
+    "type": "website",
+    "level": "beginner",
+    "tags": [
+      "打字",
+      "记单词",
+      "开源"
+    ]
+  },
+  {
+    "id": "earthworm",
+    "title": "Earthworm",
+    "description": "造句学英语，通过造句练习巩固语法和词汇",
+    "websiteUrl": "https://github.com/cuixueshe/earthworm",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=github.com&sz=64",
+    "category": "tools",
+    "subcategory": "vocabulary",
+    "type": "website",
+    "level": "beginner",
+    "tags": [
+      "造句",
+      "语法",
+      "开源"
+    ]
+  },
+  {
+    "id": "udemy-english",
+    "title": "Udemy English",
+    "description": "Udemy平台英语课程，涵盖各级别和专项技能",
+    "websiteUrl": "https://www.udemy.com/topic/english-language/",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=udemy.com&sz=64",
+    "category": "courses",
+    "subcategory": "online-course",
+    "type": "website",
+    "level": "intermediate",
+    "tags": [
+      "在线课程",
+      "Udemy",
+      "多级别"
+    ]
+  },
+  {
+    "id": "edx-english",
+    "title": "edX English",
+    "description": "edX平台英语学习课程，名校出品",
+    "websiteUrl": "https://www.edx.org/learn/english",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=edx.org&sz=64",
+    "category": "courses",
+    "subcategory": "online-course",
+    "type": "website",
+    "level": "intermediate",
+    "tags": [
+      "名校",
+      "edX",
+      "证书"
+    ]
+  },
+  {
+    "id": "futurelearn-english",
+    "title": "Future Learn",
+    "description": "语言文化课程，英国大学提供的在线英语学习",
+    "websiteUrl": "https://www.futurelearn.com/subjects/languages-and-cultures-courses/learn-english",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=futurelearn.com&sz=64",
+    "category": "courses",
+    "subcategory": "online-course",
+    "type": "website",
+    "level": "intermediate",
+    "tags": [
+      "英国大学",
+      "文化",
+      "在线课程"
+    ]
+  },
+  {
+    "id": "little-fox",
+    "title": "Little Fox",
+    "description": "动画故事和儿歌，专为儿童设计的英语学习频道",
+    "websiteUrl": "https://www.youtube.com/user/LittleFoxKids",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=youtube.com&sz=64",
+    "category": "children",
+    "subcategory": "kids",
+    "type": "youtube",
+    "level": "beginner",
+    "tags": [
+      "动画",
+      "儿歌",
+      "儿童"
+    ]
+  },
+  {
+    "id": "peppa-pig",
+    "title": "Peppa Pig",
+    "description": "小猪佩奇官方频道，简单对话适合英语启蒙",
+    "websiteUrl": "https://www.youtube.com/@PeppaBigOfficial",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=youtube.com&sz=64",
+    "category": "children",
+    "subcategory": "kids",
+    "type": "youtube",
+    "level": "beginner",
+    "tags": [
+      "动画",
+      "启蒙",
+      "儿童"
+    ]
+  },
+  {
+    "id": "super-simple-songs",
+    "title": "Super Simple Songs",
+    "description": "英文儿歌和教育内容，节奏欢快易学",
+    "websiteUrl": "https://www.youtube.com/@SuperSimpleSongs",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=youtube.com&sz=64",
+    "category": "children",
+    "subcategory": "kids",
+    "type": "youtube",
+    "level": "beginner",
+    "tags": [
+      "儿歌",
+      "教育",
+      "儿童"
+    ]
+  },
+  {
+    "id": "chuchu-tv",
+    "title": "ChuChu TV",
+    "description": "儿歌和教育内容，色彩丰富的动画教学",
+    "websiteUrl": "https://www.youtube.com/@ChuChuTV",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=youtube.com&sz=64",
+    "category": "children",
+    "subcategory": "kids",
+    "type": "youtube",
+    "level": "beginner",
+    "tags": [
+      "儿歌",
+      "动画",
+      "儿童"
+    ]
+  },
+  {
+    "id": "freekidsbooks",
+    "title": "Free Kids Books",
+    "description": "免费儿童读物下载，适合亲子英语阅读",
+    "websiteUrl": "https://freekidsbooks.org/",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=freekidsbooks.org&sz=64",
+    "category": "children",
+    "subcategory": "kids",
+    "type": "website",
+    "level": "beginner",
+    "tags": [
+      "儿童读物",
+      "免费",
+      "亲子"
+    ]
+  },
+  {
+    "id": "cambly",
+    "title": "Cambly",
+    "description": "与英语母语者一对一视频练习对话",
+    "websiteUrl": "https://www.cambly.com/",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=cambly.com&sz=64",
+    "category": "speaking",
+    "subcategory": "practice",
+    "type": "website",
+    "level": "intermediate",
+    "tags": [
+      "母语者",
+      "一对一",
+      "视频"
+    ]
+  },
+  {
+    "id": "tandem",
+    "title": "Tandem",
+    "description": "语言交换App，与全球用户互相学习语言",
+    "websiteUrl": "https://www.tandem.net/",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=tandem.net&sz=64",
+    "category": "speaking",
+    "subcategory": "practice",
+    "type": "website",
+    "level": "intermediate",
+    "tags": [
+      "语言交换",
+      "App",
+      "全球"
+    ]
+  },
+  {
+    "id": "speechling",
+    "title": "Speechling",
+    "description": "发音反馈服务，专业教练纠正你的发音",
+    "websiteUrl": "https://speechling.com/",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=speechling.com&sz=64",
+    "category": "speaking",
+    "subcategory": "tools",
+    "type": "website",
+    "level": "intermediate",
+    "tags": [
+      "发音",
+      "反馈",
+      "纠正"
+    ]
+  },
+  {
+    "id": "smalltalk2me",
+    "title": "SmallTalk2Me",
+    "description": "AI口语练习，模拟真实对话场景",
+    "websiteUrl": "https://smalltalk2.me/",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=smalltalk2.me&sz=64",
+    "category": "speaking",
+    "subcategory": "tools",
+    "type": "website",
+    "level": "intermediate",
+    "tags": [
+      "AI",
+      "口语练习",
+      "模拟对话"
+    ]
+  },
+  {
+    "id": "conversation-exchange",
+    "title": "Conversation Exchange",
+    "description": "免费语言交换平台，找语伴练口语",
+    "websiteUrl": "https://www.conversationexchange.com/",
+    "rssUrl": null,
+    "imageUrl": "https://www.google.com/s2/favicons?domain=conversationexchange.com&sz=64",
+    "category": "speaking",
+    "subcategory": "practice",
+    "type": "website",
+    "level": "intermediate",
+    "tags": [
+      "免费",
+      "语伴",
+      "口语"
+    ]
+  }
+]

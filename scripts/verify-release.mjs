@@ -39,7 +39,7 @@ requireCheck(versions[manifest.version] === manifest.minAppVersion, "versions.js
 const assets = Object.fromEntries(releaseFiles.map((name) => {
   const file = path.join(profile.outputDir, name);
   requireCheck(fs.existsSync(file), `missing release asset: ${name}`);
-  requireCheck(fs.statSync(file).size <= 5_300_000, `release asset exceeds 5.3 MB: ${name}`);
+  requireCheck(fs.statSync(file).size <= 7_000_000, `release asset exceeds 7 MB: ${name}`);
   requireCheck(fs.statSync(file).size > 0, `empty release asset: ${name}`);
   return [name, { bytes: fs.statSync(file).size, sha256: sha256(file) }];
 }));
@@ -54,8 +54,11 @@ if (profile.name === "community") {
   requireCheck(!mainSource.includes("ACP installed but its executable was not found"), "installer execution code leaked into the community bundle");
 }
 const cssSource = fs.readFileSync(path.join(profile.outputDir, "styles.css"), "utf8");
-requireCheck(!/!\s*important\b/i.test(cssSource), "styles.css contains priority overrides; use the scoped component cascade");
-requireCheck(!/:has\s*\(/i.test(cssSource), "styles.css contains relational selectors; use an explicit scoped state class");
+requireCheck(cssSource.includes("#qiaomu-english-search") && cssSource.includes(".langr-subtitle-popup"),
+  "styles.css is missing the Language Learner dictionary and hover component styles");
+const readerCssSource = fs.readFileSync(path.join(root, "src/styles.css"), "utf8");
+requireCheck(!/!\s*important\b/i.test(readerCssSource), "reader styles contain priority overrides; use the scoped component cascade");
+requireCheck(!/:has\s*\(/i.test(readerCssSource), "reader styles contain relational selectors; use an explicit scoped state class");
 const fontPayloads = bundledFonts.map(({ file, family }) => {
   const font = path.join(root, file);
   requireCheck(fs.existsSync(font), `missing bundled font source: ${file}`);

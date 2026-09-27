@@ -19,10 +19,12 @@ function setup(options = {}) {
   const opened = [];
   const controller = new api.EnglishLookupController({
     hostDocument: dom.window.document,
-    settings: () => ({ englishLookupEnabled: true, englishClickLookup: true, englishLookupProvider: "youdao", language: "zh" }),
+    settings: options.settings || (() => ({ englishLookupEnabled: true, englishClickLookup: true, englishLookupProvider: "youdao", language: "zh" })),
     request: context.requestUrl,
     onAddReview: options.onAddReview,
     onOpenDictionary: (word, context) => opened.push({ word, context }),
+    onHoverLookup: options.onHoverLookup,
+    onHoverClose: options.onHoverClose,
   });
   return { dom, api, controller, opened };
 }
@@ -66,6 +68,9 @@ test("a PDF text span supplies the source sentence", () => {
   line.textContent = "The curious reader found a quiet garden.";
   dom.window.document.body.appendChild(layer);
   assert.equal(api.sentenceFromTarget(line), line.textContent);
+  line.remove();
+  layer.textContent = "A plain text PDF line.";
+  assert.equal(api.sentenceFromTarget(layer), "A plain text PDF line.");
   controller.destroy(); dom.window.close();
 });
 
@@ -97,7 +102,7 @@ test("click lookup consumes navigation and opens the full dictionary with senten
   controller.attach(doc, { scope: paragraph });
   const event = new dom.window.MouseEvent("click", { bubbles: true, cancelable: true, clientX: 50, clientY: 50 });
   paragraph.dispatchEvent(event);
-  await new Promise(resolve => setTimeout(resolve, 0));
+  await new Promise(resolve => dom.window.setTimeout(resolve, 0));
   assert.equal(event.defaultPrevented, true);
   assert.equal(pageClicks, 0);
   assert.equal(opened.length, 1);
@@ -106,14 +111,103 @@ test("click lookup consumes navigation and opens the full dictionary with senten
   controller.destroy(); dom.window.close();
 });
 
+test("reader hover sends its word and sentence to the original lookup UI", async () => {
+  const hovered = [];
+  const { dom, controller } = setup({
+    settings: () => ({ englishLookupEnabled: true, englishClickLookup: true, englishHoverDelay: 1 }),
+    onHoverLookup: (word, context) => hovered.push({ word, context }),
+  });
+  const doc = dom.window.document;
+  const paragraph = doc.querySelector("p");
+  doc.caretRangeFromPoint = () => ({ startContainer: paragraph.firstChild, startOffset: 2 });
+  controller.attach(doc, { scope: paragraph });
+  paragraph.dispatchEvent(new dom.window.MouseEvent("mousemove", { bubbles: true, clientX: 50, clientY: 50 }));
+  await new Promise(resolve => dom.window.setTimeout(resolve, 15));
+  assert.equal(hovered[0]?.word, "reader");
+  assert.equal(hovered[0]?.context.sentence, "reader word");
+  assert.equal(doc.querySelector(".qiaomu-reader-dict-popup"), null);
+  controller.destroy(); dom.window.close();
+});
+
+test("starting a text selection cancels pending hover and dismisses an open hover popup", async () => {
+  const hovered = [];
+  const closed = [];
+  const { dom, controller } = setup({
+    settings: () => ({ englishLookupEnabled: true, englishHoverDelay: 1 }),
+    onHoverLookup: (word) => hovered.push(word),
+    onHoverClose: () => closed.push(true),
+  });
+  const doc = dom.window.document;
+  const paragraph = doc.querySelector("p");
+  doc.caretRangeFromPoint = () => ({ startContainer: paragraph.firstChild, startOffset: 2 });
+  controller.attach(doc, { scope: paragraph });
+
+  paragraph.dispatchEvent(new dom.window.MouseEvent("mousemove", { bubbles: true, clientX: 50, clientY: 50 }));
+  const down = new dom.window.PointerEvent("pointerdown", { bubbles: true, cancelable: true, pointerType: "mouse", button: 0, buttons: 1 });
+  paragraph.dispatchEvent(down);
+  paragraph.dispatchEvent(new dom.window.MouseEvent("mousemove", { bubbles: true, buttons: 1, clientX: 70, clientY: 50 }));
+  await new Promise(resolve => dom.window.setTimeout(resolve, 15));
+  assert.deepEqual(hovered, [], "dragging must not open a hover popup");
+  assert.equal(down.defaultPrevented, false, "the native text selection must remain available");
+
+  paragraph.dispatchEvent(new dom.window.PointerEvent("pointerup", { bubbles: true, pointerType: "mouse", button: 0 }));
+  paragraph.dispatchEvent(new dom.window.MouseEvent("mousemove", { bubbles: true, clientX: 50, clientY: 50 }));
+  await new Promise(resolve => dom.window.setTimeout(resolve, 15));
+  assert.deepEqual(hovered, ["reader"], "hover resumes after the selection gesture");
+
+  paragraph.dispatchEvent(new dom.window.PointerEvent("pointerdown", { bubbles: true, pointerType: "mouse", button: 0, buttons: 1 }));
+  assert.ok(closed.length > 0, "a new selection dismisses a visible hover popup immediately");
+  controller.destroy(); dom.window.close();
+});
+
+test("moving across the popup toward its buttons does not replace the hovered word", async () => {
+  const hovered = [];
+  const { dom, controller } = setup({
+    settings: () => ({ englishLookupEnabled: true, englishHoverDelay: 1 }),
+    onHoverLookup: (word) => hovered.push(word),
+  });
+  const doc = dom.window.document;
+  const paragraph = doc.querySelector("p");
+  doc.caretRangeFromPoint = (x) => ({ startContainer: paragraph.firstChild, startOffset: x < 60 ? 2 : 8 });
+  controller.attach(doc, { scope: paragraph });
+  paragraph.dispatchEvent(new dom.window.MouseEvent("mousemove", { bubbles: true, clientX: 50, clientY: 50 }));
+  await new Promise(resolve => dom.window.setTimeout(resolve, 15));
+  const popup = doc.createElement("div");
+  popup.className = "langr-subtitle-popup";
+  popup.getBoundingClientRect = () => ({ left: 60, right: 110, top: 30, bottom: 70 });
+  doc.body.appendChild(popup);
+  paragraph.dispatchEvent(new dom.window.MouseEvent("mousemove", { bubbles: true, clientX: 70, clientY: 50 }));
+  await new Promise(resolve => dom.window.setTimeout(resolve, 15));
+  assert.deepEqual(hovered, ["reader"]);
+  controller.destroy(); dom.window.close();
+});
+
+test("reader selection follows the original modifier setting", async () => {
+  const { dom, controller, opened } = setup({
+    settings: () => ({ englishLookupEnabled: true, englishClickLookup: true, function_key: "ctrlKey", isMobile: false }),
+  });
+  const doc = dom.window.document;
+  const paragraph = doc.querySelector("p");
+  const range = doc.createRange();
+  range.setStart(paragraph.firstChild, 0);
+  range.setEnd(paragraph.firstChild, 6);
+  doc.getSelection().addRange(range);
+  controller.attach(doc, { scope: paragraph });
+  paragraph.dispatchEvent(new dom.window.Event("pointerup", { bubbles: true }));
+  assert.equal(opened.length, 0);
+  paragraph.dispatchEvent(new dom.window.PointerEvent("pointerup", { bubbles: true, ctrlKey: true }));
+  assert.equal(opened[0]?.word, "reader");
+  controller.destroy(); dom.window.close();
+});
+
 test("a failed review action in the hover popup can be retried", async () => {
   const { dom, controller } = setup({ onAddReview: async () => { throw new Error("write failed"); } });
   controller.lookupText("reader", { left: 50, top: 50 });
-  await new Promise(resolve => setTimeout(resolve, 0));
+  await new Promise(resolve => dom.window.setTimeout(resolve, 0));
   const doc = dom.window.document;
   const review = doc.querySelector(".qiaomu-reader-dict-review");
   review.click();
-  await new Promise(resolve => setTimeout(resolve, 0));
+  await new Promise(resolve => dom.window.setTimeout(resolve, 0));
   assert.equal(review.disabled, false);
   assert.equal(review.textContent.includes("加入失败"), true);
   controller.destroy(); dom.window.close();

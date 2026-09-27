@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/learning/vendor/*"],
+      "@dict/*": ["src/learning/vendor/dictionary/*"],
+      "@comp/*": ["src/learning/vendor/component/*"]
+    },
+    "module": "ESNext",
+    "target": "ES6",
+    "allowJs": true,
+    "noImplicitAny": true,
+    "moduleResolution": "node",
+    "importHelpers": true,
+    "isolatedModules": true,
+    "allowSyntheticDefaultImports": true,
+    "jsx": "preserve",
+    "lib": ["DOM", "ES5", "ES6", "ES7", "dom.iterable"]
+  },
+  "include": ["src/learning/vendor/**/*.ts", "src/learning/vendor/**/*.vue", "src/learning/shims.d.ts"],
+  "exclude": ["node_modules"]
+}
