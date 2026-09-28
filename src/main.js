@@ -1689,8 +1689,23 @@ const QiaomuBookReader = class extends Plugin {
     }
   }
   _addRibbonEntry() {
-    const libraryLabel = `Qiaomu Reader — ${qiaomuReaderTranslate("library")}`;
-    this.addRibbonIcon("book-open", libraryLabel, () => this.openLibrary()).addClass("qiaomu-reader-ribbon");
+    const libraryLabel = qiaomuReaderTranslate("library");
+    const ribbon = this.addRibbonIcon("library", `Qiaomu Reader English — ${libraryLabel}`, () => this.openLibrary());
+    ribbon.addClass("qiaomu-reader-ribbon");
+    // Keep the native icon-only ribbon layout and a durable, non-tooltip accessible name.
+    ribbon.removeAttribute("aria-label");
+    ribbon.removeAttribute("title");
+    const name = ribbon.createSpan({ cls: "qiaomu-reader-a11y-label", text: libraryLabel });
+    name.hidden = true;
+    name.id = `qiaomu-reader-library-ribbon-${Math.random().toString(36).slice(2)}`;
+    ribbon.setAttribute("aria-labelledby", name.id);
+    ribbon.setAttribute("role", "button");
+    ribbon.tabIndex = 0;
+    ribbon.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      ribbon.click();
+    });
   }
   _registerCommandsAndSettings() {
     const primaryCommands = [
