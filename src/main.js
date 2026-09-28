@@ -2,6 +2,7 @@ import { selectionActionPreferences } from "./selection-preferences.js";
 import { SelectionSpeechPlayer } from "./selection-tts.js";
 import { renderSpeechSettings } from "./selection-tts-settings.js";
 import { watchQuietUi } from "./quiet-ui.js";
+import { watchReaderStatusBar } from "./status-bar.js";
 import { STARTER_BOOKS } from "./starter-book-data.js";
 import { createStarterLibraryInstaller, findStarterBook } from "./starter-library.js";
 import { isNonChineseSource } from "./ai-source-language.js";
@@ -1621,11 +1622,13 @@ const QiaomuBookReader = class extends Plugin {
   _watchQuietUiDocument(doc) {
     if (doc?.body && this._quietUiDocuments && !this._quietUiDocuments.has(doc)) {
       const stop = watchQuietUi(doc);
+      const stopStatusBar = watchReaderStatusBar(this.app.workspace, doc);
       const cleanup = () => {
         if (this._quietUiDocuments.get(doc) !== cleanup) return;
         this._quietUiDocuments.delete(doc);
         doc.defaultView?.removeEventListener("unload", cleanup);
         stop();
+        stopStatusBar();
       };
       this._quietUiDocuments.set(doc, cleanup);
       doc.defaultView?.addEventListener("unload", cleanup, { once: true });
@@ -1851,17 +1854,19 @@ const QiaomuBookReader = class extends Plugin {
       return;
     }
     const onReady = async () => {
-      if (this._onbShown || this.settings.onboarded) return;
+      if (this._unloading || this._onbShown || this.settings.onboarded) return;
       // fresh install: nothing to catch up on
       this._onbShown = true; this.settings.onboarded = true; this.settings.lastSeenVersion = this.manifest.version;
-      await this.saveAll(); const welcome = new OnboardingModal(this.app, this);
+      await this.saveAll();
+      if (this._unloading) return;
+      const welcome = new OnboardingModal(this.app, this);
       welcome.open();
     };
     this.app.workspace.onLayoutReady(onReady);
   }
   _scheduleWhatsNewCheck() {
     const onReady = async () => {
-      if (this._wnShown) { return; }
+      if (this._unloading || this._wnShown) { return; }
       const previous = this.settings.lastSeenVersion || "";
       const current = this.manifest.version;
       const news = whatsNewSince(previous, current);
@@ -1870,7 +1875,10 @@ const QiaomuBookReader = class extends Plugin {
         return;
       }
       this._wnShown = true; this.settings.lastSeenVersion = current;
-      await this.saveAll(); const noteFile = this.settings.whatsNewNote === false ? null : await writeWhatsNewNote(this.app, this, news);
+      await this.saveAll();
+      if (this._unloading) return;
+      const noteFile = this.settings.whatsNewNote === false ? null : await writeWhatsNewNote(this.app, this, news);
+      if (this._unloading) return;
       const update = new WhatsNewModal(this.app, this, news, noteFile);
       update.open();
     };
@@ -1884,6 +1892,8 @@ const QiaomuBookReader = class extends Plugin {
     for (const modal of [...(this._englishDictionaryModals || [])]) modal.close();
     for (const controller of this._lookupControllers || []) controller.destroy();
     this._lookupControllers?.clear();
+    for (const modal of this._announcementModals || []) modal.close();
+    this._announcementModals?.clear();
     this._aiQuoteJumpController?.abort();
     disposeReaderFonts(this);
     disposeCliAiSessions();
@@ -9722,6 +9732,8 @@ const WhatsNewModal = class extends Modal {
     this.noteFile = noteFile || null;
   }
   onOpen() {
+    if (this.plugin?._unloading) { this.close(); return; }
+    if (this.plugin) (this.plugin._announcementModals ||= new Set()).add(this);
     const c = this.contentEl;
     this.modalEl.addClass("qiaomu-reader-onb-modal");
     c.empty();
@@ -9760,6 +9772,7 @@ const WhatsNewModal = class extends Modal {
     });
   }
   onClose() {
+    this.plugin?._announcementModals?.delete(this);
     this.contentEl.empty();
   }
 };
@@ -9950,6 +9963,8 @@ const OnboardingModal = class extends Modal {
     this._finished = false;
   }
   onOpen() {
+    if (this.plugin?._unloading) { this.close(); return; }
+    if (this.plugin) (this.plugin._announcementModals ||= new Set()).add(this);
     this.modalEl.addClass("qiaomu-reader-onb-modal");
     this.scope.register([], "ArrowRight", (e) => {
       e.preventDefault();
@@ -9971,7 +9986,7 @@ const OnboardingModal = class extends Modal {
   _markSeen() {
     if (this._finished) return;
     this._finished = true;
-    if (this.plugin && !this.plugin.settings.onboarded) {
+    if (this.plugin && !this.plugin._unloading && !this.plugin.settings.onboarded) {
       this.plugin.settings.onboarded = true;
       this.plugin.saveAll();
     }
@@ -10023,6 +10038,7 @@ const OnboardingModal = class extends Modal {
   }
 
   onClose() {
+    this.plugin?._announcementModals?.delete(this);
     this._markSeen();
     this.contentEl.empty();
   }
