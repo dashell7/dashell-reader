@@ -7,7 +7,7 @@
 
 这是基于 [Qiaomu Reader](https://github.com/joeseesun/qiaomu-reader) 的独立定制版，插件 ID 为 `qiaomu-reader-english`。它保留 Qiaomu Reader 的阅读器、排版、划线、笔记和 AI 能力，并加入 Language Learner 风格的英文悬浮查词、点击查词、选区查词和 Spaced Repetition 卡片写入。
 
-本项目与官方 `qiaomu-reader` 插件可以同时安装。它通过 GitHub Release 分发，尚未进入 Obsidian 社区插件目录；安装请使用 BRAT 或手动安装。当前版本为 4.4.4。定制版不修改 Language Learner 的数据文件，也不会接管官方插件的协议链接。
+本项目与官方 `qiaomu-reader` 插件可以同时安装。它通过 GitHub Release 分发，尚未进入 Obsidian 社区插件目录；安装请使用 BRAT 或手动安装。当前版本为 4.4.5。定制版不修改 Language Learner 的数据文件，也不会接管官方插件的协议链接。
 
 ![Qiaomu Reader 4.2.4 内置书库：六本中英文公版电子书，包含真实封面、继续阅读、划线数量与阅读笔记入口](docs/assets/showcase-4.2.4-library.jpg)
 
