@@ -10,8 +10,9 @@ import { VaultVocabulary } from "./vaultVocabulary";
 import { expressionKey, normalizeRecord, simplifyRecord, stableItemId, recordRevision } from "@/utils/vocabularyRecord";
 import { shouldPersistWordFile } from "@/utils/status";
 import { readWordNote } from "@/utils/wordNoteFormat";
-import { extractSRProgress } from "@/utils/reviewDb";
+import { readReviewProgress, ReviewIntegrityError } from "@/utils/reviewDb";
 import { reviewEvidence, planRefluxUpdates, normalizeRefluxThresholds } from "@/utils/reviewReflux";
+import { t } from "@/lang/helper";
 
 export interface VocabularyBackup {
     format: "language-learner-vocabulary";
@@ -203,9 +204,12 @@ export class FileDb extends DbProvider {
                 throw new Error("Review records changed while saving; retry to keep the latest progress");
             }
         };
-        const progress = file instanceof TFile ? extractSRProgress(await this.plugin.app.vault.read(file)) : {};
+        const snapshot = file instanceof TFile
+            ? await readReviewProgress(await this.plugin.app.vault.read(file))
+            : { status: "unmanaged" as const, progress: {} };
         assertCurrent();
-        const tag = Object.entries(progress).find(([key]) => expressionKey(key) === expression)?.[1] || "";
+        if (snapshot.status === "invalid") throw new ReviewIntegrityError(t("Review status blocked invalid managed section"));
+        const tag = Object.entries(snapshot.progress).find(([key]) => expressionKey(key) === expression)?.[1] || "";
         return { evidence: reviewEvidence(tag), reviewPath, tag, assertCurrent };
     }
 

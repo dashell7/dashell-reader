@@ -1,6 +1,6 @@
 {
   "name": "qiaomu-reader-english",
-  "version": "4.4.2",
+  "version": "4.4.3",
   "description": "基于 Qiaomu Reader 的 Obsidian 英文阅读器，支持 EPUB、PDF、Markdown 等文本阅读、悬浮查词、选区查词和 Spaced Repetition 复习卡片。",
   "homepage": "https://github.com/dashell7/qiaomu-reader-english",
   "repository": {
@@ -13,7 +13,7 @@
   "main": "main.js",
   "type": "module",
   "scripts": {
-    "postinstall": "node patch-pdfjs.cjs",
+    "postinstall": "node patch-pdfjs.cjs && node scripts/patch-vue-sfc-paths.cjs",
     "dev": "node esbuild.config.mjs",
     "build": "npm run typecheck:learning && node scripts/generate-pdf-cmaps.mjs && node esbuild.config.mjs production && node patch-pdfjs.cjs",
     "typecheck:learning": "tsc --noEmit --skipLibCheck -p tsconfig.learning.json",
@@ -56,6 +56,7 @@
     "dexie-export-import": "^1.0.3",
     "downloadjs": "^1.4.7",
     "foliate-js": "^1.0.1",
+    "franc-min": "^6.2.0",
     "js-mdict": "^6.0.8",
     "jszip": "^3.10.1",
     "localforage": "^1.10.0",
@@ -75,8 +76,9 @@
     "@vue/compiler-sfc": "3.2.45",
     "esbuild": "0.25.12",
     "@xmldom/xmldom": "^0.9.12",
+    "fast-uri": "3.1.6",
     "minimatch@3.1.5": {
-      "brace-expansion": "2.0.2"
+      "brace-expansion": "2.1.4"
     },
     "tar": "^7.5.22"
   }

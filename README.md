@@ -7,7 +7,7 @@
 
 这是基于 [Qiaomu Reader](https://github.com/joeseesun/qiaomu-reader) 的独立定制版，插件 ID 为 `qiaomu-reader-english`。它保留 Qiaomu Reader 的阅读器、排版、划线、笔记和 AI 能力，并加入 Language Learner 风格的英文悬浮查词、点击查词、选区查词和 Spaced Repetition 卡片写入。
 
-本项目与官方 `qiaomu-reader` 插件可以同时安装。它目前是 GitHub 开源候选版，尚未进入 Obsidian 社区插件目录；安装请使用 BRAT 或手动安装。定制版不修改 Language Learner 的数据文件，也不会接管官方插件的协议链接。
+本项目与官方 `qiaomu-reader` 插件可以同时安装。它通过 GitHub Release 分发，尚未进入 Obsidian 社区插件目录；安装请使用 BRAT 或手动安装。当前版本为 4.4.3。定制版不修改 Language Learner 的数据文件，也不会接管官方插件的协议链接。
 
 ![Qiaomu Reader 4.2.4 内置书库：六本中英文公版电子书，包含真实封面、继续阅读、划线数量与阅读笔记入口](docs/assets/showcase-4.2.4-library.jpg)
 
@@ -66,6 +66,8 @@ Qiaomu Reader 是中文优先的 Obsidian EPUB、PDF、FB2、MOBI、AZW3 和 CBZ
 **4.2.6 更新：** 选文工具栏默认仅显示图标，启用翻译后显示翻译按钮。在「设置 → 翻页操作 → 选文工具栏」可调整按钮显示与顺序、开启文字标签；隐藏功能仍在“更多”和右键菜单中。AI 回复的“查看原文”支持跨章节与重新打开原书定位。
 
 选中文字，常用操作出现在选文旁边；右键也能使用这些功能。划线颜色通过下拉菜单切换，三种颜色使用统一样式。朱雀仿宋随插件离线提供，也可选择本机字体或导入字体文件；主题、字号、行距与单/双页布局可在阅读设置中调整。书页背景覆盖阅读区域，工具栏跟随 Obsidian。
+
+选中文字或打开已保存划线的更多菜单，可点“朗读”。阅读界面的播放栏出现在顶部原工具栏位置，支持从头播放、上一段/下一段、暂停/继续、显示选区、即时调速和停止，不会挤动正文。「插件设置 → 语音朗读」提供 10 种语音服务（OpenAI、兼容 OpenAI、Azure、ElevenLabs、Gemini、Hume、MiniMax、Fish Audio、Inworld、AWS Polly），可分别设置模型、声音和密钥，并编辑试听文字。Azure 还能按可用声音选择试听语言，并在阅读时自动匹配可辨识语种；短句无法可靠判断时使用当前选定的声音。密钥由 Obsidian 密钥库保管；朗读只在主动点击后把选中文字发送给所选服务。
 
 ### 3. 划线成为笔记，还能回到原文
 
@@ -227,6 +229,8 @@ Qiaomu Reader 由 [向阳乔木](https://qiaomu.ai) 维护：
 
 项目含有改编自 [Elton Reader](https://github.com/swayinfo/elton-reader) 的代码，感谢 Elton Labs 的工作；这些部分保留 MIT 许可。来源、第三方开源软件和版权声明见 [NOTICE.md](NOTICE.md) 与 [LICENSE](LICENSE)；内置字体的来源与许可见 [fonts/README.md](fonts/README.md) 与 [fonts/OFL.txt](fonts/OFL.txt)。
 
+划线朗读参考并改编自 [Aloud](https://github.com/adrianlyjak/obsidian-aloud-tts)，保留其 [MIT 许可](licenses/aloud-tts-MIT.txt)。
+
 ---
 
 <a name="english"></a>
@@ -257,6 +261,8 @@ Qiaomu Reader is a Chinese-first reader for Obsidian supporting EPUB, PDF, FB2, 
 ### English learning workflow
 
 When reading English text, hover over a word for the ported Language Learner popup. Click a word or select a phrase to use its dictionary popup or left panel. The separate **Learn new words** panel retains the original fields, vocabulary states, notes, examples, and Spaced Repetition synchronization. Its dictionary and learning settings are also included; vocabulary files belong to this custom plugin.
+
+Selected text and saved highlights can be read aloud from their menus. In the reader, playback controls replace the top toolbar without moving the page; they support restart, previous/next segment, pause/resume, selection highlighting, live speed control, and stop. **Plugin settings → Read aloud** offers ten speech services with separate credentials, models, voices, and an editable test phrase. Azure also lets you choose a test language and matching voice, and can match a detectable reading language automatically; uncertain short phrases keep the selected voice. Speech is requested only when you choose Read aloud, and the selected text is sent to that service.
 
 Dictionary AI and AI sentence translation now use the service configured in Qiaomu's AI & Translation settings while retaining their learning-specific prompts; no second API key is needed. MDict lookup and Spaced Repetition synchronization have been verified in desktop Obsidian. The shared AI call, other dictionary sources, all supported formats, and physical mobile devices still need individual validation. OCR and image-only lookup are outside this build.
 

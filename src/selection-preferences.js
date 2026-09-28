@@ -1,4 +1,4 @@
-const DEFAULT_ACTIONS = ["lookup", "highlight", "comment", "ai", "translate", "copy"];
+const DEFAULT_ACTIONS = ["lookup", "highlight", "comment", "ai", "speak", "translate", "copy"];
 
 // Keep saved order, discard unknown/duplicate entries and append new actions.
 // Missing or corrupt preferences always recover to usable defaults.

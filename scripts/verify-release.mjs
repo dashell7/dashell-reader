@@ -20,6 +20,10 @@ function readJson(file) {
   return JSON.parse(fs.readFileSync(file, "utf8"));
 }
 
+function readBuildText(file) {
+  return fs.readFileSync(file, "utf8").replace(/\r\n?/g, "\n");
+}
+
 function sha256(file) {
   return crypto.createHash("sha256").update(fs.readFileSync(file)).digest("hex");
 }
@@ -69,7 +73,7 @@ const fontPayloads = bundledFonts.map(({ file, family }) => {
   return { file, bytes: bytes.length, sha256: sha256(font) };
 });
 requireCheck(!mainSource.includes("ACP installed but its executable was not found"), "release bundle includes an ACP dependency installer");
-requireCheck(mainSource.includes(fs.readFileSync(path.join(root, "licenses/elton-reader-MIT.txt"), "utf8")), "main.js is missing the inherited MIT license");
+requireCheck(mainSource.includes(readBuildText(path.join(root, "licenses/elton-reader-MIT.txt"))), "main.js is missing the inherited MIT license");
 requireCheck(mainSource.includes("SIL OPEN FONT LICENSE Version 1.1"), "main.js is missing the bundled font license");
 
 if (installDir) {

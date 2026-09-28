@@ -1518,6 +1518,7 @@ export class SettingTab extends PluginSettingTab {
             );
         new Setting(containerEl)
             .setName(t("Delimiter"))
+            .setDesc(t("Review delimiter fallback"))
             .addText(text => text
                 .setValue(this.plugin.settings.review_delimiter)
                 .onChange(async (value) => {

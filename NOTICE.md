@@ -8,6 +8,8 @@ Bundled dependencies retain their own licenses; esbuild preserves their legal co
 
 The English lookup and vocabulary module contains adapted code from Language Learner 1.2.16, copyright (c) 2026 OBLE, under the MIT license. Its license is retained at `src/learning/vendor/LICENSE`.
 
+Selection speech adapts the OpenAI speech request and chunked playback design from [Aloud](https://github.com/adrianlyjak/obsidian-aloud-tts), copyright (c) 2023 Adrian Lyjak, under the MIT license. Examined source commit: `0bd97a49ac256bfab8fc4d684e297ed24a412a7f`. Its license is retained at `licenses/aloud-tts-MIT.txt` and in the generated `main.js` banner.
+
 - [Foliate.js](https://github.com/johnfactotum/foliate-js) — MIT, John Factotum.
 - [PDF.js](https://github.com/mozilla/pdf.js) — Apache-2.0, Mozilla Foundation.
 - [JSZip](https://github.com/Stuk/jszip) — MIT or GPLv3, Stuart Knightley and contributors.

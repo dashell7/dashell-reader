@@ -49,7 +49,8 @@ import {
 import { ignorableWatch } from "@vueuse/core";
 import { logger } from "./utils/logger";
 import { buildWordFilePath } from "./utils/wordFile";
-import { extractSRProgress, buildReviewFileContent, deduplicateWords } from "./utils/reviewDb";
+import { extractSRProgress, prepareReviewSync, deduplicateWords } from "./utils/reviewDb";
+import { resolveEnglishReviewFormat } from "../../english-review.js";
 import { planRefluxUpdates } from "./utils/reviewReflux";
 import { shouldPersistWordFile } from "./utils/status";
 import { mergeWordNote, readWordNote } from "./utils/wordNoteFormat";
@@ -811,15 +812,35 @@ export default class LanguageLearner extends Plugin {
 
     refreshReviewDb = async (): Promise<void> => { await this.syncReviewDatabase(); };
 
+    private activeSpacedRepetition(): unknown {
+        // Obsidian has no public API for another plugin's settings. Keep this
+        // optional integration at one boundary and validate its shape below.
+        const plugins = (this.app as typeof this.app & {
+            plugins?: { plugins?: Record<string, unknown> }
+        }).plugins?.plugins;
+        return plugins?.["obsidian-spaced-repetition"];
+    }
+
     private syncReviewDatabase(): Promise<void> {
         const path = this.settings.review_database ? normalizePath(this.settings.review_database) : "";
-        const delimiter = this.settings.review_delimiter;
-        const sync = this.reviewSyncTail.then(() => this.writeReviewDatabase(path, delimiter));
+        const sync = this.reviewSyncTail.then(() => this.writeReviewDatabase(path));
         this.reviewSyncTail = sync.catch((): void => undefined);
         return sync;
     }
 
-    private async writeReviewDatabase(path: string, delimiter: string): Promise<void> {
+    private async backupLegacyReview(content: string): Promise<string> {
+        // Keep personal review backups outside the installable plugin folder.
+        const folder = normalizePath(`${this.app.vault.configDir}/qiaomu-reader-english-review-backups`);
+        const adapter = this.app.vault.adapter;
+        if (!await adapter.exists(folder)) await this.app.vault.createFolder(folder);
+        const path = normalizePath(`${folder}/legacy-review-${Date.now()}-${Math.random().toString(36).slice(2, 10)}.md.bak`);
+        if (await adapter.exists(path)) throw new Error(t("Review migration backup failed"));
+        await adapter.write(path, content);
+        if (await adapter.read(path) !== content) throw new Error(t("Review migration backup failed"));
+        return path;
+    }
+
+    private async writeReviewDatabase(path: string): Promise<void> {
         if (this.unloaded) return;
         if (!path) {
             new Notice(t("Review db path not set"));
@@ -830,7 +851,26 @@ export default class LanguageLearner extends Plugin {
             new Notice(t("Review db path invalid"));
             return;
         }
-        const stillCurrent = () => this.isReviewTarget(dataBase) && this.settings.review_delimiter === delimiter;
+        const srPlugin = this.activeSpacedRepetition();
+        const srFormat = resolveEnglishReviewFormat(srPlugin) as { tag: string; delimiter: string } | null;
+        if (srPlugin && !srFormat) {
+            new Notice(t("Review SR format unavailable"));
+            return;
+        }
+        // Without SR, retain the user's manual export format for later use.
+        // Once SR is active its configured tag and separator are authoritative.
+        const format = srFormat || { tag: "#flashcards", delimiter: this.settings.review_delimiter.trim() };
+        if (!format.delimiter || /[\r\n]/.test(format.delimiter)) {
+            new Notice(t("Review SR format unavailable"));
+            return;
+        }
+        const stillCurrent = () => {
+            if (!this.isReviewTarget(dataBase)) return false;
+            const active = this.activeSpacedRepetition();
+            if (!srPlugin) return !active && this.settings.review_delimiter.trim() === format.delimiter;
+            const current = resolveEnglishReviewFormat(active);
+            return !!current && current.tag === format.tag && current.delimiter === format.delimiter;
+        };
         try {
             if (!stillCurrent()) {
                 new Notice(t("Review context changed"));
@@ -848,20 +888,35 @@ export default class LanguageLearner extends Plugin {
                 new Notice(t("Review db no words"));
                 return;
             }
-            // Merge SR tags from the latest file within the atomic write.
-            let updatedSR = 0;
-            await this.app.vault.process(dataBase, current => {
-                if (!stillCurrent()) throw new Error(t("Review context changed"));
-                const srProgress = extractSRProgress(current);
-                updatedSR = data.filter(word => srProgress[word.expression]).length;
-                return buildReviewFileContent(data, delimiter, srProgress);
-            });
+            const before = await this.app.vault.read(dataBase);
+            if (!stillCurrent()) throw new Error(t("Review context changed"));
+            const legacyFormats = [format, { tag: "#flashcards", delimiter: this.settings.review_delimiter.trim() }];
+            const plan = await prepareReviewSync(before, data, format, legacyFormats);
+            if (plan.status === "conflict") {
+                const message = plan.reason === "managed-edited" ? "Review managed section edited"
+                    : plan.reason === "duplicate" ? "Review duplicate card conflict"
+                    : plan.reason === "markers" ? "Review markers invalid"
+                    : "Review unowned content";
+                new Notice(t(message), 12000);
+                return;
+            }
+            if (!stillCurrent()) throw new Error(t("Review context changed"));
+            let backupPath = "";
+            if (plan.status === "migrated") backupPath = await this.backupLegacyReview(before);
+            if (plan.status !== "unchanged") {
+                await this.app.vault.process(dataBase, current => {
+                    if (!stillCurrent() || current !== before) throw new Error(t("Review context changed"));
+                    return plan.text;
+                });
+            }
             if (!stillCurrent()) return;
             this.settings.last_sync = moment.utc().toISOString();
             await this.saveSettings();
             if (!stillCurrent()) return;
-            const srNote = updatedSR > 0 ? `，${updatedSR} ${t("Review db sr preserved")}` : "";
-            new Notice(`${t("Review db synced")} ${data.length} ${t("words count")}${srNote}`);
+            if (backupPath) new Notice(`${t("Review legacy backup saved")}：${backupPath}`, 8000);
+            const srNote = plan.preservedSR > 0 ? `，${plan.preservedSR} ${t("Review db sr preserved")}` : "";
+            const offlineNote = srPlugin ? "" : `。${t("Review SR inactive export")}`;
+            new Notice(`${t("Review db synced")} ${data.length} ${t("words count")}${srNote}${offlineNote}`);
         } catch (error) {
             logger.error("refreshReviewDb failed:", error);
             if (!this.unloaded) new Notice(`${t("Review db sync failed")}：${(error as Error).message || String(error)}`);
@@ -920,7 +975,7 @@ export default class LanguageLearner extends Plugin {
             if (!abstract || abstract instanceof TFolder) return;
 
             const text = await this.app.vault.read(abstract as TFile);
-            const srProgress = extractSRProgress(text);
+            const srProgress = await extractSRProgress(text);
             if (Object.keys(srProgress).length === 0) return;
 
             const words = await this.db.getAllExpressionSimple(false);
@@ -949,6 +1004,9 @@ export default class LanguageLearner extends Plugin {
             }
 
             if (applied > 0) {
+                // Hover cards listen for this event and must discard cached
+                // status after a review updates the vocabulary in the background.
+                window.dispatchEvent(new CustomEvent("qiaomu-english-event-refresh"));
                 logger.info(`[Reflux] ${applied} word status(es) upgraded from SR progress`);
                 new Notice(`${t("Review reflux applied")} ${applied} ${t("Review reflux words")}`);
                 // Keep words.md in sync with the upgraded statuses
@@ -1317,11 +1375,11 @@ export default class LanguageLearner extends Plugin {
         // Initial load
         loadCache().then(scanAll);
 
-        // Re-scan when vocabulary changes and sync words.md / review.md
+        // Re-scan when vocabulary changes. The onload handler owns optional
+        // automatic file sync and respects auto_refresh_db.
         // Use window.addEventListener directly for custom events (Obsidian types don't include custom event names)
         const refreshHandler = () => {
             loadCache().then(scanAll);
-            this.scheduleRefreshTextDB(1000);
         };
         window.addEventListener('qiaomu-english-event-refresh', refreshHandler);
         this.register(() => window.removeEventListener('qiaomu-english-event-refresh', refreshHandler));

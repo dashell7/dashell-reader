@@ -257,6 +257,39 @@ test("a failure before content leaves no unanswered model turn", async () => {
   assert.equal(chat.busy, false);
 });
 
+test("a failed stream offers an explicit non-streaming retry for this request only", async () => {
+  const transports = [];
+  const { chat } = chatHarness(async (_text, _plugin, _turns, _book, options) => {
+    transports.push(options.forceNonStreaming);
+    if (!options.forceNonStreaming) throw Object.assign(new Error("stream blocked"), {
+      qiaomuReaderReason: "streamuncertain", qiaomuReaderStreamTransportUnavailable: true,
+    });
+    return "兼容模式回答";
+  });
+  assert.equal(await chat._send("解释原文"), false);
+  assert.match(chat.log.textContent, /ai-stream-request-uncertain/);
+  assert.match(chat.log.textContent, /ai-compatible-retry-nonstreaming/);
+  const retry = [...chat.log.querySelectorAll("button")]
+    .find((button) => button.textContent === "retry-in-compatible-mode");
+  assert.ok(retry);
+  retry.click();
+  await tick();
+  assert.deepEqual(transports, [false, true]);
+  assert.match(chat.log.textContent, /兼容模式回答/);
+});
+
+test("late deltas from a completed request cannot change the rendered answer", async () => {
+  let lateDelta;
+  const { chat } = chatHarness(async (_text, _plugin, _turns, _book, { onDelta }) => {
+    lateDelta = onDelta;
+    return "完成的回答";
+  });
+  assert.equal(await chat._send("问题"), true);
+  lateDelta({ content: "迟到的旧内容" });
+  assert.equal(chat.turns[1].content, "完成的回答");
+  assert.doesNotMatch(chat.log.textContent, /迟到的旧内容/);
+});
+
 test("old answer regeneration cannot mutate a later question", async () => {
   const { chat } = chatHarness(async () => "回答");
   await chat._send("问题一");
@@ -612,12 +645,12 @@ test("mobile AI requests leave the busy state after a stalled network call", asy
   });
   await assert.rejects(
     withTimeout(new Promise(() => {}), null, 5),
-    (error) => error.qiaomuReaderReason === "timeout",
+    (error) => error.qiaomuReaderReason === "streamuncertain",
   );
   const controller = new AbortController();
   const pending = withTimeout(new Promise(() => {}), controller.signal, 1000);
   controller.abort();
-  await assert.rejects(pending, (error) => error.qiaomuReaderReason === "cancelled");
+  await assert.rejects(pending, (error) => error.qiaomuReaderReason === "streamuncertain");
 });
 
 test('book extraction blocks enter and quick-send without clearing the draft or calling a provider', async () => {
