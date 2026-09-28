@@ -1864,3 +1864,6 @@ body[data-qiaomu-english-theme="night"] .langr-subtitle-popup .stp-actions .stp-
 body[data-qiaomu-english-theme="night"] .langr-subtitle-popup .stp-actions .stp-btn-learn.stp-btn-active {
   color: #78dfa0;
 }
+
+/* Per-window state follows workspace events and is removed on plugin unload. */
+body.qiaomu-reader-english-active-view .status-bar { display: none; }

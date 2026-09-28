@@ -1865,6 +1865,9 @@ body[data-qiaomu-english-theme="night"] .langr-subtitle-popup .stp-actions .stp-
   color: #78dfa0;
 }
 
+/* Per-window state follows workspace events and is removed on plugin unload. */
+body.qiaomu-reader-english-active-view .status-bar { display: none; }
+
 /* Bundled reading subset: SIL OFL 1.1
 Copyright (c) 2023, Zhejiang JadeFoci Techonology Co. LTD
 (https://www.jadefoci.com/)
