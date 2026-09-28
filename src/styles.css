@@ -25,6 +25,7 @@
    and this blue stays legible on the light, sepia and dark papers alike. */
 ::highlight(qiaomu-reader-selection) { background-color: rgba(85, 72, 217, 0.28); }
 .qiaomu-reader-eink ::highlight(qiaomu-reader-selection) { background-color: rgba(0, 0, 0, 0.22); }
+::highlight(qiaomu-reader-speech) { background-color: rgba(139, 92, 246, 0.34); }
 .qiaomu-reader-content, .qiaomu-reader-flow, .qiaomu-reader-flow p, .qiaomu-reader-flow h1, .qiaomu-reader-flow h2, .qiaomu-reader-flow h3, .qiaomu-reader-flow h4 { -webkit-user-select:text; user-select:text; -webkit-touch-callout:default; }
 
 /* ── PDF pages, lazy figures, zoom lightbox ──────────────────────────────── */
@@ -1317,6 +1318,7 @@ button.qiaomu-reader-find-item.qiaomu-reader-toc-active { background: var(--back
 .qiaomu-reader-ai-citations { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding-block: 4px 8px; }
 .qiaomu-reader-ai-citations .qiaomu-reader-ai-act { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
 .qiaomu-reader-ai-composer [hidden], .qiaomu-reader-ai-history-modal [hidden], .qiaomu-reader-rs [hidden] { display: none; }
+.qiaomu-reader-settings-root .setting-item[hidden] { display: none; }
 @media (max-width: 600px) { /* phones: compact navigation columns */
   .qiaomu-reader-mview .qiaomu-reader-panel.qiaomu-reader-navigation-panel { bottom: 60px; max-height: 50%; }
 }
@@ -1358,6 +1360,72 @@ button.qiaomu-reader-find-item.qiaomu-reader-toc-active { background: var(--back
   color: var(--text-normal); box-shadow: 0 2px 10px rgba(0,0,0,.08); font-size: 12px;
 }
 .qiaomu-reader-selection-feedback button { height: 26px; padding: 0 6px; box-shadow: none; }
+.qiaomu-reader-speech-bar {
+  position: absolute; z-index: 38; bottom: 14px; left: 50%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 6px; max-width: calc(100% - 24px);
+  min-height: 38px; padding: 4px 6px 4px 12px; border-radius: 8px;
+  border: 1px solid var(--qiaomu-reader-border, var(--background-modifier-border));
+  background: var(--qiaomu-reader-ui, var(--background-primary));
+  color: var(--qiaomu-reader-text, var(--text-normal));
+  box-shadow: 0 3px 14px rgba(0,0,0,.12); font-size: 12px;
+}
+.qiaomu-reader-speech-status { min-width: 0; white-space: nowrap; }
+.qiaomu-reader-speech-bar button {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; padding: 0; border-radius: 5px; box-shadow: none;
+  background: transparent; color: inherit; flex: none;
+}
+.qiaomu-reader-speech-bar button:hover { background: var(--background-modifier-hover); }
+.qiaomu-reader-speech-bar button:focus-visible { outline: 2px solid var(--qiaomu-reader-accent, var(--interactive-accent)); outline-offset: 1px; }
+.qiaomu-reader-speech-bar svg { width: 15px; height: 15px; }
+.qiaomu-reader-speech-active .qiaomu-reader-top { visibility:hidden; }
+/* Reuse the existing header space so playback never repaginates or covers the first line. */
+.qiaomu-reader-speech-bar.qiaomu-reader-speech-docked {
+  top:0; bottom:auto; left:0; right:0; transform:none; z-index:19;
+  width:100%; max-width:none; height:40px; min-height:40px;
+  padding:0 8px; gap:8px; border:0; border-bottom:1px solid var(--qiaomu-reader-border,var(--background-modifier-border));
+  border-radius:0; box-shadow:none; background:var(--qiaomu-reader-ui,var(--background-secondary));
+  color:var(--qiaomu-reader-text,var(--text-normal));
+}
+.qiaomu-reader-speech-controls, .qiaomu-reader-speech-transport { display:flex; align-items:center; gap:2px; flex:none; }
+.qiaomu-reader-speech-transport { margin-left:8px; }
+.qiaomu-reader-speech-docked button {
+  width:28px; height:28px; border:0; border-radius:4px;
+  color:var(--qiaomu-reader-muted,var(--text-muted));
+}
+.qiaomu-reader-speech-docked button:hover:not(:disabled), .qiaomu-reader-speech-docked button.is-active { color:var(--qiaomu-reader-accent,var(--interactive-accent)); }
+.qiaomu-reader-speech-docked button:disabled { opacity:.38; cursor:default; }
+.qiaomu-reader-speech-docked .qiaomu-reader-speech-status { flex:1 1 auto; overflow:hidden; text-overflow:ellipsis; color:var(--qiaomu-reader-muted,var(--text-muted)); }
+.qiaomu-reader-speech-speed-wrap, .qiaomu-reader-speech-more-wrap { position:relative; }
+.qiaomu-reader-speech-docked button[data-control="speed"] { width:42px; font-size:11px; font-weight:500; white-space:nowrap; }
+.qiaomu-reader-speech-popover {
+  position:absolute; top:calc(100% + 6px); left:0; z-index:40;
+  padding:8px; border:1px solid var(--qiaomu-reader-border,var(--background-modifier-border));
+  border-radius:5px; background:var(--qiaomu-reader-ui,var(--background-primary));
+  box-shadow:0 4px 16px rgba(0,0,0,.14);
+}
+.qiaomu-reader-speech-popover[hidden] { display:none; }
+.qiaomu-reader-speech-popover input[type="range"] { width:150px; margin:0; accent-color:var(--qiaomu-reader-accent,var(--interactive-accent)); }
+.qiaomu-reader-speech-menu { min-width:120px; }
+.qiaomu-reader-speech-menu button { width:100%; justify-content:flex-start; padding:0 8px; white-space:nowrap; color:var(--qiaomu-reader-text,var(--text-normal)); }
+.qiaomu-reader-speech-docked > button[data-control="stop"] { margin-left:auto; }
+.qiaomu-reader-fullscreen-modal .qiaomu-reader-speech-docked { top:max(var(--safe-area-inset-top,0px),env(safe-area-inset-top,0px),var(--qiaomu-reader-extra-top,0px)); }
+.qiaomu-reader-speech-test-input {
+  display: block; width: 100%; min-height: 72px; resize: vertical; margin: 0 0 16px;
+  padding: 8px 10px; border: 1px solid var(--background-modifier-border); border-radius: 6px;
+  background: var(--background-primary); color: var(--text-normal); font: inherit;
+}
+.qiaomu-reader-speech-test-input:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: 1px; }
+.qiaomu-reader-voice-label { min-inline-size: 0; overflow-wrap: anywhere; }
+.qiaomu-reader-voice-id { color: var(--text-muted); font-size: var(--font-ui-smaller); overflow-wrap: anywhere; }
+.qiaomu-reader-settings-root .qiaomu-reader-speech-bar { position: fixed; bottom: 24px; }
+@media (max-width:600px), (pointer:coarse) {
+  .qiaomu-reader-speech-bar.qiaomu-reader-speech-docked { height:48px; min-height:48px; padding:0 4px; gap:2px; }
+  .qiaomu-reader-speech-docked button { width:36px; height:40px; }
+  .qiaomu-reader-speech-transport { margin-left:2px; }
+  .qiaomu-reader-speech-docked button[data-control="speed"] { width:38px; }
+  .qiaomu-reader-speech-docked .qiaomu-reader-speech-status { font-size:10px; }
+}
 .qiaomu-reader-hl-comment-editor { box-sizing: border-box; max-width: 100%; padding: 6px; }
 .qiaomu-reader-hl-comment-textarea { background: var(--background-primary); color: var(--text-normal); }
 .qiaomu-reader-hl-comment-quote { background: var(--background-secondary); color: var(--text-muted); }

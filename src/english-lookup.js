@@ -559,6 +559,9 @@ export class EnglishLookupController {
   }
 
   destroy() {
+    // Closing a reader leaf/modal destroys its controller directly. Notify the
+    // hover owner before detaching so a visible vocabulary card cannot linger.
+    if (this.active) this.hide();
     this.detachAttachments();
     if (this.closeTimer) this.hostDocument.defaultView.clearTimeout(this.closeTimer);
     this._abort?.abort(); this.popup?.remove(); this.popup = null; this.cache.clear();

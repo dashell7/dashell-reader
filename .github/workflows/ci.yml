@@ -15,11 +15,16 @@ jobs:
         os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
+      - name: Preserve release asset bytes on both runners
+        run: git config --global core.autocrlf false
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
+      - name: Snapshot committed release assets
+        run: >-
+          node -e "const fs=require('node:fs');const path=require('node:path');const dir=path.join(process.env.RUNNER_TEMP,'qiaomu-release-assets');fs.mkdirSync(dir,{recursive:true});for(const name of ['main.js','manifest.json','styles.css'])fs.copyFileSync(name,path.join(dir,name));"
       - run: npm ci
       - run: npm test
       - run: npm run check:i18n
@@ -28,6 +33,9 @@ jobs:
       - run: node --check main.js
       - run: npm run build
       - run: npm run verify:release
+      - name: Compare rebuilt assets byte for byte
+        run: >-
+          node -e "const fs=require('node:fs');const path=require('node:path');const dir=path.join(process.env.RUNNER_TEMP,'qiaomu-release-assets');const changed=['main.js','manifest.json','styles.css'].filter(name=>!fs.readFileSync(name).equals(fs.readFileSync(path.join(dir,name))));if(changed.length){console.error('Build changed committed release assets: '+changed.join(', '));process.exit(1);}"
       - run: node --check main.js
       - run: npx eslint src/ --max-warnings=0
       - name: Verify community candidate excludes the ACP installer

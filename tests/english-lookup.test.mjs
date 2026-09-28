@@ -217,6 +217,29 @@ test("starting a text selection cancels pending hover and dismisses an open hove
   controller.destroy(); dom.window.close();
 });
 
+test("destroying a reader controller closes its visible hover card exactly once", async () => {
+  const hovered = [];
+  const closed = [];
+  const { dom, controller } = setup({
+    settings: () => ({ englishLookupEnabled: true, englishHoverDelay: 1 }),
+    onHoverLookup: word => hovered.push(word),
+    onHoverClose: () => closed.push(true),
+  });
+  const doc = dom.window.document;
+  const paragraph = doc.querySelector("p");
+  doc.caretRangeFromPoint = () => ({ startContainer: paragraph.firstChild, startOffset: 2 });
+  controller.attach(doc, { scope: paragraph });
+  paragraph.dispatchEvent(new dom.window.MouseEvent("mousemove", { bubbles: true, clientX: 50, clientY: 50 }));
+  await new Promise(resolve => dom.window.setTimeout(resolve, 15));
+  assert.deepEqual(hovered, ["reader"]);
+  controller.destroy();
+  assert.equal(closed.length, 1);
+  assert.equal(controller.active, null);
+  controller.destroy();
+  assert.equal(closed.length, 1, "repeated cleanup must not close another reader's card");
+  dom.window.close();
+});
+
 test("moving across the popup toward its buttons does not replace the hovered word", async () => {
   const hovered = [];
   const { dom, controller } = setup({

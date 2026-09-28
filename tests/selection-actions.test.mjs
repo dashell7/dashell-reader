@@ -29,7 +29,7 @@ function setup() {
   proto.createSpan = function(opts) { return this.createEl("span", opts); };
   proto.addClass = function(c) { this.classList.add(c); };
   proto.removeClass = function(c) { this.classList.remove(c); };
-  const menus = [], copied = [], records = [], savedComments = [];
+  const menus = [], copied = [], records = [], savedComments = [], spoken = [];
   class Menu {
     constructor() { this.items = []; menus.push(this); }
     addItem(make) {
@@ -46,6 +46,7 @@ function setup() {
     file: { path: "Book.mobi", extension: "mobi" }, app: { vault: { getName: () => "Vault" } },
     contentEl: root, areaEl: root.querySelector("article"), hlPopup: root.querySelector(".popup"),
     plugin: { settings: { defaultHlColor: "yellow", navMode: "click" }, getHighlights: () => records,
+      selectionSpeech: { play: async text => spoken.push(text) },
       setHighlightColor: (_, id, color) => { records.find(h => h.id === id).color = color; },
       addHighlight: (_, h) => records.push(h), removeHighlight: (_, id) => records.splice(records.findIndex(h => h.id === id), 1),
       saveAll: async () => true,
@@ -71,14 +72,14 @@ function setup() {
   };
   const api = vm.runInNewContext(`${code}\n({${names.join(",")}})`, context);
   view._showHlPopup({ left: 10, right: 210, top: 100, bottom: 120, width: 200, height: 20 });
-  return { window, view, api, menus, records, copied, savedComments, translations, close: () => window.close() };
+  return { window, view, api, menus, records, copied, savedComments, translations, spoken, close: () => window.close() };
 }
 
 test("toolbar exposes stable labeled actions and a separate three-color menu", () => {
   const f = setup(); const { api, view, menus } = f;
   api.addBarButtons(view, view.hlPopup);
   const labels = [...view.hlPopup.querySelectorAll("button")].map(b => b.getAttribute("aria-label"));
-  assert.deepEqual(labels, ["lookup-word", "highlight-action", "highlight-colors", "annotate-action", "ask-ai-action", "copy", "more"]);
+  assert.deepEqual(labels, ["lookup-word", "highlight-action", "highlight-colors", "annotate-action", "ask-ai-action", "tts-speak", "copy", "more"]);
   view.hlPopup.querySelector(".qiaomu-reader-hl-colors").click();
   assert.equal(menus.length, 0, "colors use an attached dropdown, not an OS context menu");
   assert.equal(view.hlPopup.querySelectorAll('[role="radio"]').length, 3);
@@ -100,7 +101,7 @@ test("right-click in a book iframe captures selection before the native menu and
   api.openReaderSelectionContext(view, event, doc, 12);
   assert.equal(event.defaultPrevented, true);
   const menu = menus[0]; assert.equal(menu.pos.x, 130); assert.equal(menu.pos.y, 90);
-  assert.deepEqual(menu.items.slice(0, 5).map(i => i.title), ["lookup-word", "highlight-action", "annotate-action", "ask-ai-action", "copy"]);
+  assert.deepEqual(menu.items.slice(0, 6).map(i => i.title), ["lookup-word", "highlight-action", "annotate-action", "ask-ai-action", "tts-speak", "copy"]);
   doc.getSelection().removeAllRanges(); view._hideHlPopup();
   await menu.items.find(i => i.title === "copy-position-link").run(); await tick();
   assert.match(copied[0], /cfi=epubcfi%28/);
@@ -182,7 +183,7 @@ test("icon-only defaults keep accessible names, translated text is opt-in", () =
   f.view.plugin.settings.selectionShowLabels = true;
   f.api.syncSelectionToolbar(f.view);
   assert.equal(f.view.hlPopup.querySelectorAll(".qiaomu-reader-hl-actions").length, 1);
-  assert.equal(f.view.hlPopup.querySelectorAll(".qiaomu-reader-selection-label").length, 5);
+  assert.equal(f.view.hlPopup.querySelectorAll(".qiaomu-reader-selection-label").length, 6);
   f.close();
 });
 
@@ -205,15 +206,15 @@ test("configured order is shared with right click and hidden actions remain in M
   f.api.openSelectionMoreMenu(f.view, {}, false);
   assert.equal(f.menus[0].items[0].title, "highlight-action");
   f.api.openSelectionMoreMenu(f.view, {}, true);
-  assert.deepEqual(f.menus[1].items.slice(0, 5).map(i => i.title), ["copy", "highlight-action", "lookup-word", "annotate-action", "ask-ai-action"]);
+  assert.deepEqual(f.menus[1].items.slice(0, 6).map(i => i.title), ["copy", "highlight-action", "lookup-word", "annotate-action", "ask-ai-action", "tts-speak"]);
   f.close();
 });
 
 test("preferences recover malformed values and preserve deliberate all-hidden state", () => {
   const defaults = selectionActionPreferences(null);
-  assert.equal(defaults.length, 6);
+  assert.equal(defaults.length, 7);
   const normalized = selectionActionPreferences([null, {id:"bogus"}, {id:"copy",visible:false}, {id:"copy"}]);
-  assert.equal(normalized.length, 6); assert.equal(normalized[0].visible, false);
+  assert.equal(normalized.length, 7); assert.equal(normalized[0].visible, false);
   const f = setup(); f.view.plugin.settings.selectionActions = defaults.map(x => ({...x, visible:false}));
   f.api.addBarButtons(f.view, f.view.hlPopup);
   assert.equal(f.view.hlPopup.querySelectorAll("button").length, 1);

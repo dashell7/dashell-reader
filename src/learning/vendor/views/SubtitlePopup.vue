@@ -19,7 +19,6 @@
                     class="stp-btn-speak"
                     style="display:flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:6px;border:none;cursor:pointer;padding:0;box-sizing:border-box;"
                     @click="speakWord"
-                    :title="t('Pronounce')"
                 >
                     <svg viewBox="0 0 24 24" style="width:16px;height:16px;flex-shrink:0;"><path fill="currentColor" d="M3 9v6h4l5 5V4L7 9H3z"/><path fill="currentColor" d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>
                     <span class="qiaomu-reader-sr-only">{{ t('Pronounce') }}</span>
@@ -29,7 +28,6 @@
                     :class="{ 'stp-btn-active': currentStatus === 3 }"
                     style="display:flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:6px;border:none;cursor:pointer;padding:0;box-sizing:border-box;"
                     @click="markKnown"
-                    :title="currentStatus === 3 ? t('Mark as ignored') : t('Mark as known')"
                     :aria-pressed="currentStatus === 3"
                 >
                     <svg viewBox="0 0 24 24" style="width:16px;height:16px;flex-shrink:0;"><path fill="currentColor" d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
@@ -40,7 +38,6 @@
                     :class="{ 'stp-btn-active': currentStatus === 1 }"
                     style="display:flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:6px;border:none;cursor:pointer;padding:0;box-sizing:border-box;"
                     @click="markLearning"
-                    :title="t('Mark as learning')"
                     :aria-pressed="currentStatus === 1"
                 >
                     <svg viewBox="0 0 24 24" style="width:16px;height:16px;flex-shrink:0;"><path fill="currentColor" d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 4h5v8l-2.5-1.5L6 12V4z"/></svg>
@@ -58,15 +55,28 @@ import type PluginType from '@/plugin';
 import { playAudio } from '@/utils/helpers';
 import { logger } from '@/utils/logger';
 import { t } from '@/lang/helper';
+import { REVIEW_INTEGRITY_ERROR_CODE } from '@/utils/reviewDb';
 import { fetchEnglishDefinitions } from './english-definition';
 
 const instance = getCurrentInstance();
 if (!instance) throw new Error('SubtitlePopup: Vue instance not available');
 const plugin = instance.appContext.config.globalProperties.plugin as PluginType;
+const props = defineProps<{ hostDocument?: Document }>();
+const eventDocument = props.hostDocument || document;
+const eventWindow = eventDocument.defaultView || window;
+
+function showStatusSaveFailure(error: unknown, fallback: string) {
+    const code = error && typeof error === 'object' && 'code' in error ? error.code : undefined;
+    new Notice(code === REVIEW_INTEGRITY_ERROR_CODE
+        ? t('Review status blocked invalid managed section')
+        : fallback);
+}
 
 // ── LRU Cache for word lookups ──
 class WordCache {
-    private cache = new Map<string, { meanings: string[]; status: number }>();
+    // Only remote definitions are cached. Vocabulary status and user-edited
+    // meanings always come from the authoritative database on each hover.
+    private cache = new Map<string, string[]>();
     private maxSize: number;
     constructor(maxSize = 200) { this.maxSize = maxSize; }
     get(key: string) {
@@ -77,7 +87,7 @@ class WordCache {
         }
         return v;
     }
-    set(key: string, value: { meanings: string[]; status: number }) {
+    set(key: string, value: string[]) {
         if (this.cache.size >= this.maxSize) {
             // Delete oldest (first entry)
             const oldest = this.cache.keys().next().value;
@@ -108,6 +118,7 @@ const popupEl = ref<HTMLElement | null>(null);
 let closeTimer: number | null = null;
 // Race condition guard: incrementing ID to cancel stale lookups
 let lookupRequestId = 0;
+let phraseRequestId = 0;
 // 保存单词位置，用于内容加载后重新定位
 let wordCenterX = 0;
 let wordTopY = 0;
@@ -115,7 +126,7 @@ let wordTopY = 0;
 // 鼠标进入弹窗 → 取消关闭
 function onPopupEnter() {
     if (closeTimer) {
-        window.clearTimeout(closeTimer);
+        eventWindow.clearTimeout(closeTimer);
         closeTimer = null;
     }
 }
@@ -126,8 +137,8 @@ function onPopupLeave() {
 }
 
 function scheduleClose(delay = 300) {
-    if (closeTimer) window.clearTimeout(closeTimer);
-    closeTimer = window.setTimeout(() => {
+    if (closeTimer) eventWindow.clearTimeout(closeTimer);
+    closeTimer = eventWindow.setTimeout(() => {
         closeTimer = null;
         close();
     }, delay);
@@ -136,7 +147,7 @@ function scheduleClose(delay = 300) {
 // 外部调用：当鼠标移到新单词时，取消之前的关闭定时器
 function cancelClose() {
     if (closeTimer) {
-        window.clearTimeout(closeTimer);
+        eventWindow.clearTimeout(closeTimer);
         closeTimer = null;
     }
 }
@@ -148,7 +159,7 @@ function repositionPopup() {
         if (!el || !visible.value) { logger.debug('[SubtitlePopup] reposition skipped: el=', !!el, 'visible=', visible.value); return; }
         const popW = el.offsetWidth;
         const popH = el.offsetHeight;
-        const viewW = window.innerWidth;
+        const viewW = eventWindow.innerWidth;
 
         let px = wordCenterX - popW / 2;
         let py = wordTopY - popH - 2;
@@ -178,20 +189,31 @@ function onKeydown(evt: KeyboardEvent) {
     if (evt.key === 'Escape') close();
 }
 
+function onVocabularyRefresh(evt: CustomEvent<{ expression?: string }>) {
+    const changed = evt.detail?.expression?.toLowerCase();
+    if (changed) wordCache.invalidate(changed);
+    else wordCache.clear();
+    if (visible.value && word.value && (!changed || changed === word.value.toLowerCase())) {
+        void lookupWord(word.value);
+    }
+}
+
 onMounted(() => {
     logger.debug('[SubtitlePopup] mounted successfully');
-    document.addEventListener('click', onDocumentClick, true);
-    document.addEventListener('keydown', onKeydown);
+    eventDocument.addEventListener('click', onDocumentClick, true);
+    eventDocument.addEventListener('keydown', onKeydown);
 
     // 监听鼠标离开 .lf-word / .lp-word 时延迟关闭弹窗
-    document.addEventListener('mouseout', onWordMouseOut, true);
+    eventDocument.addEventListener('mouseout', onWordMouseOut, true);
+    window.addEventListener('qiaomu-english-event-refresh', onVocabularyRefresh);
 });
 
 onUnmounted(() => {
-    document.removeEventListener('click', onDocumentClick, true);
-    document.removeEventListener('keydown', onKeydown);
-    document.removeEventListener('mouseout', onWordMouseOut, true);
-    if (closeTimer) window.clearTimeout(closeTimer);
+    eventDocument.removeEventListener('click', onDocumentClick, true);
+    eventDocument.removeEventListener('keydown', onKeydown);
+    eventDocument.removeEventListener('mouseout', onWordMouseOut, true);
+    window.removeEventListener('qiaomu-english-event-refresh', onVocabularyRefresh);
+    if (closeTimer) eventWindow.clearTimeout(closeTimer);
 });
 
 function isHoverWord(el: HTMLElement | null): boolean {
@@ -214,6 +236,7 @@ function onWordMouseOut(evt: MouseEvent) {
 
 function close() {
     lookupRequestId++;
+    phraseRequestId++;
     visible.value = false;
     word.value = '';
     meanings.value = [];
@@ -336,23 +359,14 @@ async function lookupWord(w: string) {
         cachedLangKey = currentLangKey;
     }
 
-    // Check LRU cache first (instant, no async)
-    const cached = wordCache.get(w.toLowerCase());
-    if (cached) {
-        meanings.value = cached.meanings;
-        currentStatus.value = cached.status;
-        loading.value = false;
-        return;
-    }
-
-    // 1. Check local database first
+    // 1. Always read vocabulary first: sidebar edits and SR updates must be
+    // reflected even when a remote dictionary definition is cached.
     try {
         const info = await plugin.db.getExpression(w);
         if (myId !== lookupRequestId) return; // stale request cancelled
         if (info && info.meaning && hoverLang !== 'en') {
             meanings.value = info.meaning.split(/[;；\n]/).map(s => s.trim()).filter(Boolean);
             currentStatus.value = info.status;
-            wordCache.set(w.toLowerCase(), { meanings: meanings.value, status: info.status });
             loading.value = false;
             return;
         }
@@ -368,6 +382,13 @@ async function lookupWord(w: string) {
         } else {
             logger.warn('[SubtitlePopup] DB query error for word:', w, e);
         }
+    }
+
+    const cached = wordCache.get(w.toLowerCase());
+    if (cached) {
+        meanings.value = cached;
+        loading.value = false;
+        return;
     }
 
     // 2. Fetch definition based on settings
@@ -402,7 +423,7 @@ async function lookupWord(w: string) {
 
         meanings.value = result.slice(0, 3);
         if (meanings.value.length > 0) {
-            wordCache.set(w.toLowerCase(), { meanings: meanings.value, status: currentStatus.value });
+            wordCache.set(w.toLowerCase(), meanings.value);
         }
     } catch (e) {
         if (myId !== lookupRequestId) return; // stale request cancelled
@@ -412,6 +433,7 @@ async function lookupWord(w: string) {
 }
 
 async function lookupPhrases(w: string, sentence: string) {
+    const requestId = ++phraseRequestId;
     phrases.value = [];
     if (!sentence) return;
 
@@ -422,20 +444,24 @@ async function lookupPhrases(w: string, sentence: string) {
             article: sentence.toLowerCase(),
             words,
         });
+        if (requestId !== phraseRequestId) return;
         if (result && result.phrases && result.phrases.length > 0) {
             // Only show phrases containing the clicked word
             const lowerWord = w.toLowerCase();
             const relevantPhrases = result.phrases.filter(p =>
                 p.text.toLowerCase().includes(lowerWord)
             );
+            const found: Array<{ text: string; meaning?: string }> = [];
             for (const p of relevantPhrases) {
                 // Get meaning from db
                 const info = await plugin.db.getExpression(p.text);
-                phrases.value.push({
+                if (requestId !== phraseRequestId) return;
+                found.push({
                     text: p.text,
                     meaning: info?.meaning || undefined,
                 });
             }
+            phrases.value = found;
         }
     } catch (e) {
         logger.warn('[SubtitlePopup] Phrase lookup failed:', e);
@@ -453,6 +479,10 @@ function speakWord() {
 async function markKnown() {
     if (!word.value) return;
     const w = word.value.toLowerCase();
+    const sourceSentence = sentenceEn.value;
+    const sourceTranslation = sentenceZh.value;
+    const sourceMeanings = [...meanings.value];
+    let savedStatus = 3;
     wordCache.invalidate(w);
 
     try {
@@ -462,59 +492,63 @@ async function markKnown() {
             // Any active learning state can be promoted to Known; only Known
             // toggles back to Ignored.
             const newStatus = existing.status === 3 ? 0 : 3;
+            savedStatus = newStatus;
             existing.status = newStatus;
             // Also save sentence context
-            if (sentenceEn.value) {
-                const hasSentence = existing.sentences.some(s => s.text === sentenceEn.value);
+            if (sourceSentence) {
+                const hasSentence = existing.sentences.some(s => s.text === sourceSentence);
                 if (!hasSentence) {
                     existing.sentences.push({
-                        text: sentenceEn.value,
-                        trans: sentenceZh.value || '',
+                        text: sourceSentence,
+                        trans: sourceTranslation || '',
                         origin: 'LinguaFlow subtitle',
                     });
                 }
             }
             await plugin.db.postExpression(existing);
-            currentStatus.value = newStatus;
+            if (word.value.toLowerCase() === w) currentStatus.value = newStatus;
         } else {
             // A word not yet in the vocabulary is genuinely marked as Known,
             // never as Ignored. “Not in vocabulary” is a derived UI state.
             await plugin.db.postExpression({
                 expression: w,
-                meaning: meanings.value.join('; ') || '',
+                meaning: sourceMeanings.join('; ') || '',
                 status: 3,
                 t: 'WORD',
                 tags: [],
                 notes: [],
-                sentences: sentenceEn.value ? [{
-                    text: sentenceEn.value,
-                    trans: sentenceZh.value || '',
+                sentences: sourceSentence ? [{
+                    text: sourceSentence,
+                    trans: sourceTranslation || '',
                     origin: 'LinguaFlow subtitle',
                 }] : [],
                 aliases: [],
                 date: Date.now(),
             });
-            currentStatus.value = 3;
+            if (word.value.toLowerCase() === w) currentStatus.value = 3;
         }
 
         dispatchEvent(new CustomEvent('qiaomu-english-event-refresh', {
             detail: {
                 expression: w,
                 type: 'WORD',
-                status: currentStatus.value,
-                meaning: meanings.value.join('; '),
+                status: savedStatus,
+                meaning: sourceMeanings.join('; '),
                 aliases: [],
             },
         }));
         dispatchEvent(new CustomEvent('qiaomu-english-event-refresh-stat'));
     } catch (e) {
-        new Notice('Failed to update word status');
+        showStatusSaveFailure(e, 'Failed to update word status');
     }
 }
 
 async function markLearning() {
     if (!word.value) return;
     const w = word.value.toLowerCase();
+    const sourceSentence = sentenceEn.value;
+    const sourceTranslation = sentenceZh.value;
+    const sourceMeanings = [...meanings.value];
     wordCache.invalidate(w);
 
     try {
@@ -522,12 +556,12 @@ async function markLearning() {
         if (existing) {
             existing.status = 1;
             // Add sentence context if not already present
-            if (sentenceEn.value) {
-                const hasSentence = existing.sentences.some(s => s.text === sentenceEn.value);
+            if (sourceSentence) {
+                const hasSentence = existing.sentences.some(s => s.text === sourceSentence);
                 if (!hasSentence) {
                     existing.sentences.push({
-                        text: sentenceEn.value,
-                        trans: sentenceZh.value || '',
+                        text: sourceSentence,
+                        trans: sourceTranslation || '',
                         origin: 'LinguaFlow subtitle',
                     });
                 }
@@ -536,28 +570,28 @@ async function markLearning() {
         } else {
             await plugin.db.postExpression({
                 expression: w,
-                meaning: meanings.value.join('; ') || '',
+                meaning: sourceMeanings.join('; ') || '',
                 status: 1,
                 t: 'WORD',
                 tags: [],
                 notes: [],
-                sentences: sentenceEn.value ? [{
-                    text: sentenceEn.value,
-                    trans: sentenceZh.value || '',
+                sentences: sourceSentence ? [{
+                    text: sourceSentence,
+                    trans: sourceTranslation || '',
                     origin: 'LinguaFlow subtitle',
                 }] : [],
                 aliases: [],
                 date: Date.now(),
             });
         }
-        currentStatus.value = 1;
+        if (word.value.toLowerCase() === w) currentStatus.value = 1;
 
         dispatchEvent(new CustomEvent('qiaomu-english-event-refresh', {
             detail: {
                 expression: w,
                 type: 'WORD',
                 status: 1,
-                meaning: meanings.value.join('; '),
+                meaning: sourceMeanings.join('; '),
                 aliases: [],
             },
         }));
@@ -568,7 +602,7 @@ async function markLearning() {
             detail: { selection: w },
         }));
     } catch (e) {
-        new Notice('Failed to save word');
+        showStatusSaveFailure(e, 'Failed to save word');
     }
 }
 

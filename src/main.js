@@ -1,4 +1,6 @@
 import { selectionActionPreferences } from "./selection-preferences.js";
+import { SelectionSpeechPlayer } from "./selection-tts.js";
+import { renderSpeechSettings } from "./selection-tts-settings.js";
 import { watchQuietUi } from "./quiet-ui.js";
 import { STARTER_BOOKS } from "./starter-book-data.js";
 import { createStarterLibraryInstaller, findStarterBook } from "./starter-library.js";
@@ -129,6 +131,10 @@ const DEFAULT_ENGLISH_LEARNING = {
   englishLookupLanguage: "zh",
   englishReviewFile: "Qiaomu Reader/English Review.md",
 };
+const DEFAULT_SPEECH = {
+  ttsService: "openai", ttsBase: "", ttsSecretId: "", ttsConfigs: {},
+  ttsModel: "gpt-4o-mini-tts", ttsVoice: "alloy", ttsSpeed: 1, ttsTestLocale: "", ttsAutoLanguage: true,
+};
 const DEFAULT_LIBRARY_UI = {
   bookNoteLinks: {}, locationMarks: [], bookNotePrompted: {}, coverFits: {},
   syncMode: "auto", libCategory: "all",
@@ -200,7 +206,7 @@ const DEFAULT_READING_FLOW = {
 };
 const DEFAULT = Object.assign(
   {},
-  DEFAULT_SHELF, DEFAULT_APPEARANCE, DEFAULT_TRANSLATION, DEFAULT_ENGLISH_LEARNING, DEFAULT_LIBRARY_UI,
+  DEFAULT_SHELF, DEFAULT_APPEARANCE, DEFAULT_TRANSLATION, DEFAULT_ENGLISH_LEARNING, DEFAULT_SPEECH, DEFAULT_LIBRARY_UI,
   DEFAULT_READER_SESSION, DEFAULT_AI, DEFAULT_READING_FLOW
 );
 
@@ -1510,6 +1516,8 @@ const QiaomuBookReader = class extends Plugin {
     this.progress = {};
     this.thumbCache = {};
     this.highlights = {};
+    this._hlMutations = [];
+    this._hlVersion = 0;
     this.progressBackups = {};
     this._progressQueue = createSerialTaskQueue();
     this._reviewQueue = createSerialTaskQueue();
@@ -1521,6 +1529,14 @@ const QiaomuBookReader = class extends Plugin {
   }
   async onload() { // state first (loadAll), then every Obsidian integration, registered in the original order
     await this.loadAll(); await this._attachAiDraftStore();
+    this.selectionSpeech = new SelectionSpeechPlayer(this, {
+      translate: qiaomuReaderTranslate, icon: setIcon,
+      onError: (key) => new Notice(qiaomuReaderTranslate(key), 6000),
+      hostRequest: requestUrl,
+    });
+    this.registerEvent(this.app.workspace.on("layout-change", () => {
+      if (this.selectionSpeech.session?.bar && !this.selectionSpeech.session.bar.isConnected) this.selectionSpeech.stop();
+    }));
     this._unloading = false;
     this._watchCompanionAndNotes();
     this._registerReaderViews();
@@ -1862,6 +1878,7 @@ const QiaomuBookReader = class extends Plugin {
   }
   onunload() {
     this._unloading = true;
+    this.selectionSpeech?.stop();
     for (const doc of this._quietUiDocuments?.keys() || []) clearEnglishLearningTheme(doc);
     void this.learning?.onunload();
     for (const modal of [...(this._englishDictionaryModals || [])]) modal.close();
@@ -2729,7 +2746,7 @@ const QiaomuBookReader = class extends Plugin {
     this.highlights = value;
     return true;
   }
-  async _writeRescue(force) {
+  async _writeRescue(force, highlightSnapshot = this.highlights) {
     try {
       const now = Date.now();
       if (!force && this._lastRescueTs && (now - this._lastRescueTs) < 5 * 60 * 1e3) return;
@@ -2743,7 +2760,7 @@ const QiaomuBookReader = class extends Plugin {
       if (!await ad.exists(base)) await this.app.vault.createFolder(base).catch(() => {});
       if (!await ad.exists(dir)) await this.app.vault.createFolder(dir).catch(() => {});
       await ad.write(qiaomuReaderPath(`${dir}/qiaomu-reader-english-progress.json`), JSON.stringify(this.progress, null, 2));
-      await ad.write(qiaomuReaderPath(`${dir}/qiaomu-reader-english-highlights.json`), JSON.stringify(this.highlights, null, 2));
+      await ad.write(qiaomuReaderPath(`${dir}/qiaomu-reader-english-highlights.json`), JSON.stringify(highlightSnapshot, null, 2));
       const dataPath = qiaomuReaderPath(`${this.manifest.dir}/data.json`);
       if (await ad.exists(dataPath)) await ad.write(qiaomuReaderPath(`${dir}/plugin-data.json`), await ad.read(dataPath));
     } catch (e) {
@@ -2841,7 +2858,7 @@ const QiaomuBookReader = class extends Plugin {
   async _loadHighlightsFromVault() {
     return this._loadJsonStore(this._highlightsFilePath(), qiaomuReaderTranslate("highlights"));
   }
-  async _saveHighlightsToVault() {
+  async _saveHighlightsToVault(snapshot = this.highlights) {
     const path5 = this._highlightsFilePath();
     if (this._blockedStores.has(path5)) throw new Error("highlight store is locked after a read failure");
     const folder = path5.substring(0, path5.lastIndexOf("/"));
@@ -2849,13 +2866,17 @@ const QiaomuBookReader = class extends Plugin {
       const folderExists = await this.app.vault.adapter.exists(folder);
       if (!folderExists) await this.app.vault.createFolder(folder).catch(() => {});
     }
-    await this.app.vault.adapter.write(path5, JSON.stringify(this.highlights, null, 2));
-    await this._writeRescue(true);
+    await this.app.vault.adapter.write(path5, JSON.stringify(snapshot, null, 2));
+    await this._writeRescue(true, snapshot);
     return true;
   }
   async refreshHighlights() {
+    await this._hlChain;
     const fresh = await this._loadHighlightsFromVault();
-    if (fresh) this.highlights = fresh;
+    if (fresh) {
+      for (const mutation of this._hlMutations) mutation.applyFn(fresh);
+      this.highlights = fresh;
+    }
   }
   getHighlights(path5) {
     let _a;
@@ -2876,6 +2897,14 @@ const QiaomuBookReader = class extends Plugin {
     void this._persistHighlights(path5, (disk) => {
       if (disk[path5]) disk[path5] = disk[path5].filter((h) => h.id !== id);
     }).then((saved) => { if (!saved) this._reportHighlightSaveError(); });
+  }
+  async clearHighlights() {
+    this.highlights = {};
+    const saved = await this._persistHighlights("", (disk) => {
+      for (const path5 of Object.keys(disk)) delete disk[path5];
+    });
+    if (!saved) this._reportHighlightSaveError();
+    return saved;
   }
   async setHighlightComment(path5, id, hl, text) {
     const list = this.highlights[path5] || [];
@@ -2915,20 +2944,30 @@ const QiaomuBookReader = class extends Plugin {
     new Notice(qiaomuReaderTranslate("could-not-save-the-highlight-it-remains-on-screen-but-may-disapp"), 8000);
   }
   _persistHighlights(bookPath, applyFn) { // serialized: every write waits for the previous one
-    this._lastBookPath = bookPath;
-    const operation = (this._hlChain || Promise.resolve()).then(() => this._writeHighlightStore(bookPath, applyFn));
+    if (bookPath) this._lastBookPath = bookPath;
+    const version = ++this._hlVersion;
+    this._hlMutations.push({ version, applyFn });
+    const operation = (this._hlChain || Promise.resolve()).then(() => this._writeHighlightStore(bookPath, version));
     this._hlChain = operation.catch(() => {});
     return operation.catch((e) => {
       console.error("Qiaomu Reader: highlight persist failed", e);
       return false;
     });
   }
-  async _writeHighlightStore(bookPath, applyFn) {
+  async _writeHighlightStore(bookPath, version) {
     const disk = await this._readHighlightStore(this._highlightsFilePath());
-    applyFn(disk); this._mergeLocalHighlights(bookPath, disk);
-    this.highlights = disk; this._backupHighlights(bookPath, disk[bookPath] || []);
-    await this._saveHighlightsToVault(); await this._saveLocalData();
-    if (this.settings.quotesToBookNote === true) {
+    // Replay earlier failed mutations as well as this one. A newer optimistic
+    // edit may have happened while the file was being read or written; never
+    // replace that in-memory state with this older disk snapshot.
+    for (const mutation of this._hlMutations) {
+      if (mutation.version <= version) mutation.applyFn(disk);
+    }
+    await this._saveHighlightsToVault(disk);
+    this._hlMutations = this._hlMutations.filter((mutation) => mutation.version > version);
+    if (this._hlVersion === version) this.highlights = disk;
+    if (bookPath) this._backupHighlights(bookPath, disk[bookPath] || []);
+    await this._saveLocalData();
+    if (bookPath && this.settings.quotesToBookNote === true) {
       await syncHighlightsToReadingNote(this.app, this, bookPath, disk[bookPath] || []);
     }
     return true;
@@ -2938,12 +2977,6 @@ const QiaomuBookReader = class extends Plugin {
     const fresh = await this._loadJsonStore(file, qiaomuReaderTranslate("highlights"));
     if (!fresh) throw new Error("highlight store is unreadable");
     return fresh && typeof fresh === "object" ? fresh : {};
-  }
-  _mergeLocalHighlights(bookPath, disk) {
-    if (!Array.isArray(this.highlights[bookPath])) return;
-    const rows = disk[bookPath] || (disk[bookPath] = []);
-    const known = new Set(rows.map((h) => h.id));
-    for (const h of this.highlights[bookPath]) if (!known.has(h.id)) rows.push(h);
   }
   _backupHighlights(path5, list) {
     if (!this.highlightsBackups) this.highlightsBackups = {};
@@ -4385,6 +4418,9 @@ function aiHttpError(status, provider) {
   return err;
 }
 function aiRequestWithTimeout(promise, signal, timeoutMs = 45000) {
+  // Obsidian's requestUrl API has no AbortSignal. Leaving the UI wait on a
+  // timeout or Stop does not cancel the server-side request; report the result
+  // as uncertain rather than claiming that generation was cancelled.
   return new Promise((resolve, reject) => {
     let settled = false;
     const finish = (callback, value) => {
@@ -4395,13 +4431,13 @@ function aiRequestWithTimeout(promise, signal, timeoutMs = 45000) {
       callback(value);
     };
     const cancel = () => {
-      const err = new Error("AI request cancelled");
-      err.qiaomuReaderReason = "cancelled";
+      const err = new Error("AI request continues after the local wait stopped");
+      err.qiaomuReaderReason = "streamuncertain";
       finish(reject, err);
     };
     const timer = window.setTimeout(() => {
-      const err = new Error("AI request timed out");
-      err.qiaomuReaderReason = "timeout";
+      const err = new Error("AI request outcome is unknown after local timeout");
+      err.qiaomuReaderReason = "streamuncertain";
       finish(reject, err);
     }, timeoutMs);
     if (signal?.aborted) cancel();
@@ -4470,14 +4506,27 @@ async function aiExplainStream(cfg, messages, options) {
     parser.push(decoder.decode());
     parser.finish();
   } catch (e) {
+    controller.abort();
     if (timedOut) {
-      const err = new Error("AI request timed out");
-      err.qiaomuReaderReason = "timeout";
+      const err = new Error("AI request outcome is unknown after timeout");
+      err.qiaomuReaderReason = "streamuncertain";
       if (received) err.qiaomuReaderReceived = true;
       throw err;
     }
-    if (received) e.qiaomuReaderReceived = true;
-    throw e;
+    if (options.signal?.aborted) {
+      const err = new Error("AI request cancelled");
+      err.qiaomuReaderReason = "cancelled";
+      throw err;
+    }
+    const error = e instanceof Error ? e : new Error(String(e));
+    if (received) error.qiaomuReaderReceived = true;
+    if (!received && (error.name === "TypeError" || error.qiaomuReaderStreamUnavailable)) {
+      error.qiaomuReaderStreamTransportUnavailable = true;
+    }
+    // A transport error or missing stream body does not establish that the
+    // server rejected the request. It may already have generated a paid reply.
+    if (!error.qiaomuReaderReason) error.qiaomuReaderReason = "streamuncertain";
+    throw error;
   } finally {
     window.clearTimeout(timeout);
     options.signal?.removeEventListener("abort", abortFromCaller);
@@ -4523,20 +4572,17 @@ async function aiExplain(text, plugin, turns, book, options = {}) {
     err.qiaomuReaderReason = "nokey";
     throw err;
   }
-  if (typeof options.onDelta === "function" && typeof window.fetch === "function") {
-    try {
-      return await aiExplainStream(cfg, messages, options);
-    } catch (e) {
-      if (options.signal?.aborted || e?.name === "AbortError") {
-        const err = new Error("AI request cancelled");
-        err.qiaomuReaderReason = "cancelled";
-        throw err;
-      }
-      // Browser streaming may be unavailable for a custom endpoint because of
-      // CORS. Fall back only before any token arrived, so a request is never
-      // repeated after the model has started answering.
-      if (e?.qiaomuReaderReason || e?.qiaomuReaderReceived) throw e;
-    }
+  if (options.signal?.aborted) {
+    const err = new Error("AI request cancelled before sending");
+    err.qiaomuReaderReason = "cancelled";
+    throw err;
+  }
+  if (typeof options.onDelta === "function" && typeof window.fetch === "function"
+    && !options.forceNonStreaming) {
+    // Never silently send a second paid request after a failed stream. If the
+    // browser cannot use this endpoint, the error UI offers an explicit
+    // non-streaming retry for a new user action.
+    return aiExplainStream(cfg, messages, options);
   }
   const body = buildAiRequestBody(cfg.id, cfg.model, messages, {
     ...options,
@@ -4547,8 +4593,8 @@ async function aiExplain(text, plugin, turns, book, options = {}) {
     options.signal,
   );
   if (options.signal && options.signal.aborted) {
-    const err = new Error("AI request cancelled");
-    err.qiaomuReaderReason = "cancelled";
+    const err = new Error("AI request completed after the local wait stopped");
+    err.qiaomuReaderReason = "streamuncertain";
     throw err;
   }
   const httpReason = classifyAiHttpStatus(res.status);
@@ -5264,6 +5310,19 @@ function syncSelectionToolbar(view) {
   btn.style.setProperty("--selection-color", hlColorCss(selectionColor(view)));
   btn.setAttribute("aria-pressed", String(!!view._editHlId));
 }
+function readerSpeechRange(view, highlight) {
+  if (highlight?.id) {
+    const span = [...(view.pager.flow?.querySelectorAll("[data-hl-id]") || [])]
+      .find(item => item.getAttribute("data-hl-id") === highlight.id);
+    if (span) {
+      const range = docOf(span).createRange();
+      range.selectNodeContents(span);
+      return range;
+    }
+  }
+  const selection = view._selectionDoc?.getSelection?.() || selOf(view.areaEl);
+  return selection?.rangeCount && !selection.isCollapsed ? selection.getRangeAt(0).cloneRange() : null;
+}
 function selectionActions(view) {
   const actions = {
     lookup: ["qiaomu-reader-hl-lookup", "book-search", "lookup-word", () => {
@@ -5275,6 +5334,14 @@ function selectionActions(view) {
     highlight: ["qiaomu-reader-hl-highlight", "highlighter", "highlight-action", () => view._applyPopupColor(selectionColor(view))],
     comment: ["qiaomu-reader-hl-comment-btn", "message-square", "annotate-action", () => openInlineHighlightComment(view)],
     ai: ["qiaomu-reader-hl-ai", "sparkles", "ask-ai-action", () => openAiSelectionChat(view)],
+    speak: ["qiaomu-reader-hl-speak", "volume-2", "tts-speak", () => {
+      const current = view._currentHl();
+      if (!current?.text) return;
+      const range = readerSpeechRange(view, current);
+      clearReaderSelection(view); view._hideHlPopup();
+      void view.plugin.selectionSpeech.play(current.text, view.contentEl,
+        { context: [current.pre, current.text, current.post].filter(Boolean).join(" "), range });
+    }],
     translate: ["qiaomu-reader-hl-translate", "languages", "translate", () => {
       const cur = view._currentHl(), file = view.file;
       if (!cur || !file || !view.plugin.settings.translateEnabled) return;
@@ -5446,6 +5513,11 @@ function renderHighlightPanel(p, owner, opts) {
       menu.addItem((it) => {
         it.setTitle(qiaomuReaderTranslate("as-text-into-the-book-note")).setIcon("text-quote");
         it.onClick(() => sendQuoteToBookNote(owner, hl));
+      });
+      menu.addItem((it) => {
+        it.setTitle(qiaomuReaderTranslate("tts-speak")).setIcon("volume-2");
+        it.onClick(() => { void owner.plugin.selectionSpeech.play(hl.text, owner.contentEl,
+          { context: [hl.pre, hl.text, hl.post].filter(Boolean).join(" "), range: readerSpeechRange(owner, hl) }); });
       });
       menu.showAtMouseEvent(e);
     };
@@ -6187,12 +6259,13 @@ const AiExplainModal = class extends Modal {
     });
     regenerate.addClass("qiaomu-reader-ai-regenerate");
   }
-  async _send(text) {
+  async _send(text, requestOptions = {}) {
     if (this.busy || this.attachmentLoading || this._historySaving || !text) return false;
     if (!this._regeneratingContext) this._prepareContext?.();
     this._regeneratingContext = false;
     this.busy = true;
-    this.abortController = new AbortController();
+    const controller = new AbortController();
+    this.abortController = controller;
     this._setSending(true);
     for (const button of this.log.querySelectorAll(".qiaomu-reader-ai-regenerate")) button.remove();
     if (this.empty) { this.empty.remove(); this.empty = null; }
@@ -6227,6 +6300,7 @@ const AiExplainModal = class extends Modal {
     let reasoning = "";
     let hasContent = false;
     const onDelta = (delta) => {
+      if (this.abortController !== controller || controller.signal.aborted) return;
       if (delta.reasoning) {
         reasoning = delta.reasoningText || reasoning + delta.reasoning;
         reasoningBox.removeClass("qiaomu-reader-ai-reason-hidden");
@@ -6249,10 +6323,16 @@ const AiExplainModal = class extends Modal {
     };
     try {
       answer = await aiExplain(this.structuredContext ? "" : this.text, this.plugin, this.turns, this.book, {
-        signal: this.abortController.signal,
+        signal: controller.signal,
         onDelta,
         sessionKey: this.aiSessionKey,
+        forceNonStreaming: requestOptions.forceNonStreaming === true,
       });
+      if (this.abortController !== controller || controller.signal.aborted) {
+        const err = new Error("AI request no longer belongs to this view");
+        err.qiaomuReaderReason = "cancelled";
+        throw err;
+      }
     } catch (e) {
       const followTail = aiLogFollowsTail(this.log);
       const why = e && e.qiaomuReaderReason;
@@ -6269,7 +6349,12 @@ const AiExplainModal = class extends Modal {
         ind.remove();
         if (reasoning) reasoningBox.open = false;
         else reasoningBox.remove();
-        group.createDiv({ cls: "qiaomu-reader-ai-interrupted", text: qiaomuReaderTranslate("reply-interrupted-generated-content-has-been-kept") });
+        group.createDiv({
+          cls: "qiaomu-reader-ai-interrupted",
+          text: qiaomuReaderTranslate(why === "streamuncertain"
+            ? "ai-stream-request-uncertain"
+            : "reply-interrupted-generated-content-has-been-kept"),
+        });
         this._actions(group, answer, { question: text, context: attachedContext, turn: userTurn });
         if (this.activeMarkdownRenderer === markdownRenderer) this.activeMarkdownRenderer = null;
         this.busy = false;
@@ -6299,6 +6384,7 @@ const AiExplainModal = class extends Modal {
           : why === "cliauth" ? qiaomuReaderTranslate("the-cli-is-not-signed-in-complete-its-login-flow-in-terminal-fir")
           : why === "model" ? qiaomuReaderTranslate("the-model-name-is-unavailable-leave-it-empty-to-use-the-cli-defa")
           : why === "timeout" ? qiaomuReaderTranslate("the-ai-request-timed-out-try-again-later")
+          : why === "streamuncertain" ? qiaomuReaderTranslate("ai-stream-request-uncertain")
           : why === "inputtoolong" ? qiaomuReaderTranslate("the-pdf-or-selection-is-too-long-use-a-smaller-selection-or-remo")
           : why === "outputtoolong" ? qiaomuReaderTranslate("the-ai-response-was-too-long-and-has-been-stopped")
           : why === "acpsession" ? qiaomuReaderTranslate("the-acp-session-expired-and-automatic-reconnection-failed-try-ag")
@@ -6313,10 +6399,14 @@ const AiExplainModal = class extends Modal {
                   : why === "http" ? qiaomuReaderTranslate("the-service-answered-with-error-0", e.qiaomuReaderStatus)
                     : qiaomuReaderTranslate("could-not-reach-the-service-it-looks-like-there-is-no-internet-c"));
       if (why !== "cancelled") {
+        if (e?.qiaomuReaderStreamTransportUnavailable) {
+          group.createDiv({ cls: "qiaomu-reader-ai-interrupted", text: qiaomuReaderTranslate("ai-compatible-retry-nonstreaming") });
+        }
         const retryRow = group.createDiv("qiaomu-reader-ai-acts qiaomu-reader-ai-error-actions");
         const retry = retryRow.createEl("button", { cls: "qiaomu-reader-ai-act" });
         svgIcon(retry, "rotate-ccw");
-        retry.createSpan({ text: qiaomuReaderTranslate("try-again") });
+        retry.createSpan({ text: qiaomuReaderTranslate(e?.qiaomuReaderStreamTransportUnavailable
+          ? "retry-in-compatible-mode" : "try-again") });
         retry.addEventListener("click", () => {
           if (this.busy) return;
           retry.disabled = true;
@@ -6325,7 +6415,7 @@ const AiExplainModal = class extends Modal {
           this.pendingContext = normalizeAiTurnContext(attachedContext);
           if (this.pendingContext) this.text = this.pendingContext.text;
           this._regeneratingContext = true;
-          void this._send(text);
+          void this._send(text, { forceNonStreaming: !!e?.qiaomuReaderStreamTransportUnavailable });
         });
       }
       if (followTail && !this._readingEarlier) this._scroll();
@@ -10113,8 +10203,10 @@ const ReaderView = class extends ItemView {
       }),
       hostDocument: docOf(this.contentEl),
       onOpenDictionary: (word, context) => this.plugin.openEnglishDictionary?.(word, context),
-      onHoverLookup: (word, context) => this.plugin.learning.hover(word, context),
-      onHoverClose: () => this.plugin.learning.closeHover(),
+      onHoverLookup: (word, context) => this.plugin.learning.hover(word, {
+        ...context, hostDocument: docOf(this.contentEl), hoverOwner: this.lookupController,
+      }),
+      onHoverClose: () => this.plugin.learning.closeHover(this.lookupController),
     });
     (this.plugin._lookupControllers ||= new Set()).add(this.lookupController);
     this.registerDomEvent(docOf(this.contentEl), "visibilitychange", () => renderVisibleFigures(this));
@@ -11065,6 +11157,7 @@ const ReaderView = class extends ItemView {
   async onClose() {
     this._loadCoordinator.cancel();
     this._closed = true;
+    if (this.plugin.selectionSpeech?.session?.host === this.contentEl) this.plugin.selectionSpeech.stop();
     window.clearTimeout(this._markdownRefreshTimer);
     this.lookupController?.destroy();
     this.plugin._lookupControllers?.delete(this.lookupController);
@@ -12035,8 +12128,10 @@ const ReaderModal = class extends Modal {
       }),
       hostDocument: docOf(this.contentEl),
       onOpenDictionary: (word, context) => this.plugin.openEnglishDictionary?.(word, context),
-      onHoverLookup: (word, context) => this.plugin.learning.hover(word, context),
-      onHoverClose: () => this.plugin.learning.closeHover(),
+      onHoverLookup: (word, context) => this.plugin.learning.hover(word, {
+        ...context, hostDocument: docOf(this.contentEl), hoverOwner: this.lookupController,
+      }),
+      onHoverClose: () => this.plugin.learning.closeHover(this.lookupController),
     });
     (this.plugin._lookupControllers ||= new Set()).add(this.lookupController);
     const visibilityDoc = docOf(this.contentEl);
@@ -12768,6 +12863,7 @@ const ReaderModal = class extends Modal {
   }
   async onClose() {
     this._closed = true;
+    if (this.plugin.selectionSpeech?.session?.host === this.contentEl) this.plugin.selectionSpeech.stop();
     window.clearTimeout(this._markdownRefreshTimer);
     this.lookupController?.destroy();
     this.plugin._lookupControllers?.delete(this.lookupController);
@@ -13021,6 +13117,7 @@ const SettingsTab = class extends PluginSettingTab {
     this.plugin = plugin;
   }
   hide() {
+    if (this.plugin.selectionSpeech?.session?.bar?.closest(".qiaomu-reader-settings-root")) this.plugin.selectionSpeech.stop();
     this.plugin.learning?.settingTab?.hide();
     this._settingsCard?.classList.remove("qiaomu-reader-settings-card");
     this._settingsCard = null;
@@ -13041,10 +13138,10 @@ const SettingsTab = class extends PluginSettingTab {
       },
     }];
   }
-  _redraw() {
+  _redraw(resetScroll = false) {
     const el = this.containerEl;
     const scroller = el.scrollHeight > el.clientHeight ? el : (el.closest(".vertical-tab-content") || el.parentElement || el);
-    const y = scroller.scrollTop;
+    const y = resetScroll ? 0 : scroller.scrollTop;
     if (typeof this.update === "function") this.update();
     else this.display();
     scroller.scrollTop = y;
@@ -13052,6 +13149,12 @@ const SettingsTab = class extends PluginSettingTab {
   }
   display() {
     this._render(this.containerEl);
+  }
+  openSpeechSettings() {
+    this._tab = "speech";
+    this.app.setting?.open();
+    this.app.setting?.openTabById?.(this.plugin.manifest.id);
+    this._redraw(true);
   }
   _render(root) {
     this.plugin.learning?.settingTab?.hide();
@@ -13092,6 +13195,7 @@ const SettingsTab = class extends PluginSettingTab {
     return [
       { id: "look", label: qiaomuReaderTranslate("reading-appearance") },
       { id: "read", label: qiaomuReaderTranslate("page-turning-2") },
+      { id: "speech", label: qiaomuReaderTranslate("tts-settings") },
       { id: "learn", label: this.plugin.settings.language?.startsWith("zh") ? "英语学习" : "English learning" },
       { id: "notes", label: qiaomuReaderTranslate("notes") },
       { id: "translate", label: qiaomuReaderTranslate("ai-translation") },
@@ -13108,6 +13212,7 @@ const SettingsTab = class extends PluginSettingTab {
   _drawSettingsTab(body) {
     const drawers = {
       read: (host) => this._tabReading(host),
+      speech: (host) => this._speechSettings(host),
       learn: (host) => {
         const tab = this.plugin.learning?.settingTab;
         if (tab) { tab.containerEl = host; tab.display(); }
@@ -13307,7 +13412,7 @@ const SettingsTab = class extends PluginSettingTab {
         }));
       host.createEl("p", { cls: "qiaomu-reader-set-note", text: t("selection-hidden-in-more") });
       const items = selectionActionPreferences(s.selectionActions);
-      const labels = { lookup: "lookup-word", highlight: "highlight-action", comment: "annotate-action", ai: "ask-ai-action", translate: "translate", copy: "copy" };
+      const labels = { lookup: "lookup-word", highlight: "highlight-action", comment: "annotate-action", ai: "ask-ai-action", speak: "tts-speak", translate: "translate", copy: "copy" };
       const save = async (focus) => {
         s.selectionActions = items; await this.plugin.saveAll(); render();
         if (focus) host.querySelector(focus)?.focus();
@@ -13335,6 +13440,16 @@ const SettingsTab = class extends PluginSettingTab {
       new Setting(host).addButton(button => button.setButtonText(t("restore-defaults")).onClick(async () => {
         s.selectionActions = null; s.selectionShowLabels = false; await this.plugin.saveAll(); render();
       }));
+    };
+    render();
+  }
+  _speechSettings(host) {
+    const render = () => {
+      host.empty();
+      renderSpeechSettings(host, this.plugin, {
+        translate: qiaomuReaderTranslate, save: () => this._saveAll(),
+        redraw: () => { this.plugin.selectionSpeech?.stop(); render(); }, withSliderValue,
+      });
     };
     render();
   }
@@ -14167,9 +14282,10 @@ const SettingsTab = class extends PluginSettingTab {
     const hlTotal = Object.values(this.plugin.highlights)
       .reduce((sum, list) => sum + (Array.isArray(list) ? list.length : 0), 0);
     const hlSet = new Setting(c).setName(tx("highlights")).setDesc(tx("total-0", hlTotal)).addButton((b) => b.setButtonText(tx("clear-all-2")).setWarning().onClick(async () => {
-      this.plugin.highlights = {}; await this.plugin._saveHighlightsToVault();
-      new Notice(tx("highlights-cleared"));
-      hlSet.setDesc(tx("total-0", 0));
+      if (await this.plugin.clearHighlights()) {
+        new Notice(tx("highlights-cleared"));
+        hlSet.setDesc(tx("total-0", 0));
+      }
     }));
     const memoryKeys = ["bookNoteLinks", "bookNotePrompted", "bookTags", "bookTemplates"];
     const memoryDesc = (count) => tx("books-0-linked-notes-categories-per-book-templates-and-the-alrea", count);

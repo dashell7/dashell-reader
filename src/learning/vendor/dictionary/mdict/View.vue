@@ -37,6 +37,8 @@ const result = ref({ html: '', isPlainText: false });
 const loaded = ref(false);
 const loadError = ref<string | null>(null);
 const htmlContainer = ref<HTMLElement | null>(null);
+// A per-view selector keeps dictionary CSS and duplicate entry IDs local to this result.
+const mdictScopeId = `qre-mdict-${Math.random().toString(36).slice(2)}`;
 
 // ─── search ─────────────────────────────────────────────────────────────────
 
@@ -78,54 +80,202 @@ useLoading(() => props.word, props.dictId, onSearch, emits, true);
 
 // ─── HTML rendering ──────────────────────────────────────────────────────────
 
-/**
- * Inject the MDict HTML into the container element.
- *
- * MDict HTML often uses old-style <FONT> tags and inline styles.
- * We transform these into semantic elements with CSS classes for
- * better Obsidian theme integration and cleaner rendering.
- */
-/**
- * Sanitize CSS from MDD/standalone files:
- * - Resolve font url() references from MDD to data: URLs
- * - Strip @font-face rules that reference unavailable local files
- */
-function sanitizeCss(css: string, engine: any): string {
-    // Replace url() references with MDD data URLs where possible
-    return css.replace(/@font-face\s*\{[^}]*\}/g, (fontFace) => {
-        // Try to resolve font URLs from MDD
-        const urlMatch = fontFace.match(/url\(['"]?([^'")\s]+)['"]?\)/);
-        if (!urlMatch) return ''; // strip unresolvable @font-face
+/** Dictionary content is untrusted even when the MDX was selected locally. */
+const allowedTags = new Set([
+    'a', 'abbr', 'article', 'b', 'big', 'blockquote', 'br', 'center', 'code',
+    'dd', 'del', 'details', 'div', 'dl', 'dt', 'em', 'figcaption', 'figure',
+    'font', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'header', 'hr', 'i', 'img',
+    'ins', 'kbd', 'li', 'mark', 'ol', 'p', 'pre', 'rp', 'rt', 'ruby', 's',
+    'samp', 'section', 'small', 'span', 'strong', 'sub', 'summary', 'sup',
+    'table', 'tbody', 'td', 'tfoot', 'th', 'thead', 'tr', 'u', 'ul', 'var'
+]);
+const forbiddenTags = new Set([
+    'base', 'button', 'canvas', 'embed', 'form', 'iframe', 'input', 'link',
+    'math', 'meta', 'object', 'option', 'script', 'select', 'source', 'svg',
+    'template', 'textarea', 'video'
+]);
+function mddResourceUrl(path: string, engine: any, kind: 'image' | 'font'): string | null {
+    if (/^data:/i.test(path)) {
+        const mime = path.match(/^data:(image\/(?:png|jpe?g|gif|webp|svg\+xml)|font\/(?:woff2?|ttf|otf|opentype));base64,[A-Za-z0-9+/]*={0,2}$/i)?.[1];
+        return mime && (kind === 'image' ? mime.startsWith('image/') : mime.startsWith('font/')) ? path : null;
+    }
+    if (/^[a-z][\w+.-]*:/i.test(path) || path.startsWith('//') || !engine?.hasMdd()) return null;
+    const clean = path.split(/[?#]/, 1)[0].replace(/^[./\\]+/, '');
+    if (!clean) return null;
+    const ext = clean.split('.').pop()?.toLowerCase() || '';
+    const mime = kind === 'image'
+        ? ({ png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp', svg: 'image/svg+xml' } as Record<string, string>)[ext]
+        : ({ woff2: 'font/woff2', woff: 'font/woff', ttf: 'font/ttf', otf: 'font/opentype' } as Record<string, string>)[ext];
+    if (!mime) return null;
+    const buf = engine.lookupResource('\\' + clean);
+    return buf ? `data:${mime};base64,${buf.toString('base64')}` : null;
+}
 
-        const fontFile = urlMatch[1];
-        if (fontFile.startsWith('http')) return fontFace; // keep external
-
-        if (engine?.hasMdd()) {
-            const key = '\\' + fontFile.replace(/^[./\\]+/, '');
-            const buf = engine.lookupResource(key);
-            if (buf) {
-                const ext = fontFile.split('.').pop()?.toLowerCase() || 'ttf';
-                const mime = ext === 'woff2' ? 'font/woff2'
-                    : ext === 'woff' ? 'font/woff'
-                    : ext === 'otf' ? 'font/opentype'
-                    : 'font/ttf';
-                const dataUrl = `data:${mime};base64,${buf.toString('base64')}`;
-                return fontFace.replace(urlMatch[0], `url("${dataUrl}")`);
-            }
+function splitCssList(input: string): string[] {
+    const result: string[] = [];
+    let start = 0, depth = 0, quote = '';
+    for (let i = 0; i < input.length; i++) {
+        const char = input[i];
+        if (quote) {
+            if (char === '\\') i++;
+            else if (char === quote) quote = '';
+        } else if (char === '"' || char === "'") quote = char;
+        else if (char === '(' || char === '[') depth++;
+        else if (char === ')' || char === ']') depth--;
+        else if (char === ',' && depth === 0) {
+            result.push(input.slice(start, i).trim());
+            start = i + 1;
         }
-        // Font not in MDD — strip the @font-face to prevent ERR_FILE_NOT_FOUND
-        return '';
+    }
+    result.push(input.slice(start).trim());
+    return result;
+}
+
+function safeDeclarations(style: CSSStyleDeclaration, engine: any, fontNames: Map<string, string>): string {
+    const declarations: string[] = [];
+    for (let i = 0; i < style.length; i++) {
+        const name = style.item(i).toLowerCase();
+        let value = style.getPropertyValue(name);
+        if (!name || /^(?:behavior|-moz-binding|filter|backdrop-filter|z-index|pointer-events)$/i.test(name)) continue;
+        if (name === 'position' && /^(?:fixed|sticky|absolute)$/i.test(value.trim())) continue;
+        if (/(?:expression|image-set)\s*\(/i.test(value)) continue;
+        if (/url\s*\(/i.test(value)) {
+            let valid = true;
+            let replaced = 0;
+            const urls = value.match(/url\s*\(/gi)?.length || 0;
+            value = value.replace(/url\(\s*(['"]?)(.*?)\1\s*\)/gi, (_match, _quote, path: string) => {
+                replaced++;
+                const resolved = mddResourceUrl(path.trim(), engine, 'image');
+                if (!resolved) valid = false;
+                return resolved ? `url("${resolved}")` : '';
+            });
+            if (!valid || replaced !== urls) continue;
+        }
+        if (name === 'font-family') {
+            value = splitCssList(value).map(family => {
+                const original = family.replace(/^['"]|['"]$/g, '').toLowerCase();
+                return fontNames.has(original) ? `"${fontNames.get(original)}"` : family;
+            }).join(', ');
+        }
+        declarations.push(`${name}:${value}${style.getPropertyPriority(name) ? ' !important' : ''}`);
+    }
+    return declarations.join(';');
+}
+
+/** Parse with the browser CSS parser, then emit only scoped, supported rules. */
+function sanitizeCss(css: string, engine: any, ids: Map<string, string>): string {
+    if (typeof CSSStyleSheet === 'undefined') return ''; // old WebKit: fail closed, definitions still render
+    let rules: CSSRuleList;
+    try {
+        const sheet = new CSSStyleSheet();
+        sheet.replaceSync(css);
+        rules = sheet.cssRules;
+    } catch { return ''; }
+    const fontNames = new Map<string, string>();
+    let fontIndex = 0;
+    const collectFonts = (list: CSSRuleList): void => {
+        for (const rule of Array.from(list)) {
+            if (rule.type === 5) {
+                const family = (rule as CSSFontFaceRule).style.getPropertyValue('font-family').replace(/^['"]|['"]$/g, '').toLowerCase();
+                if (family && !fontNames.has(family)) fontNames.set(family, `${mdictScopeId}-font-${fontIndex++}`);
+            } else if (rule.type === 4 || rule.type === 12) collectFonts((rule as CSSGroupingRule).cssRules);
+        }
+    };
+    collectFonts(rules);
+    const scope = `#${mdictScopeId}`;
+    const emit = (list: CSSRuleList): string => Array.from(list).map(rule => {
+        if (rule.type === 1) {
+            const cssRule = rule as CSSStyleRule;
+            const declarations = safeDeclarations(cssRule.style, engine, fontNames);
+            if (!declarations) return '';
+            const selectors = splitCssList(cssRule.selectorText).map(selector => {
+                selector = selector.replace(/#([A-Za-z_][\w-]*)/g, (match, id: string) => ids.has(id) ? `#${ids.get(id)}` : match);
+                const rooted = selector.match(/^(?:(?:html|body|:root)\s*)+(.*)$/i);
+                if (rooted) selector = rooted[1];
+                return selector ? `${scope} :is(${selector})` : scope;
+            }).join(',');
+            return `${selectors}{${declarations}}`;
+        }
+        if (rule.type === 4 || rule.type === 12) {
+            const group = rule as CSSMediaRule | CSSSupportsRule;
+            const nested = emit(group.cssRules);
+            return nested ? `@${rule.type === 4 ? 'media' : 'supports'} ${group.conditionText}{${nested}}` : '';
+        }
+        if (rule.type === 5) {
+            const face = (rule as CSSFontFaceRule).style;
+            const original = face.getPropertyValue('font-family').replace(/^['"]|['"]$/g, '').toLowerCase();
+            const alias = fontNames.get(original);
+            const src = face.getPropertyValue('src');
+            const url = src.match(/url\(\s*(['"]?)(.*?)\1\s*\)/i)?.[2];
+            const data = url && mddResourceUrl(url.trim(), engine, 'font');
+            if (!alias || !data) return '';
+            const weight = face.getPropertyValue('font-weight');
+            const fontStyle = face.getPropertyValue('font-style');
+            return `@font-face{font-family:"${alias}";src:url("${data}")${/^(?:normal|bold|[1-9]00)$/i.test(weight) ? `;font-weight:${weight}` : ''}${/^(?:normal|italic|oblique)$/i.test(fontStyle) ? `;font-style:${fontStyle}` : ''}}`;
+        }
+        return ''; // @import, @namespace, @keyframes and all unknown global at-rules
+    }).join('');
+    return emit(rules);
+}
+
+function sanitizeDictionaryMarkup(doc: Document, engine: any): Map<string, string> {
+    const ids = new Map<string, string>();
+    let nextId = 0;
+    doc.body.querySelectorAll('[id]').forEach(el => {
+        const oldId = el.id;
+        if (!ids.has(oldId)) ids.set(oldId, `${mdictScopeId}-id-${nextId++}`);
+        el.setAttribute('data-mdict-original-id', oldId);
+        el.id = ids.get(oldId)!;
     });
+    const clean = (node: Node): void => {
+        if (node.nodeType !== 1) return;
+        const el = node as HTMLElement;
+        const tag = el.localName.toLowerCase();
+        if (forbiddenTags.has(tag)) { el.remove(); return; }
+        Array.from(el.childNodes).forEach(clean);
+        if (!allowedTags.has(tag)) { el.replaceWith(...Array.from(el.childNodes)); return; }
+        for (const attr of Array.from(el.attributes)) {
+            const name = attr.name.toLowerCase();
+            const common = ['class', 'id', 'lang', 'dir', 'title', 'style', 'data-mdict-original-id'].includes(name);
+            const tagSpecific = (tag === 'a' && name === 'href')
+                || (tag === 'img' && ['src', 'alt', 'width', 'height'].includes(name))
+                || (['td', 'th'].includes(tag) && ['colspan', 'rowspan'].includes(name))
+                || (tag === 'font' && ['color', 'face', 'size'].includes(name))
+                || (tag === 'ol' && ['start', 'type'].includes(name));
+            if (!common && !tagSpecific) el.removeAttribute(attr.name);
+        }
+        if (el.hasAttribute('style')) {
+            const safe = safeDeclarations(el.style, engine, new Map());
+            if (safe) el.setAttribute('style', safe);
+            else el.removeAttribute('style');
+        }
+        if (tag === 'a') {
+            const href = el.getAttribute('href') || '';
+            if (/^(?:entry|sound):\/\//i.test(href)) return;
+            if (href.startsWith('#')) {
+                const target = ids.get(href.slice(1));
+                if (target) el.setAttribute('href', `#${target}`);
+                else el.removeAttribute('href');
+            } else if (/^https?:\/\//i.test(href)) {
+                el.setAttribute('target', '_blank');
+                el.setAttribute('rel', 'noopener noreferrer');
+            } else el.removeAttribute('href');
+        }
+        if (tag === 'img' && !mddResourceUrl(el.getAttribute('src') || '', engine, 'image')) el.remove();
+    };
+    Array.from(doc.body.childNodes).forEach(clean);
+    return ids;
 }
 
 function renderHtml(html: string): void {
     if (!htmlContainer.value) return;
 
     const container = htmlContainer.value;
-    container.innerHTML = '';
+    container.replaceChildren();
+    container.id = mdictScopeId;
 
     // Pre-process: convert <br> sequences to proper block structure
-    let processed = html;
+    const processed = html;
 
     // Get engine early — needed for MDD resource resolution throughout
     const engine = getMdictEngine(props.dictId);
@@ -136,9 +286,6 @@ function renderHtml(html: string): void {
         `<html><body>${processed}</body></html>`,
         'text/html'
     );
-
-    // Remove all <script> tags for security — dictionary JS is not executed
-    doc.querySelectorAll('script').forEach(el => el.remove());
 
     // Strip inline styles that conflict with Obsidian theme, keep semantic ones
     doc.querySelectorAll('[style]').forEach(el => {
@@ -217,27 +364,13 @@ function renderHtml(html: string): void {
         (hr as HTMLElement).classList.add('mdict-hr');
     });
 
-    // Resolve images: try MDD resource, otherwise hide
+    // Resolve images only from MDD or embedded image data. External URLs would
+    // otherwise make a network request as soon as a local dictionary is opened.
     doc.querySelectorAll('img[src]').forEach(img => {
         const src = img.getAttribute('src') || '';
-        if (src.startsWith('http://') || src.startsWith('https://')) return;
-
-        // Try loading from MDD
-        if (engine?.hasMdd()) {
-            const key = '\\' + src.replace(/^[./\\]+/, '');
-            const buf = engine.lookupResource(key);
-            if (buf) {
-                const ext = src.split('.').pop()?.toLowerCase() || 'png';
-                const mime = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg'
-                    : ext === 'gif' ? 'image/gif'
-                    : ext === 'svg' ? 'image/svg+xml'
-                    : 'image/png';
-                img.setAttribute('src', `data:${mime};base64,${buf.toString('base64')}`);
-                return;
-            }
-        }
-        // No MDD or resource not found — hide
-        (img as HTMLElement).style.display = 'none';
+        const resolved = mddResourceUrl(src, engine, 'image');
+        if (resolved) img.setAttribute('src', resolved);
+        else img.remove();
     });
 
     // Resolve CSS from MDD (link[rel="stylesheet"])
@@ -249,7 +382,7 @@ function renderHtml(html: string): void {
                 const buf = engine.lookupResource(key);
                 if (buf) {
                     const style = doc.createElement('style');
-                    style.textContent = sanitizeCss(buf.toString('utf8'), engine);
+                    style.textContent = buf.toString('utf8');
                     link.replaceWith(style);
                     return;
                 }
@@ -262,13 +395,25 @@ function renderHtml(html: string): void {
     const standaloneCss = engine?.getStandaloneCss();
     if (standaloneCss) {
         const style = doc.createElement('style');
-        style.textContent = sanitizeCss(standaloneCss, engine);
+        style.textContent = standaloneCss;
         doc.body.prepend(style);
     }
 
     // Remove remaining unresolved stylesheet links (no MDD available)
     if (!engine?.hasMdd()) {
         doc.querySelectorAll('link[rel="stylesheet"]').forEach(el => el.remove());
+    }
+
+    // Collect all dictionary styles (including rules parsed into <head>) before
+    // stripping markup. Only the scoped CSS generated below enters the live DOM.
+    const dictionaryCss = Array.from(doc.querySelectorAll('style')).map(style => style.textContent || '').join('\n');
+    doc.querySelectorAll('style').forEach(style => style.remove());
+    const ids = sanitizeDictionaryMarkup(doc, engine);
+    const safeCss = sanitizeCss(dictionaryCss, engine, ids);
+    if (safeCss) {
+        const style = document.createElement('style');
+        style.textContent = safeCss;
+        container.appendChild(style);
     }
 
     // Handle sound:// links — convert to clickable audio players
@@ -312,6 +457,15 @@ function renderHtml(html: string): void {
                     detail: { selection: entry }
                 }));
             }
+        });
+    });
+
+    // Keep a dictionary's in-entry anchors from changing the Obsidian window URL.
+    container.querySelectorAll(`a[href^="#${mdictScopeId}-id-"]`).forEach(link => {
+        link.addEventListener('click', event => {
+            event.preventDefault();
+            const target = container.querySelector((link as HTMLAnchorElement).getAttribute('href') || '');
+            target?.scrollIntoView({ block: 'nearest' });
         });
     });
 
@@ -360,7 +514,8 @@ function renderHtml(html: string): void {
     container.querySelectorAll('img').forEach(img => {
         const imgEl = img as HTMLImageElement;
         if (imgEl.style.display === 'none') return; // skip hidden images
-        if (!imgEl.src || imgEl.width < 20) return;  // skip tiny icons
+        const declaredWidth = Number(imgEl.getAttribute('width'));
+        if (!imgEl.src || (declaredWidth > 0 && declaredWidth < 20)) return;  // skip tiny icons
 
         // Make images clickable for zoom
         imgEl.style.cursor = 'zoom-in';
@@ -458,6 +613,9 @@ function playMddSound(filename: string): void {
     color: var(--text-normal);
     word-break: break-word;
     overflow-wrap: anywhere;
+    position: relative;
+    isolation: isolate;
+    contain: paint;
 }
 
 /* ─── Headword ─────────────────────────────────────────── */
@@ -591,8 +749,8 @@ function playMddSound(filename: string): void {
 .mdict-html :deep(.content-wrapper),
 .mdict-html :deep(.centeredContent),
 .mdict-html :deep(.pageContent),
-.mdict-html :deep(#page),
-.mdict-html :deep(#pageContent) {
+.mdict-html :deep([data-mdict-original-id="page"]),
+.mdict-html :deep([data-mdict-original-id="pageContent"]) {
     display: block !important;
     width: 100% !important;
     max-width: 100% !important;
