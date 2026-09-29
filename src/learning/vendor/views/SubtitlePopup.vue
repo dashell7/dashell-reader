@@ -13,7 +13,6 @@
             <div class="stp-meaning" v-for="(m, i) in meanings.slice(0, 3)" :key="i">{{ m }}</div>
             <div class="stp-meaning stp-loading" v-if="loading && meanings.length === 0">...</div>
             <div class="stp-meaning" v-if="!loading && meanings.length === 0">{{ lookupFailed ? t('Definition service unavailable') : t('No definition found') }}</div>
-            <div class="stp-source" v-if="!loading && meanings.length > 0 && fallbackSource">{{ t('Backup definition') }} · {{ fallbackSource }}</div>
             <!-- Action buttons: 🔊 ✓ 📖, side by side, inline style to avoid CSS conflicts -->
             <div class="stp-actions">
                 <button
@@ -79,7 +78,7 @@ function showStatusSaveFailure(error: unknown, fallback: string) {
 class WordCache {
     // Only remote definitions are cached. Vocabulary status and user-edited
     // meanings always come from the authoritative database on each hover.
-    private cache = new Map<string, { meanings: string[]; source: string }>();
+    private cache = new Map<string, string[]>();
     private maxSize: number;
     constructor(maxSize = 200) { this.maxSize = maxSize; }
     get(key: string) {
@@ -90,7 +89,7 @@ class WordCache {
         }
         return v;
     }
-    set(key: string, value: { meanings: string[]; source: string }) {
+    set(key: string, value: string[]) {
         if (this.cache.size >= this.maxSize) {
             // Delete oldest (first entry)
             const oldest = this.cache.keys().next().value;
@@ -117,7 +116,6 @@ const bookTitle = ref('');
 const readerLink = ref('');
 const meanings = ref<string[]>([]);
 const lookupFailed = ref(false);
-const fallbackSource = ref('');
 const phrases = ref<Array<{ text: string; meaning?: string }>>([]);
 const loading = ref(false);
 const currentStatus = ref(-1); // -1 = not in db
@@ -248,7 +246,6 @@ function close() {
     word.value = '';
     meanings.value = [];
     lookupFailed.value = false;
-    fallbackSource.value = '';
     loading.value = false;
     phrases.value = [];
     currentStatus.value = -1;
@@ -367,7 +364,6 @@ async function lookupWord(w: string) {
     loading.value = true;
     meanings.value = [];
     lookupFailed.value = false;
-    fallbackSource.value = '';
     currentStatus.value = -1;
     const hoverLang = (plugin.settings?.hover_definition_lang || '').trim() || 'zh';
 
@@ -405,8 +401,7 @@ async function lookupWord(w: string) {
 
     const cached = wordCache.get(w.toLowerCase());
     if (cached) {
-        meanings.value = cached.meanings;
-        fallbackSource.value = cached.source;
+        meanings.value = cached;
         loading.value = false;
         return;
     }
@@ -417,7 +412,6 @@ async function lookupWord(w: string) {
     try {
         let result: string[] = [];
         let failed = false;
-        let source = '';
 
         if (hoverLang === 'en') {
             result = await fetchEnglishDefinitions(w, options => withTimeout(requestUrl(options)),
@@ -444,7 +438,6 @@ async function lookupWord(w: string) {
                     const backup = await fetchMyMemory(w, hoverLang);
                     result = backup.meanings;
                     failed = failed || backup.failed;
-                    if (result.length) source = 'MyMemory';
                 }
             }
             if (myId !== lookupRequestId) return; // stale request cancelled
@@ -452,9 +445,8 @@ async function lookupWord(w: string) {
 
         meanings.value = result.slice(0, 3);
         lookupFailed.value = !meanings.value.length && failed;
-        fallbackSource.value = source;
         if (meanings.value.length > 0) {
-            wordCache.set(w.toLowerCase(), { meanings: meanings.value, source });
+            wordCache.set(w.toLowerCase(), meanings.value);
         }
     } catch (e) {
         if (myId !== lookupRequestId) return; // stale request cancelled

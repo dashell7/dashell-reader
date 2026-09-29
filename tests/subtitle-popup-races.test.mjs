@@ -9,7 +9,7 @@ const vue = fs.readFileSync(new URL('../src/learning/vendor/views/SubtitlePopup.
 const script = vue.match(/<script setup lang="ts">([\s\S]*?)<\/script>/)?.[1]
   .replace(/^import .*;\r?\n/gm, '');
 assert.ok(script, 'SubtitlePopup script is available');
-const js = ts.transpileModule(`${script}\nglobalThis.__popupTest = { lookupWord, lookupPhrases, markKnown, markLearning, close, phrases, word, sentenceEn, sentenceZh, bookTitle, readerLink, meanings, lookupFailed, fallbackSource, loading, currentStatus };`, {
+const js = ts.transpileModule(`${script}\nglobalThis.__popupTest = { lookupWord, lookupPhrases, markKnown, markLearning, close, phrases, word, sentenceEn, sentenceZh, bookTitle, readerLink, meanings, lookupFailed, loading, currentStatus };`, {
   compilerOptions: { target: ts.ScriptTarget.ES2018, module: ts.ModuleKind.None },
 }).outputText;
 
@@ -51,7 +51,7 @@ function setup(requestUrl = async () => ({ json: null, text: '' })) {
   return { dom, db, plugin, writes, events, popup: context.__popupTest };
 }
 
-test('Google rate limit uses MyMemory and identifies the backup definition', async () => {
+test('Google rate limit uses MyMemory without changing the popup presentation', async () => {
   const requests = [];
   const { dom, popup } = setup(async ({ url }) => {
     requests.push(url);
@@ -60,7 +60,6 @@ test('Google rate limit uses MyMemory and identifies the backup definition', asy
   });
   await popup.lookupWord('rabbit-hole');
   assert.deepEqual(Array.from(popup.meanings.value), ['兔子洞']);
-  assert.equal(popup.fallbackSource.value, 'MyMemory');
   assert.equal(popup.lookupFailed.value, false);
   assert.equal(popup.loading.value, false);
   assert.equal(requests.length, 2);
@@ -118,7 +117,6 @@ test('a late lookup cannot overwrite the latest word or its source', async () =>
   pending.get('alpha')({ json: [[['阿尔法']]] });
   await first;
   assert.deepEqual(Array.from(popup.meanings.value), ['贝塔']);
-  assert.equal(popup.fallbackSource.value, '');
   dom.window.close();
 });
 

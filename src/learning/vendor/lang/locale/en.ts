@@ -438,7 +438,6 @@ export default {
     "words count": "words",
     "No definition found": "No definition found",
     "Definition service unavailable": "Dictionary unavailable. Try again.",
-    "Backup definition": "Backup definition",
 
     // Review reflux (SR scheduling → word status)
     "Review Reflux": "Update vocabulary status from review progress",
