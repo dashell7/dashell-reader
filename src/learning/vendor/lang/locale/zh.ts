@@ -440,6 +440,8 @@ export default {
     "Review db sr preserved": "条复习进度已保留",
     "words count": "个单词",
     "No definition found": "未找到释义",
+    "Definition service unavailable": "查词服务暂不可用，请重试",
+    "Backup definition": "备用释义",
 
     // Review reflux (SR scheduling → word status)
     "Review Reflux": "根据复习进度更新词汇状态",

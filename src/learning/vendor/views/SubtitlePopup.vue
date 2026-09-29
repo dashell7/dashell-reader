@@ -12,7 +12,8 @@
         <div class="stp-body">
             <div class="stp-meaning" v-for="(m, i) in meanings.slice(0, 3)" :key="i">{{ m }}</div>
             <div class="stp-meaning stp-loading" v-if="loading && meanings.length === 0">...</div>
-            <div class="stp-meaning" v-if="!loading && meanings.length === 0">{{ t('No definition found') }}</div>
+            <div class="stp-meaning" v-if="!loading && meanings.length === 0">{{ lookupFailed ? t('Definition service unavailable') : t('No definition found') }}</div>
+            <div class="stp-source" v-if="!loading && meanings.length > 0 && fallbackSource">{{ t('Backup definition') }} · {{ fallbackSource }}</div>
             <!-- Action buttons: 🔊 ✓ 📖, side by side, inline style to avoid CSS conflicts -->
             <div class="stp-actions">
                 <button
@@ -78,7 +79,7 @@ function showStatusSaveFailure(error: unknown, fallback: string) {
 class WordCache {
     // Only remote definitions are cached. Vocabulary status and user-edited
     // meanings always come from the authoritative database on each hover.
-    private cache = new Map<string, string[]>();
+    private cache = new Map<string, { meanings: string[]; source: string }>();
     private maxSize: number;
     constructor(maxSize = 200) { this.maxSize = maxSize; }
     get(key: string) {
@@ -89,7 +90,7 @@ class WordCache {
         }
         return v;
     }
-    set(key: string, value: string[]) {
+    set(key: string, value: { meanings: string[]; source: string }) {
         if (this.cache.size >= this.maxSize) {
             // Delete oldest (first entry)
             const oldest = this.cache.keys().next().value;
@@ -115,6 +116,8 @@ const sentenceZh = ref('');
 const bookTitle = ref('');
 const readerLink = ref('');
 const meanings = ref<string[]>([]);
+const lookupFailed = ref(false);
+const fallbackSource = ref('');
 const phrases = ref<Array<{ text: string; meaning?: string }>>([]);
 const loading = ref(false);
 const currentStatus = ref(-1); // -1 = not in db
@@ -244,6 +247,9 @@ function close() {
     visible.value = false;
     word.value = '';
     meanings.value = [];
+    lookupFailed.value = false;
+    fallbackSource.value = '';
+    loading.value = false;
     phrases.value = [];
     currentStatus.value = -1;
 }
@@ -260,8 +266,10 @@ function withTimeout<T>(promise: Promise<T>, ms = 5000): Promise<T> {
     });
 }
 
+type RemoteMeanings = { meanings: string[]; failed: boolean };
+
 /** Google Translate with dictionary entries */
-async function fetchGoogleTranslate(w: string, tl: string): Promise<string[]> {
+async function fetchGoogleTranslate(w: string, tl: string): Promise<RemoteMeanings> {
     try {
         const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=${tl}&dt=t&dt=bd&dt=at&q=${encodeURIComponent(w)}`;
         const resp = await withTimeout(requestUrl({ url }));
@@ -283,22 +291,22 @@ async function fetchGoogleTranslate(w: string, tl: string): Promise<string[]> {
             const translations = data[0].map((item: any) => item[0] as string).filter(Boolean);
             result.push(...translations);
         }
-        return result.slice(0, 3);
+        return { meanings: result.slice(0, 3), failed: false };
     } catch (e) {
         logger.warn('[SubtitlePopup] fetchGoogleTranslate failed:', e);
-        return [];
+        return { meanings: [], failed: true };
     }
 }
 
 /** Bing Dictionary (Chinese definitions) */
-async function fetchBingDict(w: string): Promise<string[]> {
+async function fetchBingDict(w: string): Promise<RemoteMeanings> {
     try {
         const url = `https://cn.bing.com/dict/search?q=${encodeURIComponent(w)}&mkt=zh-cn`;
         const resp = await withTimeout(requestUrl({ url, method: 'GET' }));
         const parser = new DOMParser();
         const doc = parser.parseFromString(resp.text, 'text/html');
         const items = doc.querySelectorAll('.qdef ul > li');
-        if (!items.length) return [];
+        if (!items.length) return { meanings: [], failed: false };
         const defs: string[] = [];
         items.forEach(li => {
             const pos = li.querySelector('.pos')?.textContent?.trim() || '';
@@ -308,44 +316,49 @@ async function fetchBingDict(w: string): Promise<string[]> {
             const firstDef = rawDef.split(/[；;]/)[0].trim();
             if (firstDef) defs.push(pos ? `${pos} ${firstDef}` : firstDef);
         });
-        return defs;
+        return { meanings: defs, failed: false };
     } catch (e) {
         logger.warn('[SubtitlePopup] fetchBingDict failed:', e);
-        return [];
+        return { meanings: [], failed: true };
     }
 }
 
 /** Youdao Dictionary (Chinese definitions) */
-async function fetchYoudaoDict(w: string): Promise<string[]> {
+async function fetchYoudaoDict(w: string): Promise<RemoteMeanings> {
     try {
         const url = `https://dict.youdao.com/jsonapi_s?doctype=json&jsonversion=4&le=en&q=${encodeURIComponent(w)}`;
         const resp = await withTimeout(requestUrl({ url, method: 'GET' }));
         const data = resp.json;
-        const ec = data?.ec?.word?.[0]?.trs;
-        if (!ec || ec.length === 0) return [];
+        const entry = Array.isArray(data?.ec?.word) ? data.ec.word[0] : data?.ec?.word;
+        const ec = entry?.trs;
+        if (!ec || ec.length === 0) return { meanings: [], failed: false };
         const defs: string[] = [];
         for (const tr of ec) {
             const tran = tr.tran || '';
             if (tran) defs.push(tran);
         }
-        return defs.slice(0, 3);
+        return { meanings: defs.slice(0, 3), failed: false };
     } catch (e) {
         logger.warn('[SubtitlePopup] fetchYoudaoDict failed:', e);
-        return [];
+        return { meanings: [], failed: true };
     }
 }
 
 /** MyMemory translation */
-async function fetchMyMemory(w: string, tl: string): Promise<string[]> {
+async function fetchMyMemory(w: string, tl: string): Promise<RemoteMeanings> {
     try {
         const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(w)}&langpair=en|${tl}`;
         const resp = await withTimeout(requestUrl({ url, method: 'GET' }));
+        const responseStatus = Number(resp.json?.responseStatus);
+        if (Number.isFinite(responseStatus) && responseStatus !== 200) {
+            return { meanings: [], failed: true };
+        }
         const translated = resp.json?.responseData?.translatedText?.trim?.();
-        if (!translated || translated.toLowerCase() === w.toLowerCase()) return [];
-        return [translated];
+        if (!translated || translated.toLowerCase() === w.toLowerCase()) return { meanings: [], failed: false };
+        return { meanings: [translated], failed: false };
     } catch (e) {
         logger.warn('[SubtitlePopup] fetchMyMemory failed:', e);
-        return [];
+        return { meanings: [], failed: true };
     }
 }
 
@@ -353,6 +366,8 @@ async function lookupWord(w: string) {
     const myId = ++lookupRequestId;
     loading.value = true;
     meanings.value = [];
+    lookupFailed.value = false;
+    fallbackSource.value = '';
     currentStatus.value = -1;
     const hoverLang = (plugin.settings?.hover_definition_lang || '').trim() || 'zh';
 
@@ -390,7 +405,8 @@ async function lookupWord(w: string) {
 
     const cached = wordCache.get(w.toLowerCase());
     if (cached) {
-        meanings.value = cached;
+        meanings.value = cached.meanings;
+        fallbackSource.value = cached.source;
         loading.value = false;
         return;
     }
@@ -400,37 +416,49 @@ async function lookupWord(w: string) {
 
     try {
         let result: string[] = [];
+        let failed = false;
+        let source = '';
 
         if (hoverLang === 'en') {
-            result = await fetchEnglishDefinitions(w, options => withTimeout(requestUrl(options)));
+            result = await fetchEnglishDefinitions(w, options => withTimeout(requestUrl(options)),
+                () => { failed = true; });
             if (myId !== lookupRequestId) return; // stale request cancelled
         } else {
             // ── Translation to target language ──
             if (provider === 'bing') {
-                result = await fetchBingDict(w);
+                const response = await fetchBingDict(w);
+                result = response.meanings; failed = response.failed;
             } else if (provider === 'youdao') {
-                result = await fetchYoudaoDict(w);
-            } else if (provider === 'google') {
-                result = await fetchGoogleTranslate(w, hoverLang);
+                const response = await fetchYoudaoDict(w);
+                result = response.meanings; failed = response.failed;
             } else if (provider === 'mymemory') {
-                result = await fetchMyMemory(w, hoverLang);
+                const response = await fetchMyMemory(w, hoverLang);
+                result = response.meanings; failed = response.failed;
             } else {
-                // auto: Google → MyMemory fallback
-                result = await fetchGoogleTranslate(w, hoverLang);
+                // Google is preferred; MyMemory is a bounded fallback when it
+                // is rate-limited, unavailable, or has no entry.
+                const primary = await fetchGoogleTranslate(w, hoverLang);
                 if (myId !== lookupRequestId) return; // stale request cancelled
-                if (result.length === 0) {
-                    result = await fetchMyMemory(w, hoverLang);
+                result = primary.meanings; failed = primary.failed;
+                if (!result.length) {
+                    const backup = await fetchMyMemory(w, hoverLang);
+                    result = backup.meanings;
+                    failed = failed || backup.failed;
+                    if (result.length) source = 'MyMemory';
                 }
             }
             if (myId !== lookupRequestId) return; // stale request cancelled
         }
 
         meanings.value = result.slice(0, 3);
+        lookupFailed.value = !meanings.value.length && failed;
+        fallbackSource.value = source;
         if (meanings.value.length > 0) {
-            wordCache.set(w.toLowerCase(), meanings.value);
+            wordCache.set(w.toLowerCase(), { meanings: meanings.value, source });
         }
     } catch (e) {
         if (myId !== lookupRequestId) return; // stale request cancelled
+        lookupFailed.value = true;
         logger.warn('[SubtitlePopup] Translation failed for word:', w, e);
     }
     loading.value = false;

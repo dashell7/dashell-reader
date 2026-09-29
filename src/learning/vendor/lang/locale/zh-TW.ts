@@ -316,6 +316,8 @@ export default {
     // Review reflux (SR scheduling → word status)
     "Review Reflux": "根據複習進度更新詞彙狀態",
     "No definition found": "未找到釋義",
+    "Definition service unavailable": "查詞服務暫不可用，請重試",
+    "Backup definition": "備用釋義",
     "Review thresholds": "詞彙狀態升級門檻",
     "Review reflux desc": "依 Spaced Repetition 的新複習紀錄自動提升狀態。手動調整後，舊紀錄不會覆蓋你的選擇；忽略的詞不受影響，遺忘時不會自動降級。",
     "Reflux familiar days": "「眼熟」所需間隔（天）",

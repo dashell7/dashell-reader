@@ -339,6 +339,14 @@
 .theme-light .stp-loading {
   color: #999;
 }
+.stp-source {
+  color: inherit;
+  font-size: 11px;
+  line-height: 1.3;
+  margin-top: 3px;
+  opacity: 0.65;
+  text-align: center;
+}
 .stp-actions {
   display: flex;
   flex-direction: row;

@@ -39,3 +39,29 @@ test("English hover lookup never presents the source word as its definition", as
   });
   assert.deepEqual(result, []);
 });
+
+test("English hover lookup reports service failure only when no definition is available", async () => {
+  let failures = 0;
+  const unavailable = await fetchEnglishDefinitions("rabbit", async () => {
+    throw new Error("offline");
+  }, () => { failures++; });
+  assert.deepEqual(unavailable, []);
+  assert.equal(failures, 1);
+
+  const recovered = await fetchEnglishDefinitions("rabbit", async ({ url }) => {
+    if (url.includes("datamuse")) throw new Error("offline");
+    return { json: [{ meanings: [{ definitions: [{ definition: "A small mammal." }] }] }] };
+  }, () => { failures++; });
+  assert.deepEqual(recovered, ["A small mammal."]);
+  assert.equal(failures, 1);
+});
+
+test("an English dictionary 404 is a missing entry, not an unavailable service", async () => {
+  let failures = 0;
+  const result = await fetchEnglishDefinitions("unknownword", async ({ url }) => {
+    if (url.includes("datamuse")) return { json: [] };
+    throw Object.assign(new Error("not found"), { status: 404 });
+  }, () => { failures++; });
+  assert.deepEqual(result, []);
+  assert.equal(failures, 0);
+});
