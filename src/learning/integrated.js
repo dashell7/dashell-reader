@@ -4,6 +4,7 @@ import { LearnPanelView, LEARN_ICON, LEARN_PANEL_VIEW } from "./vendor/views/Lea
 import { t } from "./vendor/lang/helper.ts";
 import { createApp } from "vue";
 import SubtitlePopup from "./vendor/views/SubtitlePopup.vue";
+import { normalizeReaderLink } from "./vendor/utils/readerLink.ts";
 
 function outerDocument(target) {
   let doc = target?.ownerDocument || document;
@@ -59,8 +60,8 @@ export class QiaomuEnglishLearning extends LanguageLearner {
   registerSubtitleHover() {}
   registerSubtitleWordHighlight() {}
 
-  searchDictionaryWithAi(word) {
-    return this.host.completeEnglishLearningAi("definition", word, this.settings.ai.prompt);
+  searchDictionaryWithAi(word, context) {
+    return this.host.completeEnglishLearningAi("definition", word, this.settings.ai.prompt, context);
   }
   translateSentenceWithAi(sentence) {
     return this.host.completeEnglishLearningAi("translation", sentence, this.settings.ai.trans_prompt);
@@ -69,7 +70,23 @@ export class QiaomuEnglishLearning extends LanguageLearner {
   lookup(word, context = {}) {
     const target = context.target || this.host.app.workspace.activeLeaf?.view?.containerEl || null;
     const position = context.position || undefined;
-    return this.queryWord(word, target, position, context.sentence, true);
+    return this.queryWord(word, target, position, context.sentence, true, {
+      bookTitle: context.bookTitle,
+      readerLink: context.readerLink,
+    });
+  }
+
+  openReaderLink(link) {
+    const uri = normalizeReaderLink(link);
+    if (!uri) return;
+    const params = new URL(uri).searchParams;
+    if (params.get("vault") !== this.host.app.vault.getName()) {
+      window.open(uri, "_blank", "noopener,noreferrer");
+      return;
+    }
+    return this.host.openBookAt(params.get("book"), params.get("block") || undefined,
+      params.get("page") || undefined, params.get("highlight") || undefined,
+      params.get("cfi") || undefined);
   }
 
   hover(word, context = {}) {
@@ -83,6 +100,8 @@ export class QiaomuEnglishLearning extends LanguageLearner {
       word,
       sentenceEn: context.sentence || "",
       sentenceZh: "",
+      bookTitle: context.bookTitle || "",
+      readerLink: context.readerLink || "",
       x: context.position?.x || 0,
       y: context.position?.y || 0,
     };

@@ -3,6 +3,7 @@ import type { ExpressionInfo, Sentence } from "@/db/interface";
 import { parseStatusValue } from "./status";
 import { normalizeRecord, stableItemId, normalizeReviewState } from "./vocabularyRecord";
 import { normalizeSentenceSource } from "./sentenceSource";
+import { normalizeReaderLink } from "./readerLink";
 
 export const WORD_NOTE_SCHEMA = 1;
 
@@ -118,10 +119,12 @@ export function readWordNote(
     const date = epoch(fm.date, fallbackDate);
     const recordLanguage = text(fm.langr_language, language).toLowerCase();
     const sources: Record<string, Sentence["source"]> = {};
+    const readerLinks: Record<string, string | undefined> = {};
     // Validate all owned source fields, including orphaned ones, before a save
     // can remove or renumber them. Corrupt/newer data must remain recoverable.
     for (const key of Object.keys(fm)) {
         if (/^langr_source\d+$/.test(key)) sources[key] = normalizeSentenceSource(fm[key]);
+        if (/^langr_reader_link\d+$/.test(key)) readerLinks[key] = normalizeReaderLink(fm[key]);
     }
     const sentences: Sentence[] = Object.keys(fm)
         .filter(key => /^sentence\d+$/.test(key))
@@ -129,8 +132,9 @@ export function readWordNote(
         .map(key => {
             const suffix = key.slice(8);
             const source = sources[`langr_source${suffix}`];
+            const readerLink = readerLinks[`langr_reader_link${suffix}`];
             return { text: text(fm[key]), trans: text(fm[`trans${suffix}`]), origin: text(fm[`origin${suffix}`]),
-                ...(source ? { source } : {}) };
+                ...(source ? { source } : {}), ...(readerLink ? { readerLink } : {}) };
         }).filter(sentence => !!sentence.text);
     return normalizeRecord({
         expression,
@@ -164,7 +168,7 @@ export function mergeWordNote(content: string, input: ExpressionInfo, language: 
     }
     const fm = { ...parsed.properties };
     for (const key of Object.keys(fm)) {
-        if (/^(?:sentence|trans|origin|langr_source)\d+$/.test(key)) delete fm[key];
+        if (/^(?:sentence|trans|origin|langr_source|langr_reader_link)\d+$/.test(key)) delete fm[key];
     }
     Object.assign(fm, {
         expression: record.expression,
@@ -187,6 +191,7 @@ export function mergeWordNote(content: string, input: ExpressionInfo, language: 
         fm[`trans${suffix}`] = sentence.trans || "";
         fm[`origin${suffix}`] = sentence.origin || "";
         if (sentence.source) fm[`langr_source${suffix}`] = sentence.source;
+        if (sentence.readerLink) fm[`langr_reader_link${suffix}`] = sentence.readerLink;
     });
     return renderWordNote(parsed, fm);
 }

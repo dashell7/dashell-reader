@@ -75,7 +75,8 @@ import { contextProvider, findAgent, notifyContextChanged } from "./qiaomu-conte
 import { notifyHomeChanged } from "./qiaomu-home.js";
 import { createHomeProvider } from "./home.js";
 import { AI_ASSISTANT_ROUTES, readerSnapshot, shouldUseAgent } from "./agent-bridge.js";
-import { EnglishLookupController } from "./english-lookup.js";
+import { EnglishLookupController, sentenceFromTarget } from "./english-lookup.js";
+import { readerLookupContext } from "./english-lookup-context.js";
 import { EnglishDictionaryView, EnglishReviewView, ENGLISH_DICTIONARY_VIEW_TYPE, ENGLISH_REVIEW_VIEW_TYPE } from "./english-dictionary-view.js";
 import { QiaomuEnglishLearning } from "./learning/integrated.js";
 import { englishLearningAiRequest } from "./learning/qiaomu-ai.js";
@@ -2000,8 +2001,8 @@ const QiaomuBookReader = class extends Plugin {
   openEnglishDictionary(word, context = {}) {
     return this.learning.lookup(word, context);
   }
-  async completeEnglishLearningAi(kind, text, prompt) {
-    const { systemPrompt, userPrompt } = englishLearningAiRequest(kind, text, prompt);
+  async completeEnglishLearningAi(kind, text, prompt, context) {
+    const { systemPrompt, userPrompt } = englishLearningAiRequest(kind, text, prompt, context);
     const state = aiSetupState(this);
     if (!state.ready || !state.enabled) {
       const error = new Error(this.settings.language?.startsWith("zh")
@@ -5353,8 +5354,13 @@ function selectionActions(view) {
     lookup: ["qiaomu-reader-hl-lookup", "book-search", "lookup-word", () => {
       const cur = view._currentHl();
       if (!cur?.text) return;
+      const range = readerSpeechRange(view, cur);
+      const sentence = range ? sentenceFromTarget(range.startContainer?.parentElement,
+        { node: range.startContainer, offset: range.startOffset }) : "";
+      const readerLink = view.file && highlightBacklink(view.app.vault.getName(), view.file.path, cur);
+      const bookTitle = view.file?.basename || "";
       view._hideHlPopup();
-      view.plugin.openEnglishDictionary(cur.text, { sentence: cur.text });
+      view.plugin.openEnglishDictionary(cur.text, { sentence: sentence || cur.text, bookTitle, readerLink });
     }],
     highlight: ["qiaomu-reader-hl-highlight", "highlighter", "highlight-action", () => view._applyPopupColor(selectionColor(view))],
     comment: ["qiaomu-reader-hl-comment-btn", "message-square", "annotate-action", () => openInlineHighlightComment(view)],
@@ -10407,7 +10413,11 @@ const ReaderView = class extends ItemView {
   }
   _attachEnglishLookupToFlow() {
     if (!this.lookupController || !this.pager?.flow) return;
-    this.lookupController.attach(docOf(this.pager.flow), { scope: this.pager.flow, replace: true });
+    const bookPath = this.file?.path;
+    this.lookupController.attach(docOf(this.pager.flow), {
+      scope: this.pager.flow, replace: true,
+      sourceAt: (range) => readerLookupContext(this, range, undefined, bookPath),
+    });
   }
   _finishBookOpen(file) {
     syncReaderAiCapability(this);
@@ -10434,6 +10444,7 @@ const ReaderView = class extends ItemView {
           scope: doc.body || doc.documentElement,
           frame: doc.defaultView?.frameElement,
           replace: false,
+          sourceAt: (range) => readerLookupContext(this, range, index, file.path),
         });
         // Each section lives in an iframe the page stylesheet cannot reach:
         // load the selected reading font into it directly.
@@ -12538,6 +12549,7 @@ const ReaderModal = class extends Modal {
           scope: doc.body || doc.documentElement,
           frame: doc.defaultView?.frameElement,
           replace: false,
+          sourceAt: (range) => readerLookupContext(this, range, index, file.path),
         });
         try { void ensureSelectedReaderFont(doc, plugin, plugin.settings); }
         catch (e) { console.warn("Qiaomu Reader: could not load the reading font into a book document", e); }
@@ -12582,7 +12594,11 @@ const ReaderModal = class extends Modal {
   }
   _attachEnglishLookupToFlow() {
     if (!this.lookupController || !this.pager?.flow) return;
-    this.lookupController.attach(docOf(this.pager.flow), { scope: this.pager.flow, replace: true });
+    const bookPath = this.file?.path;
+    this.lookupController.attach(docOf(this.pager.flow), {
+      scope: this.pager.flow, replace: true,
+      sourceAt: (range) => readerLookupContext(this, range, undefined, bookPath),
+    });
   }
   _engineSelectionCheck({ doc, index }) {
     if (!this.engine || !this.file) return;

@@ -34,6 +34,7 @@ interface Sentence {
     trans: string;
     origin: string;
     source?: SentenceSource;
+    readerLink?: string;
 }
 
 interface ExpressionInfo {

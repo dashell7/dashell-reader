@@ -76,6 +76,7 @@ export default {
     "Origin sentence": "源句",
     "Translation (Optional)": "翻譯(可選)",
     "Origin (Optional)": "出處(可選)",
+    "Back to book": "回到書中",
     "Expression is empty!": "單字忘輸入了吧",
     "It looks more like a PHRASE than a WORD": "這看起來更像是個片語而不是單字",
     "Meaning is empty": "含義不應為空",

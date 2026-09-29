@@ -24,7 +24,9 @@
             </div>
             <DictItem v-for="(cp, i) in components" :key="cp.id" :loading="loadings[i]" :name="cp.name" :id="cp.id">
                 <KeepAlive>
-                    <Component @loading="loading" :is="cp.type" :word="word" v-show="shows[i] || cp.id.startsWith('mdict_')"></Component>
+                    <Component @loading="loading" :is="cp.type" :word="word"
+                        v-bind="cp.id === 'ai' ? { context: aiContext } : {}"
+                        v-show="shows[i] || cp.id.startsWith('mdict_')"></Component>
                 </KeepAlive>
             </DictItem>
         </div>
@@ -94,12 +96,15 @@ let history: string[] = [];
 let lastHistory = ref(history.length - 1);
 let historyIndex = ref(-1);
 function switchHistory(direction: "prev" | "next") {
+    if (searchDebounceTimer !== null) clearTimeout(searchDebounceTimer);
+    searchDebounceTimer = null;
     historyIndex.value = Math.max(
         0,
         Math.min(historyIndex.value + (direction === "prev" ? -1 : 1), history.length - 1)
     );
     word.value = history[historyIndex.value];
     inputWord.value = history[historyIndex.value];
+    aiContext.value = { sentence: "", bookTitle: "" };
 }
 function appendHistory() {
     if (!word.value.trim() || history[history.length - 1] === word.value.trim()) return;
@@ -114,15 +119,23 @@ function appendHistory() {
 
 let inputWord = ref("");
 let word = ref("");
+let aiContext = ref({ sentence: "", bookTitle: "" });
 
 // Debounce search to avoid redundant API calls when the same word fires rapidly
 let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 const onSearch = (evt: CustomEvent) => {
     const text = evt.detail.selection as string;
-    if (!text || text === word.value) return; // skip if same word
+    const context = {
+        sentence: String(evt.detail.sentence || ""),
+        bookTitle: String(evt.detail.bookTitle || ""),
+    };
     if (searchDebounceTimer !== null) clearTimeout(searchDebounceTimer);
+    searchDebounceTimer = null;
+    if (!text || (text === word.value && context.sentence === aiContext.value.sentence
+        && context.bookTitle === aiContext.value.bookTitle)) return;
     searchDebounceTimer = setTimeout(() => {
         searchDebounceTimer = null;
+        aiContext.value = context;
         word.value = text;
         inputWord.value = text;
         appendHistory();
@@ -130,6 +143,9 @@ const onSearch = (evt: CustomEvent) => {
 };
 
 function handleSearch() {
+    if (searchDebounceTimer !== null) clearTimeout(searchDebounceTimer);
+    searchDebounceTimer = null;
+    aiContext.value = { sentence: "", bookTitle: "" };
     word.value = inputWord.value.trim();
     if (!word.value) return;
     appendHistory();
@@ -150,7 +166,10 @@ function handleClick(evt: MouseEvent) {
         if (!link) return;
         evt.preventDefault();
         evt.stopPropagation();
+        if (searchDebounceTimer !== null) clearTimeout(searchDebounceTimer);
+        searchDebounceTimer = null;
         word.value = link.textContent?.trim() || "";
+        aiContext.value = { sentence: "", bookTitle: "" };
         inputWord.value = word.value;
         if (!word.value) return;
         appendHistory();

@@ -9,7 +9,7 @@ const vue = fs.readFileSync(new URL('../src/learning/vendor/views/SubtitlePopup.
 const script = vue.match(/<script setup lang="ts">([\s\S]*?)<\/script>/)?.[1]
   .replace(/^import .*;\r?\n/gm, '');
 assert.ok(script, 'SubtitlePopup script is available');
-const js = ts.transpileModule(`${script}\nglobalThis.__popupTest = { lookupPhrases, markKnown, markLearning, close, phrases, word, sentenceEn, sentenceZh, meanings, currentStatus };`, {
+const js = ts.transpileModule(`${script}\nglobalThis.__popupTest = { lookupPhrases, markKnown, markLearning, close, phrases, word, sentenceEn, sentenceZh, bookTitle, readerLink, meanings, currentStatus };`, {
   compilerOptions: { target: ts.ScriptTarget.ES2018, module: ts.ModuleKind.None },
 }).outputText;
 
@@ -43,6 +43,7 @@ function setup() {
     onUnmounted: () => {},
     playAudio: () => {},
     fetchEnglishDefinitions: async () => [],
+    normalizeReaderLink: value => value,
     logger: { debug() {}, warn() {} },
     t: value => value,
   };
@@ -102,15 +103,19 @@ test('Known action saves its original sentence and leaves a newer hover status a
 });
 
 test('Learning action creates the original word with its original meaning after hover changes', async () => {
-  const { dom, db, writes, popup } = setup();
+  const { dom, db, writes, events, popup } = setup();
   let finish;
   db.getExpression = () => new Promise(resolve => { finish = resolve; });
   popup.word.value = 'alpha';
   popup.sentenceEn.value = 'Alpha sentence.';
+  popup.bookTitle.value = 'Alice';
+  popup.readerLink.value = 'obsidian://qiaomu-reader-english?vault=V&book=Alice.epub&cfi=epubcfi%28%2F6%29';
   popup.meanings.value = ['Alpha meaning'];
   const action = popup.markLearning();
   popup.word.value = 'beta';
   popup.sentenceEn.value = 'Beta sentence.';
+  popup.bookTitle.value = 'Another book';
+  popup.readerLink.value = '';
   popup.meanings.value = ['Beta meaning'];
   popup.currentStatus.value = 3;
   finish(null);
@@ -118,6 +123,9 @@ test('Learning action creates the original word with its original meaning after 
   assert.equal(writes[0].expression, 'alpha');
   assert.equal(writes[0].meaning, 'Alpha meaning');
   assert.equal(writes[0].sentences[0].text, 'Alpha sentence.');
+  assert.equal(writes[0].sentences[0].origin, 'Alice');
+  assert.match(writes[0].sentences[0].readerLink, /Alice\.epub/);
+  assert.equal(events.find(event => event.type === 'qiaomu-english-event-search').detail.bookTitle, 'Alice');
   assert.equal(popup.currentStatus.value, 3);
   dom.window.close();
 });

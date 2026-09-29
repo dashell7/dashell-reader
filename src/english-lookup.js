@@ -63,16 +63,26 @@ function wordHitAtPoint(doc, x, y, fallbackTarget = null) {
       rect = boxes.find((box) => x >= box.left - 2 && x <= box.right + 2 && y >= box.top - 2 && y <= box.bottom + 2) || null;
       if (boxes.length && !rect) return null;
     }
-    return { word: span.word, rect, node, offset: span.start };
+    return { word: span.word, rect, node, offset: span.start, end: span.end };
   }
   if (fallbackTarget?.firstChild?.nodeType === 3 && fallbackTarget.childNodes.length === 1) {
     const text = fallbackTarget.firstChild.nodeValue || "";
     if (text.split(/\s+/).length === 1) {
       const word = normalizeEnglishLookup(text);
-      if (word) return { word, rect: fallbackTarget.getBoundingClientRect?.() || null, node: fallbackTarget.firstChild, offset: 0 };
+      if (word) return { word, rect: fallbackTarget.getBoundingClientRect?.() || null, node: fallbackTarget.firstChild, offset: 0, end: text.length };
     }
   }
   return null;
+}
+
+function rangeForWordHit(doc, hit) {
+  if (!hit?.node || !doc.createRange) return null;
+  try {
+    const range = doc.createRange();
+    range.setStart(hit.node, hit.offset);
+    range.setEnd(hit.node, hit.end);
+    return range;
+  } catch { return null; }
 }
 
 export function wordAtPoint(doc, x, y, fallbackTarget = null) {
@@ -237,7 +247,7 @@ function pointFromEvent(event, frame) {
   };
 }
 
-function sentenceFromTarget(target, anchor) {
+export function sentenceFromTarget(target, anchor) {
   const root = target?.closest?.(".qiaomu-reader-pdf-text-layer")
     || target?.closest?.("p,li,blockquote,.langr-p");
   if (!root) return "";
@@ -343,7 +353,8 @@ export class EnglishLookupController {
         if (!current || current.word !== word || current.doc !== doc) return;
         const sentence = sentenceFromTarget(current.target, current.hit);
         current.sentence = sentence;
-        if (this.onHoverLookup) this.onHoverLookup(word, { sentence, position: point, target: current.target });
+        const source = options.sourceAt?.(rangeForWordHit(doc, current.hit)) || {};
+        if (this.onHoverLookup) this.onHoverLookup(word, { ...source, sentence, position: point, target: current.target });
         else void this.show(word, point, current);
       }, Number(this.settings().englishHoverDelay) || DEFAULT_DELAY);
     };
@@ -366,8 +377,9 @@ export class EnglishLookupController {
       event.stopPropagation();
       this.clearHoverTimer();
       const sentence = sentenceFromTarget(event.target, hit);
+      const source = options.sourceAt?.(rangeForWordHit(doc, hit)) || {};
       this.hide();
-      this.onOpenDictionary(hit.word, { sentence, target: event.target, position: pointFromEvent(event, frame) });
+      this.onOpenDictionary(hit.word, { ...source, sentence, target: event.target, position: pointFromEvent(event, frame) });
     };
     const onScroll = () => this.hide();
     const onPointerDown = (event) => {
@@ -393,6 +405,7 @@ export class EnglishLookupController {
       const range = doc.getSelection?.()?.getRangeAt(0);
       this.hide();
       this.onOpenDictionary(selection, {
+        ...(options.sourceAt?.(range) || {}),
         sentence: sentenceFromTarget(range?.startContainer?.parentElement || event.target,
           range && { node: range.startContainer, offset: range.startOffset }), target: event.target,
         position: pointFromEvent(event, frame),

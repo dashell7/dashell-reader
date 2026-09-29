@@ -20,6 +20,8 @@ interface EventMap extends GlobalEventHandlersEventMap {
         // LearnPanel can auto-fill the example sentence without re-deriving it
         // from fragile DOM parent-walking (works for reading + subtitle words).
         sentence?: string,
+        bookTitle?: string,
+        readerLink?: string,
     }>;
     "qiaomu-english-event-refresh": CustomEvent<{
         expression: string,

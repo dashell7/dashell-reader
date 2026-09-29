@@ -80,6 +80,7 @@ export default {
     "Origin sentence": "Origin sentence",
     "Translation (Optional)": "Translation (Optional)",
     "Origin (Optional)": "Origin (Optional)",
+    "Back to book": "Back to book",
     "It looks more like a PHRASE than a WORD": "It looks more like a PHRASE than a WORD",
     "Meaning is empty!": "Meaning is empty",
     "Expression is empty!": "Expression is empty",

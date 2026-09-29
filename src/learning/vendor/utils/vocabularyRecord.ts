@@ -1,6 +1,7 @@
 import type { ExpressionInfo, ExpressionInfoSimple } from "@/db/interface";
 import type { ReviewState } from "./reviewReflux";
 import { normalizeSentenceSource } from "./sentenceSource";
+import { normalizeReaderLink } from "./readerLink";
 
 export const VOCABULARY_SCHEMA = 1;
 export const expressionKey = (expression: string): string => expression.trim().toLowerCase();
@@ -60,9 +61,10 @@ export function normalizeRecord(input: ExpressionInfo, language: string): Expres
         notes: [...(input.notes || [])],
         aliases: [...(input.aliases || [])].map(expressionKey),
         sentences: (input.sentences || []).map(sentence => {
-            const { source: storedSource, ...content } = sentence;
+            const { source: storedSource, readerLink: storedReaderLink, ...content } = sentence;
             const source = normalizeSentenceSource(storedSource);
-            return source ? { ...content, source } : content;
+            const readerLink = normalizeReaderLink(storedReaderLink);
+            return { ...content, ...(source ? { source } : {}), ...(readerLink ? { readerLink } : {}) };
         }),
     };
 }

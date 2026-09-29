@@ -57,6 +57,8 @@ import { logger } from '@/utils/logger';
 import { t } from '@/lang/helper';
 import { REVIEW_INTEGRITY_ERROR_CODE } from '@/utils/reviewDb';
 import { fetchEnglishDefinitions } from './english-definition';
+import type { Sentence } from '@/db/interface';
+import { normalizeReaderLink } from '@/utils/readerLink';
 
 const instance = getCurrentInstance();
 if (!instance) throw new Error('SubtitlePopup: Vue instance not available');
@@ -110,6 +112,8 @@ const y = ref(0);
 const word = ref('');
 const sentenceEn = ref('');
 const sentenceZh = ref('');
+const bookTitle = ref('');
+const readerLink = ref('');
 const meanings = ref<string[]>([]);
 const phrases = ref<Array<{ text: string; meaning?: string }>>([]);
 const loading = ref(false);
@@ -476,11 +480,21 @@ function speakWord() {
     playAudio(`https://dict.youdao.com/dictvoice?audio=${w}&type=${type}`);
 }
 
+function captureSentence(sentences: Sentence[], text: string, trans: string, origin: string, link: string) {
+    const exact = sentences.find(s => s.text === text && (!link || s.readerLink === link));
+    if (exact) return;
+    const unlinked = link && sentences.find(s => s.text === text && !s.readerLink && (!s.origin || s.origin === origin));
+    if (unlinked) { unlinked.readerLink = link; return; }
+    sentences.push({ text, trans: trans || '', origin, ...(link ? { readerLink: link } : {}) });
+}
+
 async function markKnown() {
     if (!word.value) return;
     const w = word.value.toLowerCase();
     const sourceSentence = sentenceEn.value;
     const sourceTranslation = sentenceZh.value;
+    const sourceOrigin = bookTitle.value || 'LinguaFlow subtitle';
+    const sourceReaderLink = readerLink.value;
     const sourceMeanings = [...meanings.value];
     let savedStatus = 3;
     wordCache.invalidate(w);
@@ -496,14 +510,7 @@ async function markKnown() {
             existing.status = newStatus;
             // Also save sentence context
             if (sourceSentence) {
-                const hasSentence = existing.sentences.some(s => s.text === sourceSentence);
-                if (!hasSentence) {
-                    existing.sentences.push({
-                        text: sourceSentence,
-                        trans: sourceTranslation || '',
-                        origin: 'LinguaFlow subtitle',
-                    });
-                }
+                captureSentence(existing.sentences, sourceSentence, sourceTranslation, sourceOrigin, sourceReaderLink);
             }
             await plugin.db.postExpression(existing);
             if (word.value.toLowerCase() === w) currentStatus.value = newStatus;
@@ -520,7 +527,8 @@ async function markKnown() {
                 sentences: sourceSentence ? [{
                     text: sourceSentence,
                     trans: sourceTranslation || '',
-                    origin: 'LinguaFlow subtitle',
+                    origin: sourceOrigin,
+                    ...(sourceReaderLink ? { readerLink: sourceReaderLink } : {}),
                 }] : [],
                 aliases: [],
                 date: Date.now(),
@@ -548,6 +556,9 @@ async function markLearning() {
     const w = word.value.toLowerCase();
     const sourceSentence = sentenceEn.value;
     const sourceTranslation = sentenceZh.value;
+    const sourceOrigin = bookTitle.value || 'LinguaFlow subtitle';
+    const sourceBookTitle = bookTitle.value;
+    const sourceReaderLink = readerLink.value;
     const sourceMeanings = [...meanings.value];
     wordCache.invalidate(w);
 
@@ -557,14 +568,7 @@ async function markLearning() {
             existing.status = 1;
             // Add sentence context if not already present
             if (sourceSentence) {
-                const hasSentence = existing.sentences.some(s => s.text === sourceSentence);
-                if (!hasSentence) {
-                    existing.sentences.push({
-                        text: sourceSentence,
-                        trans: sourceTranslation || '',
-                        origin: 'LinguaFlow subtitle',
-                    });
-                }
+                captureSentence(existing.sentences, sourceSentence, sourceTranslation, sourceOrigin, sourceReaderLink);
             }
             await plugin.db.postExpression(existing);
         } else {
@@ -578,7 +582,8 @@ async function markLearning() {
                 sentences: sourceSentence ? [{
                     text: sourceSentence,
                     trans: sourceTranslation || '',
-                    origin: 'LinguaFlow subtitle',
+                    origin: sourceOrigin,
+                    ...(sourceReaderLink ? { readerLink: sourceReaderLink } : {}),
                 }] : [],
                 aliases: [],
                 date: Date.now(),
@@ -599,7 +604,8 @@ async function markLearning() {
 
         // Also trigger the full search panel for detailed editing
         dispatchEvent(new CustomEvent('qiaomu-english-event-search', {
-            detail: { selection: w },
+            detail: { selection: w, sentence: sourceSentence, bookTitle: sourceBookTitle,
+                readerLink: sourceReaderLink },
         }));
     } catch (e) {
         showStatusSaveFailure(e, 'Failed to save word');
@@ -611,6 +617,8 @@ function show(data: {
     word: string;
     sentenceEn: string;
     sentenceZh: string;
+    bookTitle?: string;
+    readerLink?: string;
     x: number;
     y: number;
 }) {
@@ -621,6 +629,9 @@ function show(data: {
 
     sentenceEn.value = data.sentenceEn;
     sentenceZh.value = data.sentenceZh;
+    bookTitle.value = data.bookTitle || '';
+    try { readerLink.value = normalizeReaderLink(data.readerLink) || ''; }
+    catch { readerLink.value = ''; }
 
     // 保存单词位置
     wordCenterX = data.x;

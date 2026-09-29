@@ -6,13 +6,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, getCurrentInstance, nextTick } from 'vue';
+import { ref, getCurrentInstance, onUnmounted } from 'vue';
 import { MarkdownRenderer, Component } from 'obsidian';
 import { useLoading } from "@dict/uses";
 import { logger } from '@/utils/logger';
 
 const props = defineProps<{
     word: string;
+    context?: { sentence?: string; bookTitle?: string };
 }>();
 
 const emits = defineEmits<{
@@ -24,12 +25,18 @@ const plugin = getCurrentInstance()?.appContext.config.globalProperties.plugin;
 const loading = ref(false);
 const error = ref('');
 const contentContainer = ref<HTMLElement | null>(null);
+let activeRender: Component | null = null;
 
 async function onSearch(): Promise<boolean> {
     if (!props.word) return false;
     const query = props.word;
+    const context = { sentence: props.context?.sentence || '', bookTitle: props.context?.bookTitle || '' };
+    const isCurrent = () => query === props.word && context.sentence === (props.context?.sentence || '')
+        && context.bookTitle === (props.context?.bookTitle || '');
 
     error.value = '';
+    activeRender?.unload();
+    activeRender = null;
     if (contentContainer.value) {
         // Use DOM API to safely clear container instead of innerHTML
         while (contentContainer.value.firstChild) {
@@ -38,28 +45,36 @@ async function onSearch(): Promise<boolean> {
     }
 
     try {
-        const rawContent = await plugin.searchDictionaryWithAi(query);
-        if (query !== props.word) return false;
+        const rawContent = await plugin.searchDictionaryWithAi(query, context);
+        if (!isCurrent()) return false;
 
-        if (contentContainer.value && query === props.word) {
+        if (contentContainer.value) {
+            const rendered = document.createElement('div');
+            const owner = new Component();
+            owner.load();
             // MarkdownRenderer.renderMarkdown is Obsidian's safe rendering API;
             // it handles sanitization internally. We pass markdown text, not raw HTML.
-            await MarkdownRenderer.renderMarkdown(
-                rawContent,
-                contentContainer.value,
-                '',
-                new Component()
-            );
+            try {
+                await MarkdownRenderer.renderMarkdown(rawContent, rendered, '', owner);
+            } catch (error) {
+                owner.unload();
+                throw error;
+            }
+            if (!isCurrent()) { owner.unload(); return false; }
+            activeRender = owner;
+            contentContainer.value.replaceChildren(...Array.from(rendered.childNodes));
         }
         return true;
     } catch (e: any) {
+        if (!isCurrent()) return false;
         error.value = e.message || "Error fetching AI response";
         logger.error('AI search failed:', e);
         return false;
     }
 }
 
-useLoading(() => props.word, "ai", onSearch, emits);
+useLoading(() => [props.word, props.context?.sentence || '', props.context?.bookTitle || ''].join('\u0000'), "ai", onSearch, emits);
+onUnmounted(() => activeRender?.unload());
 </script>
 
 <style scoped>

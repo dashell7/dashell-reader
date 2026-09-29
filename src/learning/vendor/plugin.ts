@@ -1118,14 +1118,16 @@ export default class LanguageLearner extends Plugin {
         return para?.textContent?.trim() || "";
     }
 
-    async queryWord(word: string, target?: HTMLElement, evtPosition?: Position, sentenceOverride?: string, readerWord = false): Promise<void> {
+    async queryWord(word: string, target?: HTMLElement, evtPosition?: Position, sentenceOverride?: string,
+        readerWord = false, readerContext: { bookTitle?: string; readerLink?: string } = {}): Promise<void> {
         if (!word) return;
-        // Deduplicate: skip if the exact same word is queried within 300ms
-        const now = Date.now();
-        if (word === this.lastQueryWord && now - this.lastQueryTime < 300) return;
-        this.lastQueryWord = word;
-        this.lastQueryTime = now;
         const sentence = sentenceOverride || this.extractSentence(target);
+        // Suppress duplicate events while allowing the same word in a new sentence or book.
+        const now = Date.now();
+        const queryKey = JSON.stringify([word, sentence, readerContext.bookTitle, readerContext.readerLink]);
+        if (queryKey === this.lastQueryWord && now - this.lastQueryTime < 300) return;
+        this.lastQueryWord = queryKey;
+        this.lastQueryTime = now;
 
         if (!this.settings.popup_search) {
             await this.activateView(SEARCH_PANEL_VIEW, "left");
@@ -1147,7 +1149,7 @@ export default class LanguageLearner extends Plugin {
         }
 
         dispatchEvent(new CustomEvent('qiaomu-english-event-search', {
-            detail: { selection: word, target, evtPosition, sentence }
+            detail: { selection: word, target, evtPosition, sentence, ...readerContext }
         }));
 
         if (this.settings.auto_pron) {

@@ -82,6 +82,8 @@
 								model.sentences[index].origin
 							" :placeholder="t('Origin (Optional)')" :autosize="{ minRows: 1, maxRows: 3 }" />
 						</NFormItem>
+						<button v-if="sentence.readerLink" type="button" class="reader-backlink"
+							@click="plugin.openReaderLink(sentence.readerLink)">{{ t("Back to book") }}</button>
 					</div>
 					
 					<!-- 自定义按钮组 -->
@@ -174,10 +176,11 @@ import Plugin from "@/plugin";
 import { search as youdaoSearch } from "@dict/youdao/engine";
 import { search as googleTranslate } from "@dict/google/engine";
 import store from "@/store";
+import { normalizeReaderLink } from "@/utils/readerLink";
 
 const view: LearnPanelView =
 	getCurrentInstance().appContext.config.globalProperties.view;
-const plugin: Plugin =
+const plugin: Plugin & { openReaderLink: (link: string) => void } =
 	getCurrentInstance().appContext.config.globalProperties.plugin;
 
 // 切换明亮/黑暗模式
@@ -505,6 +508,10 @@ useEvent(window, "qiaomu-english-event-search", async (evt: CustomEvent) => {
 	const target = evt.detail.target as HTMLElement;
 	let sentenceText = "";
 	let defaultOrigin: string = null;
+	let readerLink: string | undefined;
+	try { readerLink = normalizeReaderLink(evt.detail.readerLink); } catch { /* Ignore an invalid event link. */ }
+	const bookTitle = String(evt.detail.bookTitle || "").trim().slice(0, 200);
+	if (bookTitle) defaultOrigin = bookTitle;
 
 	// Prefer the sentence computed at dispatch time (reliably covers reading +
 	// subtitle words); fall back to walking up from the target element.
@@ -518,7 +525,7 @@ useEvent(window, "qiaomu-english-event-search", async (evt: CustomEvent) => {
 		}
 
 		let reading = view.app.workspace.getActiveViewOfType(ReadingView);
-		if (reading) {
+		if (reading && !defaultOrigin) {
 			let presetOrigin = view.app.metadataCache.getFileCache(reading.file)
 				.frontmatter["langr-origin"];
 			defaultOrigin = presetOrigin ? presetOrigin : reading.file.name;
@@ -541,6 +548,7 @@ useEvent(window, "qiaomu-english-event-search", async (evt: CustomEvent) => {
 					text: sentenceText,
 					trans: "",
 					origin: defaultOrigin,
+					...(readerLink ? { readerLink } : {}),
 				},
 			]
 			: [],
@@ -575,19 +583,18 @@ useEvent(window, "qiaomu-english-event-search", async (evt: CustomEvent) => {
 		if (!isCurrent()) return;
 
 		if (sentenceText) {
-			if (!storedSen) {
-				expr.sentences = expr.sentences.concat({
+			const added = expr.sentences.find((sen: Sentence) => sen.text === sentenceText
+				&& (!readerLink || sen.readerLink === readerLink));
+			if (!added) {
+				const unlinked = readerLink && expr.sentences.find((sen: Sentence) => sen.text === sentenceText
+					&& !sen.readerLink && (!sen.origin || sen.origin === defaultOrigin));
+				if (unlinked) unlinked.readerLink = readerLink;
+				else expr.sentences = expr.sentences.concat({
 					text: sentenceText,
-					trans: "",
-					origin: defaultOrigin,
+					trans: storedSen?.trans || "",
+					origin: defaultOrigin || storedSen?.origin || "",
+					...(readerLink ? { readerLink } : {}),
 				});
-			} else {
-				let added = expr.sentences.find(
-					(sen: Sentence) => sen.text === sentenceText
-				);
-				if (!added) {
-					expr.sentences = expr.sentences.concat(storedSen);
-				}
 			}
 		}
 
@@ -723,6 +730,14 @@ watch(() => model.value, () => {
 
 #qiaomu-english-learn-panel {
 	padding-bottom: 18px;
+	.reader-backlink {
+		align-self: flex-start;
+		border: 0;
+		padding: 2px 0;
+		background: transparent;
+		color: var(--text-accent);
+		cursor: pointer;
+	}
 
 	.n-input {
 		margin: 1px 0;
