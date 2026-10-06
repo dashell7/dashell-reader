@@ -36,15 +36,16 @@ export class Setting {
     return this;
   }
   addComponent(attach) { attach(this.settingEl); return this; }
-  addDropdown(attach) { attach(this.input()); return this; }
+  addDropdown(attach) { const input = this.input(); this.settingEl._dropdown = input; attach(input); return this; }
   addText(attach) { attach(this.input()); return this; }
   addTextArea(attach) { attach(this.input()); return this; }
   addSlider(attach) { attach(this.input()); return this; }
   input() {
     return {
-      addOption() { return this; }, setPlaceholder() { return this; },
-      setLimits() { return this; }, setValue() { return this; },
-      onChange() { return this; },
+      options: [],
+      addOption(value, label) { this.options.push([value, label]); return this; }, setPlaceholder() { return this; },
+      setLimits() { return this; }, setValue(value) { this.value = value; return this; },
+      onChange(handler) { this.handler = handler; return this; },
     };
   }
 }
@@ -92,6 +93,45 @@ test("non-Azure voice preview can be played again after success or failure", asy
     await new Promise(resolve => setTimeout(resolve, 0));
     assert.equal(button.disabled, false);
     assert.equal(host.querySelector('[data-name="tts-test-voice"]').firstElementChild.textContent, "tts-test-failed");
+  } finally { dom.window.close(); }
+});
+
+test("speech toolbar settings default to fixed at the top and save Aloud visibility choices", async () => {
+  const { renderSpeechSettings } = await loadSettingsRenderer();
+  const dom = new JSDOM("<main id='speech'></main>");
+  const host = dom.window.document.querySelector("#speech");
+  host.createEl = (tag, options = {}) => {
+    const element = dom.window.document.createElement(tag);
+    if (options.cls) element.className = options.cls;
+    for (const [key, value] of Object.entries(options.attr || {})) element.setAttribute(key, value);
+    host.append(element);
+    return element;
+  };
+  let saves = 0;
+  const plugin = {
+    app: {},
+    settings: { language: "zh", ttsService: "openai", ttsConfigs: {} },
+    selectionSpeech: { play: async () => true },
+  };
+  try {
+    renderSpeechSettings(host, plugin, { translate: value => value, save: async () => { saves++; }, redraw: () => {},
+      withSliderValue: value => value });
+    const position = host.querySelector('[data-name="tts-bar-position"]')._dropdown;
+    const display = host.querySelector('[data-name="tts-bar-display"]');
+    assert.equal(position.value, "top");
+    assert.deepEqual(position.options, [["top", "tts-position-top"], ["bottom", "tts-position-bottom"]]);
+    assert.equal(display._dropdown.value, "fixed");
+    assert.deepEqual(display._dropdown.options, [["fixed", "tts-bar-display-fixed"], ["auto-hide", "tts-bar-display-auto-hide"]]);
+    const visibility = host.querySelector('[data-name="tts-bar-visibility"]');
+    assert.equal(visibility._dropdown.value, "playing");
+    assert.deepEqual(visibility._dropdown.options, [["always", "tts-bar-visibility-always"], ["always-mobile", "tts-bar-visibility-always-mobile"], ["playing", "tts-bar-visibility-playing"], ["never", "tts-bar-visibility-never"]]);
+    await position.handler("bottom");
+    await display._dropdown.handler("auto-hide");
+    await visibility._dropdown.handler("always");
+    assert.equal(plugin.settings.ttsBarPosition, "bottom");
+    assert.equal(plugin.settings.ttsBarDisplay, "auto-hide");
+    assert.equal(plugin.settings.ttsBarVisibility, "always");
+    assert.equal(saves, 3);
   } finally { dom.window.close(); }
 });
 

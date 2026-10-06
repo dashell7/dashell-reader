@@ -44,9 +44,17 @@ test("reader link survives a vocabulary note save and reopening without changing
   assert.ok(edited.endsWith("My personal note stays here.\n"));
 });
 
+test("new links use the renamed plugin id and existing vocabulary links remain valid", () => {
+  const link = highlightBacklink("V", "book.epub", { block: 0 });
+  assert.equal(new URL(link).hostname, "dashell-reader");
+  assert.equal(normalizeReaderLink(link), link);
+  const legacy = "obsidian://qiaomu-reader-english?vault=V&book=book.epub&block=0";
+  assert.equal(normalizeReaderLink(legacy), legacy);
+});
+
 test("reader links reject another protocol and malformed owned metadata blocks saving", () => {
   assert.throws(() => normalizeReaderLink("https://example.com/"), /Invalid reader link/);
-  assert.throws(() => normalizeReaderLink("obsidian://qiaomu-reader-english?vault=V&book=book.epub"), /Invalid reader link/);
+  assert.throws(() => normalizeReaderLink("obsidian://dashell-reader?vault=V&book=book.epub"), /Invalid reader link/);
   const broken = "---\nexpression: bill\nlangr_reader_link2: 'javascript:alert(1)'\n---\nUser note\n";
   assert.throws(() => readWordNote(broken, "en", "vocab/bill.md", Date.now()), /Invalid reader link/);
   assert.equal(broken.includes("User note"), true);

@@ -1,19 +1,21 @@
-# Qiaomu Reader English
+# Dashell Reader
 
 **中文** · [English](#english) · [源代码](https://github.com/dashell7/qiaomu-reader-english) · [问题反馈](https://github.com/dashell7/qiaomu-reader-english/issues)
 
 > 在英文阅读中直接查词，把词条交给 Spaced Repetition 复习。
 > Read English, look up words in place, and review them with Spaced Repetition.
 
-这是基于 [Qiaomu Reader](https://github.com/joeseesun/qiaomu-reader) 的独立定制版，插件 ID 为 `qiaomu-reader-english`。它保留 Qiaomu Reader 的阅读器、排版、划线、笔记和 AI 能力，并加入 Language Learner 风格的英文悬浮查词、点击查词、选区查词和 Spaced Repetition 卡片写入。
+这是基于 [Qiaomu Reader](https://github.com/joeseesun/qiaomu-reader) 的独立定制版，插件 ID 为 `dashell-reader`。它保留 Qiaomu Reader 的阅读器、排版、划线、笔记和 AI 能力，并加入 Language Learner 风格的英文悬浮查词、点击查词、选区查词和 Spaced Repetition 卡片写入。
 
-本项目与官方 `qiaomu-reader` 插件可以同时安装。它通过 GitHub Release 分发，尚未进入 Obsidian 社区插件目录；安装请使用 BRAT 或手动安装。当前版本为 4.4.5。定制版不修改 Language Learner 的数据文件，也不会接管官方插件的协议链接。
+产品名称和插件 ID 已改为 **Dashell Reader**（`dashell-reader`）。首次安装新 ID 时会从旧 `qiaomu-reader-english` 插件目录复制设置与阅读数据；原文件保留，目标目录中已有的数据优先。旧、新插件不要同时启用。
+
+本项目与官方 `qiaomu-reader` 插件可以同时安装。它通过 GitHub Release 分发，尚未进入 Obsidian 社区插件目录；安装请使用 BRAT 或手动安装。当前版本为 4.4.6。定制版不修改 Language Learner 的数据文件，也不会接管官方插件的协议链接。
 
 ![Qiaomu Reader 4.2.4 内置书库：六本中英文公版电子书，包含真实封面、继续阅读、划线数量与阅读笔记入口](docs/assets/showcase-4.2.4-library.jpg)
 
 **安装后，书架里就有六本书。** 从《道德经》《唐诗三百首》《世说新语》或三本英文经典开始，直接体验阅读、划线和做笔记，无需先找书或配置 AI。
 
-Qiaomu Reader 是中文优先的 Obsidian EPUB、PDF、FB2、MOBI、AZW3 和 CBZ 阅读器。它把**舒适阅读 → 就地提问 → 保存笔记 → 返回原文**放在同一个工作流里，减少在阅读器、聊天窗口和笔记应用之间来回复制。
+Dashell Reader 是中文优先的 Obsidian EPUB、PDF、FB2、MOBI、AZW3 和 CBZ 阅读器。它把**舒适阅读 → 就地提问 → 保存笔记 → 返回原文**放在同一个工作流里，减少在阅读器、聊天窗口和笔记应用之间来回复制。
 
 阅读本身完全离线，每本书关联一篇 Markdown 阅读笔记；AI 是可选能力，由你选择服务并主动启用。
 
@@ -46,6 +48,8 @@ Qiaomu Reader 是中文优先的 Obsidian EPUB、PDF、FB2、MOBI、AZW3 和 CBZ
 3. 在右侧“学习新单词”面板编辑词形、释义、状态、标签、笔记和例句，再主动保存到定制版词汇库。
 4. 词汇和复习文件默认保存在 `Qiaomu Reader/` 下；Spaced Repetition 的评分、状态与排程按原版机制同步。
 5. 在 Spaced Repetition 原有入口进行复习。定制版不实现自己的间隔算法，也不新增重复的“开始复习”入口。
+
+收录的词条会在其他支持的阅读内容中显示为生词标记；关闭阅读器或切换文件后，标记仍由本地词库提供。
 
 查词与学习设置保留 Language Learner 1.2.16 的词典、MDict、词汇和复习选项。AI 词典与例句 AI 翻译共用 Qiaomu「AI 与翻译」中配置的服务；两项学习提示词收在该页的「英语学习提示词」折叠区，划词修饰键仍在「英语学习 → 通用」，不再有第二套 AI 标签或 API Key。桌面宿主已验证 MDict、复习同步和本机模拟接口的 AI 共享调用；真实服务商、其余词典来源、全部格式及实体移动端仍需逐项验收。本轮不做 OCR，扫描 PDF 和纯图片页面只提供阅读。
 
@@ -106,9 +110,9 @@ PDF 保留原始版式，支持独立缩放。有可靠文字层时，可选择�
 1. 在 Obsidian 第三方插件市场安装并启用 **BRAT**。
 2. 打开 BRAT → **Add beta plugin**。
 3. 输入 `dashell7/qiaomu-reader-english`。
-4. 安装并启用 **Qiaomu Reader English**。
+4. 安装并启用 **Dashell Reader**。
 
-也可以从 [GitHub Releases](https://github.com/dashell7/qiaomu-reader-english/releases) 下载 `main.js`、`manifest.json` 和 `styles.css`，放入库目录 `.obsidian/plugins/qiaomu-reader-english/`，然后在 Obsidian 中重新加载并启用插件。定制版插件 ID 是 `qiaomu-reader-english`。
+也可以从 [GitHub Releases](https://github.com/dashell7/qiaomu-reader-english/releases) 下载 `main.js`、`manifest.json` 和 `styles.css`，放入库目录 `.obsidian/plugins/dashell-reader/`，然后在 Obsidian 中重新加载并启用插件。首次从旧版升级时，如果 Obsidian 将插件放入新目录，插件会复制旧目录中的设置和阅读数据，原文件会保留；启用新插件后可检查旧插件是否已停用。
 
 阅读、划线和笔记无需配置 AI；首次打开书库即可体验内置公版书，也可以添加自己的图书。需要 AI 时，再进入插件设置选择服务并测试连接。
 
@@ -117,9 +121,9 @@ PDF 保留原始版式，支持独立缩放。有可靠文字层时，可选择�
 <details>
 <summary>与官方 Qiaomu Reader 并存</summary>
 
-官方插件 ID 是 `qiaomu-reader`，定制版 ID 是 `qiaomu-reader-english`，两者可以同时启用。仅启用定制版时，单击 EPUB、MOBI 等电子书文件会直接进入英文阅读器；Obsidian 自带的 PDF 视图仍接管 PDF 单击，PDF 可从文件右键菜单或书库进入英文阅读器。Markdown 仍通过命令或文件菜单显式打开。两版同时启用时，官方版保留电子书的默认文件关联，定制版可从文件右键菜单或自己的书库打开。
+官方插件 ID 是 `qiaomu-reader`，定制版 ID 是 `dashell-reader`，两者可以同时启用。仅启用定制版时，单击 EPUB、MOBI 等电子书文件会直接进入英文阅读器；Obsidian 自带的 PDF 视图仍接管 PDF 单击，PDF 可从文件右键菜单或书库进入英文阅读器。Markdown 仍通过命令或文件菜单显式打开。两版同时启用时，官方版保留电子书的默认文件关联，定制版可从文件右键菜单或自己的书库打开。
 
-定制版使用独立的插件设置、阅读进度、高亮和英文复习文件；不会读取或覆盖 Language Learner 的数据。
+定制版使用独立的插件设置、阅读进度、高亮和英文复习文件；不会读取或覆盖 Language Learner 的数据。升级到 `dashell-reader` 时，如果 Obsidian 为新 ID 使用了独立目录，插件会复制旧目录中的设置、阅读进度、高亮、恢复文件、封面缓存和 AI 草稿；迁移不删除旧文件，已存在的新目录数据优先保留。旧的阅读笔记回跳链接仍可打开。
 
 </details>
 
@@ -129,10 +133,10 @@ PDF 保留原始版式，支持独立缩放。有可靠文字层时，可选择�
 从 [最新版本](https://github.com/dashell7/qiaomu-reader-english/releases/latest) 下载 `main.js`、`manifest.json` 和 `styles.css`，放入：
 
 ```text
-<你的仓库>/.obsidian/plugins/qiaomu-reader-english/
+<你的仓库>/.obsidian/plugins/dashell-reader/
 ```
 
-重新加载 Obsidian 后启用插件。插件 ID 为 `qiaomu-reader-english`。
+重新加载 Obsidian 后启用插件。插件 ID 为 `dashell-reader`。
 
 朱雀仿宋常用字子集内置于 `styles.css`，随三个插件文件安装；新增安装默认使用该字体，已有字体偏好保留。子集来自 v0.212 预览测试版，覆盖 7,554 个码点，未包含的字符使用系统字体回退。选择“自定义字体”后，可浏览本机已安装字体，或导入 TTF、OTF、WOFF、WOFF2 文件。导入字体随仓库同步；手机不能枚举本机字体时可使用文件导入。
 
@@ -221,7 +225,9 @@ npm run build:community
 
 ## 作者
 
-Qiaomu Reader 由 [向阳乔木](https://qiaomu.ai) 维护：
+Dashell Reader 由 [dashell](https://github.com/dashell7) 维护，源码仓库为 [dashell7/qiaomu-reader-english](https://github.com/dashell7/qiaomu-reader-english)。
+
+原项目 Qiaomu Reader 由 [向阳乔木](https://qiaomu.ai) 维护：
 
 - X：[@vista8](https://x.com/vista8)
 - GitHub：[@joeseesun](https://github.com/joeseesun)
@@ -244,9 +250,9 @@ This fork is not in the Obsidian Community Plugins directory yet. Install it wit
 1. Install and enable **BRAT** from Obsidian Community Plugins.
 2. Open BRAT → **Add beta plugin**.
 3. Enter `dashell7/qiaomu-reader-english`.
-4. Install and enable **Qiaomu Reader English**.
+4. Install and enable **Dashell Reader**.
 
-For a manual install, download `main.js`, `manifest.json` and `styles.css` from the [GitHub Releases](https://github.com/dashell7/qiaomu-reader-english/releases) page and place them in `.obsidian/plugins/qiaomu-reader-english/`. Reload Obsidian and enable the plugin. The plugin ID is `qiaomu-reader-english`.
+For a manual install, download `main.js`, `manifest.json` and `styles.css` from the [GitHub Releases](https://github.com/dashell7/qiaomu-reader-english/releases) page and place them in `.obsidian/plugins/dashell-reader/`. Reload Obsidian and enable the plugin. The plugin ID is `dashell-reader`. On the first install after the ID change, settings and reading data are copied from `.obsidian/plugins/qiaomu-reader-english/`; source files are retained, and existing data in the new folder takes precedence. Disable the old plugin before enabling this one.
 
 The custom plugin can run beside the official `qiaomu-reader` plugin. Its settings, reading progress, highlights and English review file are separate. It does not read or overwrite Language Learner data and does not take over the official protocol links.
 
@@ -256,11 +262,13 @@ On desktop, **Add from Calibre** copies selected books from a local [Calibre](ht
 
 ### Read, highlight and keep notes
 
-Qiaomu Reader is a Chinese-first reader for Obsidian supporting EPUB, PDF, FB2, MOBI, AZW3 and CBZ. PDF files retain their original fixed page layout; pages with a reliable text layer support selection, search, highlights, annotations and full-document or selected-text AI context, while scan-only pages provide original-page reading, progress and one book-level note without pretending OCR is available. The plugin keeps one dedicated Markdown reading note per book inside your vault.
+Dashell Reader is a Chinese-first reader for Obsidian supporting EPUB, PDF, FB2, MOBI, AZW3 and CBZ. PDF files retain their original fixed page layout; pages with a reliable text layer support selection, search, highlights, annotations and full-document or selected-text AI context, while scan-only pages provide original-page reading, progress and one book-level note without pretending OCR is available. The plugin keeps one dedicated Markdown reading note per book inside your vault.
 
 ### English learning workflow
 
 When reading English text, hover over a word for the ported Language Learner popup. Click a word or select a phrase to use its dictionary popup or left panel. The separate **Learn new words** panel retains the original fields, vocabulary states, notes, examples, and Spaced Repetition synchronization. Its dictionary and learning settings are also included; vocabulary files belong to this custom plugin.
+
+Words saved to the vocabulary file can also appear marked in other supported reading content. The reader keeps each supplied RSS article version's progress separately, and selected text or saved highlights can be read aloud with the configured speech provider.
 
 Selected text and saved highlights can be read aloud from their menus. In the reader, playback controls replace the top toolbar without moving the page; they support restart, previous/next segment, pause/resume, selection highlighting, live speed control, and stop. **Plugin settings → Read aloud** offers ten speech services with separate credentials, models, voices, and an editable test phrase. Azure also lets you choose a test language and matching voice, and can match a detectable reading language automatically; uncertain short phrases keep the selected voice. Speech is requested only when you choose Read aloud, and the selected text is sent to that service.
 
@@ -296,6 +304,20 @@ Reading works fully offline. In-reader settings are split into Reading and AI As
 
 Saving an AI reply preserves its complete Markdown body with the source below it, either in a separate note or appended to the book's reading note. An editable title is extracted locally from the reply's topic, emphasis or content, with no extra model request. Saving keeps the chat open, and the saved action opens the existing note. Unsent drafts are persisted locally for up to 30 books (20,000 characters each) and survive sidebar closure/restarts; third-party syncing of the plugin folder may also copy them. Deleting conversations requires confirmation. The screenshots above are inherited Qiaomu Reader reference captures from the upstream project; they are not evidence of this fork's release or mobile support.
 
+### Local RSS materials
+
+Dashell RSS can save an article to the vault and call `openLearningMaterial(file)`.
+Reader resumes the most recently read supplied version using its own per-file
+progress. A `dashell_reader_versions` frontmatter object with schema `version: 1`,
+a shared `id`, optional `title`, and an `original` Markdown filename may also include
+`translation` and `rewrite` filenames. RSS uses the article title, adding ` - 译文`
+or ` - 改写` for supplied variants. Only safe filenames in the same folder are
+accepted; legacy fixed names remain readable. Automatic reading notes use the
+article title as well. The toolbar offers the versions present on disk; ordinary
+books and Markdown notes do not gain a version menu. Switching versions saves the
+current reading location and preserves each version's progress. These files are
+provided by RSS; this integration does not generate a translation or rewrite.
+
 ### Verification and limits
 
 Use `npm ci`, `npm test`, `npm run check:i18n`, `npx eslint src/`, `npm run build`, `npm run verify:release`, and `npm run build:community` to reproduce the automated gates. See [screenshot evidence](docs/showcase.md) and [workflow checks](docs/reading-workflow-plan.md). Physical mobile-device validation is pending. There is no built-in OCR or cross-book semantic search. CLI providers are desktop-only; model costs and terms belong to the selected provider. Local-model requests stay on-device only when the configured endpoint is local and does not forward them. Persistent ACP reduces repeated startup work, but no comparative latency benchmark is claimed.
@@ -304,7 +326,7 @@ Use `npm ci`, `npm test`, `npm run check:i18n`, `npx eslint src/`, `npm run buil
 
 Both the default build and the community build exclude dependency installation code. CLI adapters must be installed by the user. A separate community-candidate build is available with `npm run build:community` in `dist/community/`. It excludes the ACP dependency installer while retaining manual setup guidance, detection, and persistent chat.
 
-Maintained by [Qiaomu](https://qiaomu.ai). Third-party notices and copyright information are preserved in [LICENSE](LICENSE); bundled font provenance and license live in [fonts/README.md](fonts/README.md) and [fonts/OFL.txt](fonts/OFL.txt).
+Dashell Reader is maintained by [dashell](https://github.com/dashell7), with source at [dashell7/qiaomu-reader-english](https://github.com/dashell7/qiaomu-reader-english). Upstream Qiaomu Reader is maintained by [Qiaomu](https://qiaomu.ai). Third-party notices and copyright information are preserved in [LICENSE](LICENSE); bundled font provenance and license live in [fonts/README.md](fonts/README.md) and [fonts/OFL.txt](fonts/OFL.txt).
 
 ## License
 

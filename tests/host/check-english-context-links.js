@@ -1,4 +1,4 @@
-const plugin = app.plugins.plugins["qiaomu-reader-english"];
+const plugin = app.plugins.plugins["dashell-reader"];
 const bookPath = "Books/示例书库/Alice in Wonderland.epub";
 const file = app.vault.getAbstractFileByPath(bookPath);
 if (!plugin || !file) throw new Error("English reader or Alice fixture is unavailable");

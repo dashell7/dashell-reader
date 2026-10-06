@@ -44,7 +44,7 @@ Language Learner 是词典和复习实现的参考，不是运行时依赖。本
 
 ## 官方版与定制版并存
 
-定制版使用独立插件 ID，以便和官方 `qiaomu-reader` 同时安装。插件 ID 与测试库名称是两个独立概念：本项目的真实测试库固定命名为 `qiaomu-reader-english`，路径为 `F:/qiaomu-reader-english`；定制版插件 ID 在首次正式安装前单独确定，此后视为持久数据和链接的身份，不因改名方便而随意更换。插件名称明确标注定制版，不冒充官方更新。
+定制版使用独立插件 ID `dashell-reader`，以便和官方 `qiaomu-reader` 同时安装。测试库名称与插件 ID 是两个独立概念：本项目的真实测试库固定命名为 `qiaomu-reader-english`，路径为 `F:/qiaomu-reader-english`。ID 更改会改变 Obsidian 插件目录；首次以新 ID 启动时，仅当新目录还没有 `data.json`，才从旧目录复制设置、阅读进度、高亮、恢复文件、封面缓存和 AI 草稿。迁移保留旧文件，目标目录已有的数据优先；阅读视图类型和旧回跳协议继续兼容。插件名称明确标注定制版，不冒充官方更新。
 
 只修改 `manifest.json` 的 ID 不足以并存；实施时必须逐项隔离：
 

@@ -55,7 +55,7 @@ export default [
     rules: {
       "obsidianmd/ui/sentence-case": ["warn", {
         mode: "loose",
-        brands: ["Qiaomu Reader", "Obsidian Sync", "Remotely Save"],
+        brands: ["Qiaomu Reader", "Dashell Reader", "Obsidian Sync", "Remotely Save"],
       }],
     },
   },

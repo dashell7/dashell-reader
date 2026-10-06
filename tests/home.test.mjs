@@ -9,7 +9,7 @@ function setup() {
   const calls = [];
   const library = { _pickBooks: () => calls.push("pick") };
   const plugin = {
-    manifest: { id: "qiaomu-reader-english" },
+    manifest: { id: "dashell-reader" },
     progress: {
       [book.path]: { pct: 0.2, lastRead: 1 },
       [note.path]: { pct: 0.6, lastRead: 2 },

@@ -103,10 +103,10 @@ useEvent(window, "qiaomu-english-event-toast", (evt) => {
 
 // 字幕弹窗事件监听
 useEvent(window, "qiaomu-english-event-subtitle-popup", (evt) => {
-    const { word, sentenceEn, sentenceZh, x, y } = evt.detail || {};
+    const { word, sentenceEn, sentenceZh, bookTitle, readerLink, x, y } = evt.detail || {};
     logger.debug('[Global] received subtitle-popup event:', word, 'subtitlePopup ref:', !!subtitlePopup.value);
     if (!word || !subtitlePopup.value) return;
-    subtitlePopup.value.show({ word, sentenceEn, sentenceZh, x, y });
+    subtitlePopup.value.show({ word, sentenceEn, sentenceZh, bookTitle, readerLink, x, y });
 });
 useEvent(window, "qiaomu-english-event-subtitle-close", () => {
     subtitlePopup.value?.close();

@@ -201,6 +201,30 @@ export function renderSpeechSettings(host, plugin, { translate: t, save, redraw,
   }
   field("tts-speed").addSlider(input => withSliderValue(input.setLimits(0.5, 2, 0.1)
     .setValue(Number(settings.ttsSpeed) || 1)).onChange(async next => { settings.ttsSpeed = next; await save(); }));
+  field("tts-bar-position").addDropdown(input => {
+    input.addOption("top", t("tts-position-top"));
+    input.addOption("bottom", t("tts-position-bottom"));
+    input.setValue(settings.ttsBarPosition === "bottom" ? "bottom" : "top")
+      .onChange(async next => { settings.ttsBarPosition = next === "bottom" ? "bottom" : "top"; await save(); });
+  });
+  field("tts-bar-display").setDesc(t("tts-bar-display-desc")).addDropdown(input => {
+    input.addOption("fixed", t("tts-bar-display-fixed"));
+    input.addOption("auto-hide", t("tts-bar-display-auto-hide"));
+    input.setValue(settings.ttsBarDisplay === "auto-hide" ? "auto-hide" : "fixed")
+      .onChange(async next => { settings.ttsBarDisplay = next === "auto-hide" ? "auto-hide" : "fixed"; await save(); });
+  });
+  field("tts-bar-visibility").setDesc(t("tts-bar-visibility-desc")).addDropdown(input => {
+    input.addOption("always", t("tts-bar-visibility-always"));
+    input.addOption("always-mobile", t("tts-bar-visibility-always-mobile"));
+    input.addOption("playing", t("tts-bar-visibility-playing"));
+    input.addOption("never", t("tts-bar-visibility-never"));
+    const value = ["always", "always-mobile", "playing", "never"].includes(settings.ttsBarVisibility)
+      ? settings.ttsBarVisibility : "playing";
+    input.setValue(value).onChange(async next => {
+      settings.ttsBarVisibility = ["always", "always-mobile", "playing", "never"].includes(next) ? next : "playing";
+      await save();
+    });
+  });
 
   const testLocale = settings.ttsTestLocale || "";
   let selectedTestLocale = testLocale;

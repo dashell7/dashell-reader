@@ -1,4 +1,4 @@
-const plugin = app.plugins.plugins["qiaomu-reader-english"];
+const plugin = app.plugins.plugins["dashell-reader"];
 if (!plugin?.learning) throw new Error("English learning is unavailable");
 const learning = plugin.learning;
 const ai = learning.settings.dictionaries.ai;

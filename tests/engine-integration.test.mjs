@@ -294,7 +294,7 @@ test("iframe page turns stay immersive while center taps and pointer edges revea
   const calls = [];
   const view = { areaEl: main, plugin: { settings: { navMode: "click" } },
     _armImmersive: () => calls.push("chrome"), nav: dir => calls.push(dir) };
-  const attach = vm.runInNewContext(`${functionSource("beginReaderSelection")}\n${functionSource("handleAreaNavClick")}\n${functionSource("revealReaderChromeFromPage")}\n${functionSource("attachEngineChrome")}\nattachEngineChrome`, {
+  const attach = vm.runInNewContext(`${functionSource("attachEnglishVocabularyScope")}\n${functionSource("beginReaderSelection")}\n${functionSource("handleAreaNavClick")}\n${functionSource("revealReaderChromeFromPage")}\n${functionSource("attachEngineChrome")}\nattachEngineChrome`, {
     readerIsPdf: () => false, selOf: () => null,
   });
   attach(view, doc);
@@ -310,6 +310,35 @@ test("iframe page turns stay immersive while center taps and pointer edges revea
   view.plugin.settings.readMode = "scroll"; send(doc.querySelector("p"), "click");
   assert.deepEqual(calls, ["chrome", "next", "chrome", "chrome"]);
   dom.window.close();
+});
+
+test("reader vocabulary attachment preserves the learning plugin receiver", () => {
+  const attach = vm.runInNewContext(`${functionSource("attachEnglishVocabularyScope")}\nattachEnglishVocabularyScope`);
+  const scope = {};
+  const events = new Set();
+  const win = {
+    addEventListener: (name, handler) => events.add([name, handler]),
+    removeEventListener: (name, handler) => {
+      for (const event of events) if (event[0] === name && event[1] === handler) events.delete(event);
+    },
+  };
+  scope.ownerDocument = { defaultView: win };
+  const learning = {
+    calls: 0,
+    attachReaderVocabularyMarks(target) {
+      assert.equal(this, learning);
+      assert.equal(target, scope);
+      this.calls++;
+      return () => { this.calls--; };
+    },
+  };
+  const view = { plugin: { learning } };
+
+  attach(view, scope);
+  assert.equal(learning.calls, 1);
+  view._englishVocabularyMarkScopes.get(scope)();
+  assert.equal(learning.calls, 0);
+  assert.equal(events.size, 0);
 });
 
 

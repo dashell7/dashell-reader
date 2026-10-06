@@ -3,6 +3,7 @@
 import { homeProvider } from "./qiaomu-home.js";
 
 const MAX_ITEMS = 4;
+const LIBRARY_VIEW_TYPE = "qiaomu-reader-english-library";
 
 function lastReadAt(record) {
   const at = record && (record.lastRead || record.updated);
@@ -69,7 +70,7 @@ export function createHomeProvider(plugin, translate) {
         icon: "book-plus",
         run: async () => {
           await plugin.openLibrary();
-          const view = plugin.app.workspace.getLeavesOfType(`${plugin.manifest.id}-library`)[0]?.view;
+          const view = plugin.app.workspace.getLeavesOfType(LIBRARY_VIEW_TYPE)[0]?.view;
           if (view && typeof view._pickBooks === "function") view._pickBooks();
         },
       }];

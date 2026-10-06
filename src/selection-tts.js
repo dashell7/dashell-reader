@@ -47,12 +47,13 @@ export class SelectionSpeechPlayer {
     const session = this.session;
     if (!session) return;
     this.session = null;
+    session.prefetch?.controller.abort();
     session.controller.abort();
     session.audio?.pause();
     session.finishAudio?.();
     if (session.url) URL.revokeObjectURL(session.url);
     session.cleanup?.();
-    session.host?.classList.remove("qiaomu-reader-speech-active");
+    session.host?.classList.remove("qiaomu-reader-speech-active", "qiaomu-reader-speech-bottom", "qiaomu-reader-speech-floating");
     session.bar?.remove();
   }
 
@@ -70,8 +71,12 @@ export class SelectionSpeechPlayer {
     const config = { ...speechConfig(settings, service), ...(service === "azure" && locale ? { locale } : {}) };
     const key = this.plugin.app.secretStorage?.getSecret(config.secretId || "");
     if (!key && service !== "compatible") { this.onError?.("tts-key-required"); return false; }
+    const visibilityValues = ["always", "always-mobile", "playing", "never"];
+    const visibility = visibilityValues.includes(settings.ttsBarVisibility) ? settings.ttsBarVisibility : "playing";
     const session = { controller: new AbortController(), bar: null, audio: null, url: null, finishAudio: null,
-      host, text, options: { locale, context, range }, index: 0, jumpTo: null };
+      host, text, options: { locale, context, range }, index: 0, jumpTo: null, prefetch: null,
+      position: settings.ttsBarPosition === "bottom" ? "bottom" : "top", visibility };
+    session.display = settings.ttsBarDisplay === "auto-hide" ? "auto-hide" : "fixed";
     this.session = session;
     this._bar(session, host, chunks.length);
     try {
@@ -107,24 +112,44 @@ export class SelectionSpeechPlayer {
         }
       }
       if (service === "azure" && !config.voice?.trim()) throw new Error("tts-choose-voice");
+      const synthesize = index => {
+        const controller = new AbortController();
+        const abortFromSession = () => controller.abort();
+        if (session.controller.signal.aborted) controller.abort();
+        else session.controller.signal.addEventListener("abort", abortFromSession, { once: true });
+        const timeout = window.setTimeout(() => controller.abort(), 45000);
+        const promise = (async () => {
+          const { url, options } = await speechRequest(service, chunkConfigs[index], key, chunks[index].text, controller.signal);
+          const response = await request(url, options);
+          const audioData = await speechAudio(service, chunkConfigs[index], response);
+          if (controller.signal.aborted) throw new DOMException("Aborted", "AbortError");
+          if (!audioData.data.byteLength) throw new Error("empty audio");
+          return audioData;
+        })().then(data => ({ data }), error => ({ error })).finally(() => {
+          window.clearTimeout(timeout);
+          session.controller.signal.removeEventListener("abort", abortFromSession);
+        });
+        return { index, controller, promise };
+      };
       for (let index = 0; index < chunks.length && this.session === session;) {
         session.index = index;
         this._status(session, "tts-loading", index + 1, chunks.length);
-        let audioData;
-        const timeout = window.setTimeout(() => session.controller.abort(), 45000);
-        try {
-          const { url, options } = await speechRequest(service, chunkConfigs[index], key, chunks[index].text, session.controller.signal);
-          const response = await request(url, options);
-          audioData = await speechAudio(service, chunkConfigs[index], response);
-        } finally { window.clearTimeout(timeout); }
-        if (session.controller.signal.aborted) throw new DOMException("Aborted", "AbortError");
-        if (!audioData.data.byteLength) throw new Error("empty audio");
+        let task = session.prefetch;
+        session.prefetch = null;
+        if (task?.index !== index) {
+          task?.controller.abort();
+          task = synthesize(index);
+        }
+        const result = await task.promise;
+        if (result.error) throw result.error;
+        const audioData = result.data;
         if (this.session !== session) return false;
         session.url = URL.createObjectURL(new Blob([audioData.data], { type: audioData.format === "wav" ? "audio/wav" : "audio/mpeg" }));
         const audio = session.audio = host.ownerDocument.createElement("audio");
         audio.src = session.url;
         audio.playbackRate = Number(settings.ttsSpeed) || 1;
         this._status(session, "tts-playing", index + 1, chunks.length);
+        if (index + 1 < chunks.length) session.prefetch = synthesize(index + 1);
         await new Promise((resolve, reject) => {
           session.finishAudio = resolve;
           audio.onended = resolve;
@@ -136,7 +161,12 @@ export class SelectionSpeechPlayer {
         URL.revokeObjectURL(session.url);
         session.url = null;
         session.audio = null;
-        index = session.jumpTo === null ? index + 1 : session.jumpTo;
+        const nextIndex = session.jumpTo === null ? index + 1 : session.jumpTo;
+        if (nextIndex !== index + 1 && session.prefetch) {
+          session.prefetch.controller.abort();
+          session.prefetch = null;
+        }
+        index = nextIndex;
         session.jumpTo = null;
       }
       if (this.session === session) { this.stop(); return true; }
@@ -155,7 +185,7 @@ export class SelectionSpeechPlayer {
       this._readerBar(session, host, total);
       return;
     }
-    const bar = session.bar = host.createDiv("qiaomu-reader-speech-bar");
+    const bar = session.bar = host.createDiv(`qiaomu-reader-speech-bar qiaomu-reader-speech-position-${session.position}`);
     bar.setAttribute("role", "status");
     const label = session.label = bar.createSpan("qiaomu-reader-speech-status");
     label.textContent = this.translate("tts-loading");
@@ -178,9 +208,25 @@ export class SelectionSpeechPlayer {
   }
 
   _readerBar(session, host, total) {
-    host.classList.add("qiaomu-reader-speech-active");
-    const bar = session.bar = host.createDiv("qiaomu-reader-speech-bar qiaomu-reader-speech-docked");
+    host.classList.toggle("qiaomu-reader-speech-bottom", session.position === "bottom");
+    const win = host.ownerDocument.defaultView;
+    const touch = this._isTouchDevice(win);
+    const visibilityAllowed = session.visibility !== "never"
+      && (session.visibility !== "always-mobile" || touch);
+    const alwaysVisible = session.visibility === "always"
+      || (session.visibility === "always-mobile" && touch);
+    const autoHide = session.display === "auto-hide" && !touch && !alwaysVisible && session.visibility === "playing";
+    const modeClass = autoHide
+      ? " qiaomu-reader-speech-floating qiaomu-reader-speech-auto-hide qiaomu-reader-speech-visible" : "";
+    const hiddenClass = visibilityAllowed ? "" : " qiaomu-reader-speech-hidden";
+    const bar = session.bar = host.createDiv(`qiaomu-reader-speech-bar qiaomu-reader-speech-docked qiaomu-reader-speech-position-${session.position}${modeClass}${hiddenClass}`);
     bar.setAttribute("role", "toolbar");
+    bar.setAttribute("aria-hidden", String(!visibilityAllowed));
+    bar.hidden = !visibilityAllowed;
+    session.toolbarVisible = visibilityAllowed;
+    session.autoHide = autoHide;
+    host.classList.toggle("qiaomu-reader-speech-active", visibilityAllowed);
+    host.classList.toggle("qiaomu-reader-speech-floating", autoHide);
     const group = bar.createDiv("qiaomu-reader-speech-controls");
     const button = (parent, control, icon, label, action) => {
       const item = parent.createEl("button", { attr: { type: "button", "data-control": control } });
@@ -189,9 +235,10 @@ export class SelectionSpeechPlayer {
       item.addEventListener("click", action);
       return item;
     };
-    button(group, "restart", "play", this.translate("tts-play"), () => {
+    const restartButton = button(group, "restart", "play", this.translate("tts-play"), () => {
       void this.play(session.text, host, session.options);
     });
+    restartButton.classList.add("qiaomu-reader-speech-play");
     const transport = group.createDiv("qiaomu-reader-speech-transport");
     const jump = offset => {
       if (this.session !== session || !session.audio) return;
@@ -212,9 +259,24 @@ export class SelectionSpeechPlayer {
     session.nextButton = button(transport, "next", "skip-forward", this.translate("tts-next"), () => jump(1));
     session.eyeButton = button(transport, "highlight", "eye", this.translate("tts-show-selection"), () => {
       session.highlightVisible = !session.highlightVisible;
+      session.eyeButton.classList.toggle("is-active", session.highlightVisible);
+      session.eyeButton.setAttribute("aria-pressed", String(session.highlightVisible));
       this._paintSelection(session);
     });
     session.highlightVisible = true;
+    session.eyeButton.classList.add("is-active");
+    session.eyeButton.setAttribute("aria-pressed", "true");
+    session.followText = true;
+    session.followButton = button(transport, "follow", "locate-fixed", this.translate("tts-follow-text-on"), () => {
+      session.followText = !session.followText;
+      session.followButton.classList.toggle("is-active", session.followText);
+      session.followButton.setAttribute("aria-pressed", String(session.followText));
+      const name = session.followButton.lastChild;
+      if (name) name.textContent = this.translate(session.followText ? "tts-follow-text-on" : "tts-follow-text-off");
+      if (session.followText) this._scrollSelection(session);
+    });
+    session.followButton.classList.add("is-active");
+    session.followButton.setAttribute("aria-pressed", "true");
     this._paintSelection(session);
     const speedWrap = group.createDiv("qiaomu-reader-speech-speed-wrap");
     session.speedButton = speedWrap.createEl("button", { attr: { type: "button", "data-control": "speed" } });
@@ -245,11 +307,54 @@ export class SelectionSpeechPlayer {
       morePanel.hidden = true;
       this.plugin.settingsTab?.openSpeechSettings();
     });
-    const label = session.label = bar.createSpan("qiaomu-reader-speech-status");
-    label.setAttribute("role", "status");
+    const statusArea = session.statusArea = bar.createDiv("qiaomu-reader-speech-status-area");
+    statusArea.setAttribute("role", "status");
+    const visualizer = session.visualizer = statusArea.createDiv("qiaomu-reader-speech-visualizer");
+    visualizer.setAttribute("aria-hidden", "true");
+    for (let index = 0; index < 6; index++) visualizer.createSpan("qiaomu-reader-speech-visualizer-bar");
+    const label = session.label = statusArea.createSpan("qiaomu-reader-speech-status");
     label.textContent = this.translate("tts-loading");
     button(bar, "stop", "x", this.translate("tts-stop"), () => this.stop());
     const doc = host.ownerDocument;
+    let hideTimer = null;
+    const clearHideTimer = () => {
+      if (hideTimer !== null) win.clearTimeout(hideTimer);
+      hideTimer = null;
+    };
+    const hideWhenIdle = () => {
+      clearHideTimer();
+      if (!session.autoHide || !session.speechActive) return;
+      hideTimer = win.setTimeout(() => {
+        if (session.pointerInBar || bar.contains(doc.activeElement)) return;
+        bar.classList.remove("qiaomu-reader-speech-visible");
+      }, 3000);
+    };
+    const reveal = () => {
+      if (!session.autoHide) return;
+      bar.classList.add("qiaomu-reader-speech-visible");
+      hideWhenIdle();
+    };
+    const pointerMove = event => { if (event.pointerType !== "touch") reveal(); };
+    const focusIn = () => reveal();
+    const focusOut = () => { if (!bar.contains(doc.activeElement)) hideWhenIdle(); };
+    const pointerEnter = () => { session.pointerInBar = true; reveal(); };
+    const pointerLeave = () => { session.pointerInBar = false; hideWhenIdle(); };
+    if (session.autoHide) {
+      host.addEventListener("pointermove", pointerMove);
+      host.addEventListener("pointerdown", reveal);
+      host.addEventListener("focusin", focusIn);
+      bar.addEventListener("pointerenter", pointerEnter);
+      bar.addEventListener("pointerleave", pointerLeave);
+      bar.addEventListener("focusout", focusOut);
+      session.setSpeechVisibility = (visible) => {
+        session.speechActive = visible;
+        if (visible) reveal();
+        else {
+          clearHideTimer();
+          bar.classList.add("qiaomu-reader-speech-visible");
+        }
+      };
+    }
     const dismiss = event => {
       if (!speedWrap.contains(event.target)) speedPanel.hidden = true;
       if (!moreWrap.contains(event.target)) morePanel.hidden = true;
@@ -260,6 +365,13 @@ export class SelectionSpeechPlayer {
     doc.addEventListener("pointerdown", dismiss);
     doc.addEventListener("keydown", escape);
     session.cleanup = () => {
+      clearHideTimer();
+      host.removeEventListener("pointermove", pointerMove);
+      host.removeEventListener("pointerdown", reveal);
+      host.removeEventListener("focusin", focusIn);
+      bar.removeEventListener("pointerenter", pointerEnter);
+      bar.removeEventListener("pointerleave", pointerLeave);
+      bar.removeEventListener("focusout", focusOut);
       doc.removeEventListener("pointerdown", dismiss);
       doc.removeEventListener("keydown", escape);
       this._clearSelectionPaint(session);
@@ -289,11 +401,22 @@ export class SelectionSpeechPlayer {
         doc.head?.append(style);
         session.highlightStyle = style;
       }
-      range.startContainer.parentElement?.scrollIntoView?.({ block: "nearest" });
+      this._scrollSelection(session);
     } catch {
       this._clearSelectionPaint(session);
       if (session.eyeButton) session.eyeButton.disabled = true;
     }
+  }
+
+  _scrollSelection(session) {
+    if (session.followText === false) return;
+    const range = session.options.range;
+    range?.startContainer?.parentElement?.scrollIntoView?.({ block: "nearest" });
+  }
+
+  _isTouchDevice(win) {
+    if (!win) return false;
+    return win.innerWidth <= 600 || !!win.matchMedia?.("(hover: none), (pointer: coarse)").matches;
   }
 
   _clearSelectionPaint(session) {
@@ -318,6 +441,9 @@ export class SelectionSpeechPlayer {
   _status(session, key, index, total) {
     if (session.bar.classList.contains("qiaomu-reader-speech-docked")) {
       const playing = key === "tts-playing";
+      session.setSpeechVisibility?.(playing);
+      session.visualizer?.classList.toggle("is-active", playing);
+      session.statusArea?.setAttribute("data-state", key);
       session.label.textContent = playing ? "" : `${this.translate(key)} ${index}/${total}`;
       session.previousButton.disabled = !playing || session.index === 0;
       session.nextButton.disabled = !playing || session.index === total - 1;

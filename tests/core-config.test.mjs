@@ -331,6 +331,8 @@ test("fixed-layout PDF pages show a reserved loading state instead of a blank sh
 
 test("runtime diagnostics use the maintained plugin identity", () => {
   const source = fs.readFileSync(new URL("../src/main.js", import.meta.url), "utf8");
+  const manifest = JSON.parse(fs.readFileSync(new URL("../manifest.json", import.meta.url), "utf8"));
+  assert.equal(manifest.id, "dashell-reader");
   assert.doesNotMatch(source, /console\.(?:error|warn|log)\("Book Reader:/);
   assert.match(source, /const VIEW_TYPE = "qiaomu-reader-english"/);
   assert.match(source, /const LIB_VIEW_TYPE = "qiaomu-reader-english-library"/);

@@ -5,6 +5,7 @@ import { t } from "./vendor/lang/helper.ts";
 import { createApp } from "vue";
 import SubtitlePopup from "./vendor/views/SubtitlePopup.vue";
 import { normalizeReaderLink } from "./vendor/utils/readerLink.ts";
+import { EnglishVocabularyMarkerService } from "./english-vocabulary-markers.js";
 
 function outerDocument(target) {
   let doc = target?.ownerDocument || document;
@@ -20,7 +21,7 @@ function outerDocument(target) {
 
 export class QiaomuEnglishLearning extends LanguageLearner {
   constructor(host) {
-    super(host.app, { ...host.manifest, id: `${host.manifest.id}-learning`, name: "Qiaomu Reader English Learning" });
+    super(host.app, { ...host.manifest, id: `${host.manifest.id}-learning`, name: "Dashell Reader Learning" });
     this.host = host;
     this.hoverOverlays = new Map();
     this.hoverDocument = null;
@@ -32,6 +33,28 @@ export class QiaomuEnglishLearning extends LanguageLearner {
   async saveData(data) {
     this.host.learningSettings = data;
     if (!await this.host._saveLocalData()) throw new Error("Could not save English learning settings");
+  }
+
+  async onload() {
+    await super.onload();
+    const markers = this.readerVocabularyMarkers = new EnglishVocabularyMarkerService(this.db, window);
+    this.register(() => markers.dispose());
+    const folder = String(this.settings.word_folder || "").replace(/\\/g, "/").replace(/\/+$/, "");
+    const belongsToVocabulary = (path) => typeof path === "string"
+      && !!folder && (path === folder || path.startsWith(`${folder}/`));
+    const onVocabularyFileChanged = (file, oldPath) => {
+      if (belongsToVocabulary(file?.path) || belongsToVocabulary(oldPath)) {
+        if (markers.documents.size) markers.scheduleRefresh();
+        else markers.invalidateIndex();
+      }
+    };
+    for (const event of ["create", "modify", "delete", "rename"]) {
+      this.registerEvent(this.app.vault.on(event, onVocabularyFileChanged));
+    }
+  }
+
+  attachReaderVocabularyMarks(scope) {
+    return this.readerVocabularyMarkers?.attach(scope) || (() => {});
   }
 
   register(cleanup) { this.host.register(cleanup); }
@@ -99,7 +122,7 @@ export class QiaomuEnglishLearning extends LanguageLearner {
     const detail = {
       word,
       sentenceEn: context.sentence || "",
-      sentenceZh: "",
+      sentenceZh: context.sentenceZh || "",
       bookTitle: context.bookTitle || "",
       readerLink: context.readerLink || "",
       x: context.position?.x || 0,

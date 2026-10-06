@@ -1,10 +1,10 @@
 {
-  "id": "qiaomu-reader-english",
-  "name": "Qiaomu Reader English",
-  "version": "4.4.5",
+  "id": "dashell-reader",
+  "name": "Dashell Reader",
+  "version": "4.4.6",
   "minAppVersion": "1.11.4",
-  "description": "Read EPUB, PDF, Markdown and other text documents with highlights, notes, English dictionary lookup and Spaced Repetition review cards.",
-  "author": "向阳乔木",
-  "authorUrl": "https://qiaomu.ai",
+  "description": "Read books and documents with highlights, AI companion, English lookup, read-aloud, and spaced-repetition cards.",
+  "author": "dashell",
+  "authorUrl": "https://github.com/dashell7",
   "isDesktopOnly": false
 }

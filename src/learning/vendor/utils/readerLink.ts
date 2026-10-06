@@ -14,7 +14,7 @@ export function normalizeReaderLink(value: unknown): string | undefined {
         const anchored = (cfi != null && cfi.startsWith("epubcfi(") && cfi.endsWith(")"))
             || (block != null && /^(?:0|[1-9]\d*)$/.test(block))
             || (page != null && /^[1-9]\d*$/.test(page));
-        if (url.protocol !== "obsidian:" || url.hostname !== "qiaomu-reader-english"
+        if (url.protocol !== "obsidian:" || !["dashell-reader", "qiaomu-reader-english"].includes(url.hostname)
             || url.pathname !== "" || url.hash || url.username || url.password
             || !vault || vault.length > 255 || !book || book.length > 4096
             || /[\x00-\x1f\x7f]/.test(book) || book.startsWith("/") || book.includes("\\")

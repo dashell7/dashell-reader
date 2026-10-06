@@ -3,7 +3,31 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
+import { materialVersions } from '../src/material-versions.js';
 const source = fs.readFileSync(new URL('../src/main.js', import.meta.url), 'utf8');
+
+test('automatic RSS reading notes use the article title even for legacy material.md files', async () => {
+  const start = source.indexOf('  async ensureBookNote(file) {');
+  const code = source.slice(start, source.indexOf('  async ', start + 8));
+  const ensure = vm.runInNewContext(`({${code}}).ensureBookNote`, {
+    materialVersions, parseYaml: undefined, bookNotesFolderPath: () => 'Reading notes',
+  });
+  const file = { path: 'Articles/material.md', basename: 'material', extension: 'md' };
+  const manifest = { version: 1, id: 'article', title: 'A meaningful article title', original: 'material.md' };
+  const plugin = { settings: {}, app: { vault: { read: async () => `---\ndashell_reader_versions: ${JSON.stringify(manifest)}\n---\nBody` } },
+    createBookNote: async (_file, title, folder) => `${folder}/${title}.md` };
+  assert.equal(await ensure.call(plugin, file), 'Reading notes/A meaningful article title.md');
+  const translated = { path: 'Articles/Safe title - 译文.md', basename: 'Safe title - 译文', extension: 'md' };
+  const named = { ...manifest, original: 'Safe title.md', translation: translated.basename + '.md' };
+  plugin.app.vault.read = async () => `---\ndashell_reader_versions: ${JSON.stringify(named)}\n---\nBody`;
+  assert.equal(await ensure.call(plugin, translated), 'Reading notes/Safe title - 译文.md');
+  plugin.settings.bookNoteLinks[file.path] = 'My chosen name.md';
+  assert.equal(await ensure.call(plugin, file), null);
+  plugin.settings.bookNoteLinks = {};
+  plugin.app.vault.read = async () => '# Ordinary Markdown';
+  assert.equal(await ensure.call(plugin, file), 'Reading notes/material.md');
+  assert.equal(await ensure.call(plugin, { path: 'Book.epub', basename: 'Book', extension: 'epub' }), 'Reading notes/Book.md');
+});
 class TFile {
   constructor(path) { this.path = path; this.basename = path.split('/').at(-1).replace(/\.md$/, ''); this.extension = 'md'; }
 }
@@ -172,10 +196,12 @@ test('migration preserves custom per-book paths, existing note overrides and roo
   }
 });
 test('normal plugin load persists migrated defaults after restoring backup state and only once',async()=>{
-  let saved={settings:{notesFolder:'Custom',bookNotesFolder:''},progressBackups:{book:['keep']}};let saves=0,restored=false;
+  let saved={settings:{notesFolder:'Custom',bookNotesFolder:''},progressBackups:{book:['keep']}};let saves=0,restored=false,migrationRan=false;
   const start=source.indexOf('  async loadAll() {'),end=source.indexOf('  _mergeDefaultSettings(',start);
-  const load=vm.runInNewContext(`({${source.slice(start,end)}}).loadAll`,{migrateNoteFolderDefaults,applyDeviceProfile(){}});
-  const plugin={loadData:async()=>saved,_mergeDefaultSettings(data){this.settings={...data.settings};},_applyLegacySettingMigrations:async()=>{},_applyLanguageDefaults(){},_migrateChineseDefaults:async()=>{},
+  const load=vm.runInNewContext(`({${source.slice(start,end)}}).loadAll`,{migrateNoteFolderDefaults,applyDeviceProfile(){},normalizePath:value=>value,
+    LEGACY_READER_PLUGIN_ID:'qiaomu-reader-english',migrateLegacyReaderData:async()=>{migrationRan=true;}});
+  const plugin={app:{vault:{configDir:'test-config',adapter:{}}},manifest:{id:'dashell-reader',dir:'test-config/plugins/dashell-reader'},
+    loadData:async()=>{assert.equal(migrationRan,true);return saved;},_mergeDefaultSettings(data){this.settings={...data.settings};},_applyLegacySettingMigrations:async()=>{},_applyLanguageDefaults(){},_migrateChineseDefaults:async()=>{},
     async _restoreReadingState(data){this.progressBackups=data.progressBackups;restored=true;},async _saveLocalData(){assert.equal(restored,true);saves++;saved=JSON.parse(JSON.stringify({settings:this.settings,progressBackups:this.progressBackups}));},_repairBookNoteState:async()=>{},_adoptLegacyProgress:async()=>{}};
   await load.call(plugin);assert.equal(saved.settings.bookNotesFolder,'Custom');assert.deepEqual(saved.progressBackups,{book:['keep']});assert.equal(saves,1);
   saved.settings.bookNotesFolder='';saved.settings.lastNoteFolder='';

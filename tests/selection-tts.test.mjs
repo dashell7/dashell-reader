@@ -32,7 +32,7 @@ test("sentence chunks work without Intl.Segmenter on older webviews", () => {
   } finally { Intl.Segmenter = segmenter; }
 });
 
-test("reader speech uses a top toolbar with transport, highlight and live speed controls", async () => {
+test("reader speech uses an Aloud-style toolbar with transport, follow, highlight and live speed controls", async () => {
   const dom = new JSDOM("<main><div class='qiaomu-reader-top'></div><p>First sentence. Second sentence.</p></main>");
   const host = dom.window.document.querySelector("main");
   const proto = dom.window.HTMLElement.prototype;
@@ -62,10 +62,17 @@ test("reader speech uses a top toolbar with transport, highlight and live speed 
     await new Promise(resolve => setTimeout(resolve, 0));
     const bar = host.querySelector(".qiaomu-reader-speech-docked");
     assert.ok(bar);
+    assert.equal(bar.classList.contains("qiaomu-reader-speech-position-top"), true);
+    assert.equal(bar.classList.contains("qiaomu-reader-speech-auto-hide"), false);
     assert.equal(host.classList.contains("qiaomu-reader-speech-active"), true);
     assert.deepEqual([...bar.querySelectorAll("[data-control]")].map(item => item.dataset.control),
-      ["restart", "previous", "pause", "next", "highlight", "speed", "more", "stop"]);
+      ["restart", "previous", "pause", "next", "highlight", "follow", "speed", "more", "stop"]);
+    assert.equal(bar.querySelectorAll(".qiaomu-reader-speech-visualizer-bar").length, 6);
+    assert.equal(bar.querySelector(".qiaomu-reader-speech-visualizer").classList.contains("is-active"), true);
     assert.equal(dom.window.CSS.highlights.has("qiaomu-reader-speech"), true);
+    const highlight = bar.querySelector('[data-control="highlight"]');
+    assert.equal(highlight.classList.contains("is-active"), true);
+    assert.equal(highlight.getAttribute("aria-pressed"), "true");
     assert.equal(bar.querySelector('[data-control="previous"]').disabled, true);
     assert.equal(bar.querySelector('[data-control="next"]').disabled, false);
     bar.querySelector('[data-control="next"]').click();
@@ -77,10 +84,21 @@ test("reader speech uses a top toolbar with transport, highlight and live speed 
     assert.equal(bar.querySelector('[data-control="pause"]').textContent, "tts-resume");
     bar.querySelector('[data-control="pause"]').click();
     assert.equal(player.session.paused, false);
-    bar.querySelector('[data-control="highlight"]').click();
+    highlight.click();
     assert.equal(dom.window.CSS.highlights.has("qiaomu-reader-speech"), false);
-    bar.querySelector('[data-control="highlight"]').click();
+    assert.equal(highlight.classList.contains("is-active"), false);
+    assert.equal(highlight.getAttribute("aria-pressed"), "false");
+    highlight.click();
     assert.equal(dom.window.CSS.highlights.has("qiaomu-reader-speech"), true);
+    assert.equal(highlight.getAttribute("aria-pressed"), "true");
+    const follow = bar.querySelector('[data-control="follow"]');
+    assert.equal(follow.classList.contains("is-active"), true);
+    assert.equal(follow.getAttribute("aria-pressed"), "true");
+    follow.click();
+    assert.equal(follow.classList.contains("is-active"), false);
+    assert.equal(follow.getAttribute("aria-pressed"), "false");
+    follow.click();
+    assert.equal(follow.classList.contains("is-active"), true);
     bar.querySelector('[data-control="speed"]').click();
     const speed = bar.querySelector('input[type="range"]');
     assert.equal(speed.parentElement.hidden, false);
@@ -110,6 +128,28 @@ test("reader speech uses a top toolbar with transport, highlight and live speed 
   }
 });
 
+test("toolbar visibility modes preserve playback while controlling the visual toolbar", () => {
+  const dom = new JSDOM("<main><div class='qiaomu-reader-top'></div></main>");
+  const host = dom.window.document.querySelector("main");
+  const proto = dom.window.HTMLElement.prototype;
+  proto.createEl = function(tag, opts = {}) { const el = this.ownerDocument.createElement(tag); el.className = typeof opts === "string" ? opts : opts.cls || ""; for (const [key, value] of Object.entries(opts.attr || {})) el.setAttribute(key, value); this.append(el); return el; };
+  proto.createDiv = function(cls) { return this.createEl("div", cls); };
+  proto.createSpan = function(cls) { return this.createEl("span", cls); };
+  const player = new SelectionSpeechPlayer({ settings: { ttsSpeed: 1 } }, { translate: key => key, icon: () => {} });
+  const session = { controller: new AbortController(), position: "top", display: "fixed", visibility: "never",
+    options: {}, audio: null, prefetch: null, finishAudio: null, url: null };
+  try {
+    player._readerBar(session, host, 1);
+    assert.equal(session.bar.hidden, true);
+    assert.equal(session.bar.getAttribute("aria-hidden"), "true");
+    assert.equal(host.classList.contains("qiaomu-reader-speech-active"), false);
+  } finally {
+    player.session = session;
+    player.stop();
+    dom.window.close();
+  }
+});
+
 test("speech plays selected text, exposes controls, and releases its audio URL", async () => {
   const dom = new JSDOM("<main></main>");
   const host = dom.window.document.querySelector("main");
@@ -135,6 +175,160 @@ test("speech plays selected text, exposes controls, and releases its audio URL",
     assert.equal(JSON.parse(requests[0].options.body).input, "Read this sentence.");
     assert.deepEqual(revoked, ["blob:test"]);
     assert.equal(host.querySelector(".qiaomu-reader-speech-bar"), null);
+  } finally {
+    URL.createObjectURL = originalCreate;
+    URL.revokeObjectURL = originalRevoke;
+    dom.window.close();
+  }
+});
+
+test("auto-hide speech toolbar floats at the selected edge and returns on pointer movement", async () => {
+  const dom = new JSDOM("<main><div class='qiaomu-reader-top'></div><div class='qiaomu-reader-bot'></div><p>Read this sentence.</p></main>");
+  const host = dom.window.document.querySelector("main");
+  const proto = dom.window.HTMLElement.prototype;
+  proto.createEl = function(tag, opts = {}) { const el = this.ownerDocument.createElement(tag); el.className = typeof opts === "string" ? opts : opts.cls || ""; for (const [key, value] of Object.entries(opts.attr || {})) el.setAttribute(key, value); this.append(el); return el; };
+  proto.createDiv = function(cls) { return this.createEl("div", cls); };
+  proto.createSpan = function(cls) { return this.createEl("span", cls); };
+  const originalCreate = URL.createObjectURL, originalRevoke = URL.revokeObjectURL;
+  const originalSetTimeout = dom.window.setTimeout, originalClearTimeout = dom.window.clearTimeout;
+  const timers = [];
+  URL.createObjectURL = () => "blob:auto-hide";
+  URL.revokeObjectURL = () => {};
+  dom.window.setTimeout = (callback, delay) => { const timer = { callback, delay, cleared: false }; timers.push(timer); return timer; };
+  dom.window.clearTimeout = timer => { if (timer) timer.cleared = true; };
+  dom.window.HTMLMediaElement.prototype.play = function() { return Promise.resolve(); };
+  dom.window.HTMLMediaElement.prototype.pause = function() {};
+  const player = new SelectionSpeechPlayer({
+    app: { secretStorage: { getSecret: () => "test-key" } },
+    settings: { ttsService: "openai", ttsSecretId: "key", ttsVoice: "nova", ttsSpeed: 1,
+      ttsBarPosition: "bottom", ttsBarDisplay: "auto-hide" },
+  }, { translate: key => key, icon: () => {}, onError: error => assert.fail(error),
+    request: async () => ({ ok: true, arrayBuffer: async () => new Uint8Array([1]).buffer }) });
+  try {
+    const pending = player.play("Read this sentence.", host);
+    await new Promise(resolve => setTimeout(resolve, 0));
+    const bar = host.querySelector(".qiaomu-reader-speech-docked");
+    assert.ok(bar);
+    assert.equal(bar.classList.contains("qiaomu-reader-speech-position-bottom"), true);
+    assert.equal(host.classList.contains("qiaomu-reader-speech-bottom"), true);
+    assert.equal(host.classList.contains("qiaomu-reader-speech-floating"), true);
+    assert.equal(bar.classList.contains("qiaomu-reader-speech-visible"), true);
+    const hideTimer = timers.find(timer => timer.delay === 3000 && !timer.cleared);
+    assert.ok(hideTimer, "the visible toolbar should schedule its idle timeout");
+    hideTimer.callback();
+    assert.equal(bar.classList.contains("qiaomu-reader-speech-visible"), false);
+    assert.equal(host.classList.contains("qiaomu-reader-speech-floating"), true);
+    host.dispatchEvent(new dom.window.Event("pointermove", { bubbles: true }));
+    assert.equal(bar.classList.contains("qiaomu-reader-speech-visible"), true);
+    assert.equal(host.classList.contains("qiaomu-reader-speech-floating"), true);
+    player.stop();
+    assert.equal(await pending, false);
+    assert.equal(host.classList.contains("qiaomu-reader-speech-floating"), false);
+  } finally {
+    player.stop();
+    dom.window.setTimeout = originalSetTimeout;
+    dom.window.clearTimeout = originalClearTimeout;
+    URL.createObjectURL = originalCreate;
+    URL.revokeObjectURL = originalRevoke;
+    dom.window.close();
+  }
+});
+
+test("auto-hide mode recognizes touch layouts so their toolbar stays pinned", () => {
+  const player = new SelectionSpeechPlayer({ settings: {} });
+  assert.equal(player._isTouchDevice({ innerWidth: 1024, matchMedia: () => ({ matches: true }) }), true);
+  assert.equal(player._isTouchDevice({ innerWidth: 1024, matchMedia: () => ({ matches: false }) }), false);
+  assert.equal(player._isTouchDevice({ innerWidth: 600, matchMedia: () => ({ matches: false }) }), true);
+});
+
+test("speech starts synthesizing the next sentence while the current audio is playing", async () => {
+  const dom = new JSDOM("<main></main>");
+  const host = dom.window.document.querySelector("main");
+  const proto = dom.window.HTMLElement.prototype;
+  proto.createEl = function(tag, opts = {}) { const el = this.ownerDocument.createElement(tag); el.className = typeof opts === "string" ? opts : opts.cls || ""; for (const [key, value] of Object.entries(opts.attr || {})) el.setAttribute(key, value); this.append(el); return el; };
+  proto.createDiv = function(cls) { return this.createEl("div", cls); };
+  proto.createSpan = function(cls) { return this.createEl("span", cls); };
+  const originalCreate = URL.createObjectURL, originalRevoke = URL.revokeObjectURL;
+  const requests = [], played = [];
+  let markFirstStarted, markSecondRequested, markSecondStarted;
+  const firstStarted = new Promise(resolve => { markFirstStarted = resolve; });
+  const secondRequested = new Promise(resolve => { markSecondRequested = resolve; });
+  const secondStarted = new Promise(resolve => { markSecondStarted = resolve; });
+  URL.createObjectURL = () => "blob:prefetch";
+  URL.revokeObjectURL = () => {};
+  dom.window.HTMLMediaElement.prototype.play = function() {
+    played.push(this);
+    if (played.length === 1) markFirstStarted();
+    if (played.length === 2) markSecondStarted();
+    return Promise.resolve();
+  };
+  dom.window.HTMLMediaElement.prototype.pause = function() {};
+  try {
+    const player = new SelectionSpeechPlayer({
+      app: { secretStorage: { getSecret: () => "test-key" } },
+      settings: { ttsService: "azure", ttsConfigs: { azure: { region: "eastasia", secretId: "key",
+        voice: "en-GB-AlfieNeural", model: "audio-24khz-96kbitrate-mono-mp3" } }, ttsSpeed: 1, ttsAutoLanguage: false },
+    }, { translate: key => key, icon: () => {}, onError: error => assert.fail(error),
+      request: async (url, options) => {
+        requests.push({ url, options });
+        if (requests.length === 2) markSecondRequested();
+        return { ok: true, arrayBuffer: async () => new Uint8Array([1, 2, 3]).buffer };
+      } });
+    const pending = player.play("First sentence. Second sentence.", host);
+    await firstStarted;
+    await secondRequested;
+    assert.equal(played.length, 1, "the second sentence should be generated without interrupting playback");
+    played[0].onended();
+    await secondStarted;
+    played[1].onended();
+    assert.equal(await pending, true);
+    assert.equal(requests.length, 2);
+  } finally {
+    URL.createObjectURL = originalCreate;
+    URL.revokeObjectURL = originalRevoke;
+    dom.window.close();
+  }
+});
+
+test("stopping playback aborts the prefetched sentence request", async () => {
+  const dom = new JSDOM("<main></main>");
+  const host = dom.window.document.querySelector("main");
+  const proto = dom.window.HTMLElement.prototype;
+  proto.createEl = function(tag, opts = {}) { const el = this.ownerDocument.createElement(tag); el.className = typeof opts === "string" ? opts : opts.cls || ""; for (const [key, value] of Object.entries(opts.attr || {})) el.setAttribute(key, value); this.append(el); return el; };
+  proto.createDiv = function(cls) { return this.createEl("div", cls); };
+  proto.createSpan = function(cls) { return this.createEl("span", cls); };
+  const originalCreate = URL.createObjectURL, originalRevoke = URL.revokeObjectURL;
+  let requestCount = 0, secondRequestSignal, markFirstStarted, markSecondRequested, finishSecondRequest;
+  const firstStarted = new Promise(resolve => { markFirstStarted = resolve; });
+  const secondRequested = new Promise(resolve => { markSecondRequested = resolve; });
+  URL.createObjectURL = () => "blob:cancel-prefetch";
+  URL.revokeObjectURL = () => {};
+  dom.window.HTMLMediaElement.prototype.play = function() { markFirstStarted(); return Promise.resolve(); };
+  dom.window.HTMLMediaElement.prototype.pause = function() {};
+  try {
+    const player = new SelectionSpeechPlayer({
+      app: { secretStorage: { getSecret: () => "test-key" } },
+      settings: { ttsService: "azure", ttsConfigs: { azure: { region: "eastasia", secretId: "key",
+        voice: "en-GB-AlfieNeural", model: "audio-24khz-96kbitrate-mono-mp3" } }, ttsSpeed: 1, ttsAutoLanguage: false },
+    }, { translate: key => key, icon: () => {}, onError: error => assert.fail(error),
+      request: (url, options) => {
+        if (url.includes("tts.speech.microsoft.com/cognitiveservices/v1")) {
+          requestCount++;
+          if (requestCount === 1) return Promise.resolve({ ok: true, arrayBuffer: async () => new Uint8Array([1]).buffer });
+          secondRequestSignal = options.signal;
+          markSecondRequested();
+          return new Promise(resolve => { finishSecondRequest = resolve; });
+        }
+        return Promise.reject(new Error("unexpected request"));
+      } });
+    const pending = player.play("First sentence. Second sentence.", host);
+    await firstStarted;
+    await secondRequested;
+    assert.ok(player.session.audio);
+    player.stop();
+    assert.equal(secondRequestSignal.aborted, true);
+    assert.equal(await pending, false);
+    finishSecondRequest({ ok: true, arrayBuffer: async () => new Uint8Array([2]).buffer });
   } finally {
     URL.createObjectURL = originalCreate;
     URL.revokeObjectURL = originalRevoke;

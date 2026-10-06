@@ -5,9 +5,9 @@ const expectedVault = "f:/qiaomu-reader-english";
 const vaultPath = app.vault.adapter?.getBasePath?.().replaceAll("\\", "/").replace(/\/+$/, "").toLowerCase();
 if (vaultPath !== expectedVault) throw Error(`Test vault only: ${expectedVault}`);
 
-const id = "qiaomu-reader-english";
+const id = "dashell-reader";
 const plugin = app.plugins.plugins[id];
-if (!plugin) throw Error("Enable Qiaomu Reader English before this test");
+if (!plugin) throw Error("Enable Dashell Reader before this test");
 if (!plugin.settings.onboarded) throw Error("Finish the existing first-run guide before this test");
 
 const originalModals = new Set(plugin._announcementModals || []);

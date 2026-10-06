@@ -29,7 +29,7 @@ test('translation saves to captured editor, preserving unsaved text and preventi
   await h.api.saveTranslationNote(h.modal,'current','译文');
   assert.ok(h.editor.getValue().startsWith('Unsaved personal draft'));
   assert.equal(h.editor.getValue().split('译文').length,2);
-  assert.match(h.editor.getValue(), /obsidian:\/\/qiaomu-reader-english\?vault=/);
+  assert.match(h.editor.getValue(), /obsidian:\/\/dashell-reader\?vault=/);
   assert.match(h.editor.getValue(), /cfi=epubcfi%28/);
 });
 test('closed or changed current-note targets fail rather than write somewhere else', async()=>{

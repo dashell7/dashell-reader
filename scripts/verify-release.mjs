@@ -75,6 +75,10 @@ const fontPayloads = bundledFonts.map(({ file, family }) => {
 requireCheck(!mainSource.includes("ACP installed but its executable was not found"), "release bundle includes an ACP dependency installer");
 requireCheck(mainSource.includes(readBuildText(path.join(root, "licenses/elton-reader-MIT.txt"))), "main.js is missing the inherited MIT license");
 requireCheck(mainSource.includes("SIL OPEN FONT LICENSE Version 1.1"), "main.js is missing the bundled font license");
+for (const name of ["LICENSE_JBIG2", "LICENSE_OPENJPEG", "LICENSE_QCMS", "LICENSE_PDFJS_JBIG2", "LICENSE_PDFJS_OPENJPEG", "LICENSE_PDFJS_QCMS"]) {
+  const license = readBuildText(path.join(root, "node_modules", "pdfjs-dist", "wasm", name)).replaceAll("*/", "* /");
+  requireCheck(mainSource.includes(`${name}\n${license}`), `main.js is missing a bundled PDF decoder license: ${name}`);
+}
 
 if (installDir) {
   const installedManifest = readJson(path.join(installDir, "manifest.json"));
