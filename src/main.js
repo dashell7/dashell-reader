@@ -14437,7 +14437,7 @@ const SettingsTab = class extends PluginSettingTab {
       .setName(qiaomuReaderTranslate("feedback-and-bugs"))
       .setDesc(qiaomuReaderTranslate("report-a-bug-or-suggest-a-feature-and-we-will-follow-up-on-githu"))
       .addButton((b) => b.setCta().setButtonText(qiaomuReaderTranslate("open-github-issues")).onClick(() => {
-        window.open("https://github.com/dashell7/qiaomu-reader-english/issues", "_blank");
+        window.open("https://github.com/dashell7/dashell-reader/issues", "_blank");
       }));
     new Setting(c)
       .setName(qiaomuReaderTranslate("plugin-guide"))
@@ -14452,7 +14452,7 @@ const SettingsTab = class extends PluginSettingTab {
     const about = c.createEl("div", { cls: "qiaomu-reader-set-note" });
     about.createEl("b", { text: "Dashell Reader" });
     about.appendText(` · ${this.plugin.manifest.version} · ${this.plugin.manifest.author} · `);
-    about.createEl("a", { text: "GitHub @dashell7", href: "https://github.com/dashell7/qiaomu-reader-english" });
+    about.createEl("a", { text: "GitHub @dashell7", href: "https://github.com/dashell7/dashell-reader" });
     about.createEl("br");
     about.createEl("a", { text: "Qiaomu Reader · 向阳乔木", href: "https://github.com/joeseesun/qiaomu-reader" });
     about.createEl("br");
