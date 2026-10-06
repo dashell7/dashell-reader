@@ -1,6 +1,6 @@
 # Dashell Reader
 
-**中文** · [English](#english) · [源代码](https://github.com/dashell7/qiaomu-reader-english) · [问题反馈](https://github.com/dashell7/qiaomu-reader-english/issues)
+**中文** · [English](#english) · [源代码](https://github.com/dashell7/dashell-reader) · [问题反馈](https://github.com/dashell7/dashell-reader/issues)
 
 > 在英文阅读中直接查词，把词条交给 Spaced Repetition 复习。
 > Read English, look up words in place, and review them with Spaced Repetition.
@@ -19,7 +19,7 @@ Dashell Reader 是中文优先的 Obsidian EPUB、PDF、FB2、MOBI、AZW3 和 CB
 
 阅读本身完全离线，每本书关联一篇 Markdown 阅读笔记；AI 是可选能力，由你选择服务并主动启用。
 
-[安装与快速开始](#安装) · [英文学习流程](#英文学习流程) · [构建验证](https://github.com/dashell7/qiaomu-reader-english/actions) · [GPL-3.0 许可](LICENSE)
+[安装与快速开始](#安装) · [英文学习流程](#英文学习流程) · [构建验证](https://github.com/dashell7/dashell-reader/actions) · [GPL-3.0 许可](LICENSE)
 
 **截图版本：4.2.4。** 以下五张截图均来自安装正式 Release 文件的 Obsidian 1.13.7，展示内置书架、选文操作、划线笔记、AI 伴读和 PDF 原页。使用隔离演示仓库、公版示例书与原创 PDF；AI 对话明确标注为界面演示，未调用模型。详见[截图与版本核验](docs/showcase.md)。
 
@@ -109,10 +109,10 @@ PDF 保留原始版式，支持独立缩放。有可靠文字层时，可选择�
 
 1. 在 Obsidian 第三方插件市场安装并启用 **BRAT**。
 2. 打开 BRAT → **Add beta plugin**。
-3. 输入 `dashell7/qiaomu-reader-english`。
+3. 输入 `dashell7/dashell-reader`。
 4. 安装并启用 **Dashell Reader**。
 
-也可以从 [GitHub Releases](https://github.com/dashell7/qiaomu-reader-english/releases) 下载 `main.js`、`manifest.json` 和 `styles.css`，放入库目录 `.obsidian/plugins/dashell-reader/`，然后在 Obsidian 中重新加载并启用插件。首次从旧版升级时，如果 Obsidian 将插件放入新目录，插件会复制旧目录中的设置和阅读数据，原文件会保留；启用新插件后可检查旧插件是否已停用。
+也可以从 [GitHub Releases](https://github.com/dashell7/dashell-reader/releases) 下载 `main.js`、`manifest.json` 和 `styles.css`，放入库目录 `.obsidian/plugins/dashell-reader/`，然后在 Obsidian 中重新加载并启用插件。首次从旧版升级时，如果 Obsidian 将插件放入新目录，插件会复制旧目录中的设置和阅读数据，原文件会保留；启用新插件后可检查旧插件是否已停用。
 
 阅读、划线和笔记无需配置 AI；首次打开书库即可体验内置公版书，也可以添加自己的图书。需要 AI 时，再进入插件设置选择服务并测试连接。
 
@@ -130,7 +130,7 @@ PDF 保留原始版式，支持独立缩放。有可靠文字层时，可选择�
 <details>
 <summary>手动安装</summary>
 
-从 [最新版本](https://github.com/dashell7/qiaomu-reader-english/releases/latest) 下载 `main.js`、`manifest.json` 和 `styles.css`，放入：
+从 [最新版本](https://github.com/dashell7/dashell-reader/releases/latest) 下载 `main.js`、`manifest.json` 和 `styles.css`，放入：
 
 ```text
 <你的仓库>/.obsidian/plugins/dashell-reader/
@@ -225,7 +225,7 @@ npm run build:community
 
 ## 作者
 
-Dashell Reader 由 [dashell](https://github.com/dashell7) 维护，源码仓库为 [dashell7/qiaomu-reader-english](https://github.com/dashell7/qiaomu-reader-english)。
+Dashell Reader 由 [dashell](https://github.com/dashell7) 维护，源码仓库为 [dashell7/dashell-reader](https://github.com/dashell7/dashell-reader)。
 
 原项目 Qiaomu Reader 由 [向阳乔木](https://qiaomu.ai) 维护：
 
@@ -249,10 +249,10 @@ This fork is not in the Obsidian Community Plugins directory yet. Install it wit
 
 1. Install and enable **BRAT** from Obsidian Community Plugins.
 2. Open BRAT → **Add beta plugin**.
-3. Enter `dashell7/qiaomu-reader-english`.
+3. Enter `dashell7/dashell-reader`.
 4. Install and enable **Dashell Reader**.
 
-For a manual install, download `main.js`, `manifest.json` and `styles.css` from the [GitHub Releases](https://github.com/dashell7/qiaomu-reader-english/releases) page and place them in `.obsidian/plugins/dashell-reader/`. Reload Obsidian and enable the plugin. The plugin ID is `dashell-reader`. On the first install after the ID change, settings and reading data are copied from `.obsidian/plugins/qiaomu-reader-english/`; source files are retained, and existing data in the new folder takes precedence. Disable the old plugin before enabling this one.
+For a manual install, download `main.js`, `manifest.json` and `styles.css` from the [GitHub Releases](https://github.com/dashell7/dashell-reader/releases) page and place them in `.obsidian/plugins/dashell-reader/`. Reload Obsidian and enable the plugin. The plugin ID is `dashell-reader`. On the first install after the ID change, settings and reading data are copied from `.obsidian/plugins/qiaomu-reader-english/`; source files are retained, and existing data in the new folder takes precedence. Disable the old plugin before enabling this one.
 
 The custom plugin can run beside the official `qiaomu-reader` plugin. Its settings, reading progress, highlights and English review file are separate. It does not read or overwrite Language Learner data and does not take over the official protocol links.
 
@@ -326,7 +326,7 @@ Use `npm ci`, `npm test`, `npm run check:i18n`, `npx eslint src/`, `npm run buil
 
 Both the default build and the community build exclude dependency installation code. CLI adapters must be installed by the user. A separate community-candidate build is available with `npm run build:community` in `dist/community/`. It excludes the ACP dependency installer while retaining manual setup guidance, detection, and persistent chat.
 
-Dashell Reader is maintained by [dashell](https://github.com/dashell7), with source at [dashell7/qiaomu-reader-english](https://github.com/dashell7/qiaomu-reader-english). Upstream Qiaomu Reader is maintained by [Qiaomu](https://qiaomu.ai). Third-party notices and copyright information are preserved in [LICENSE](LICENSE); bundled font provenance and license live in [fonts/README.md](fonts/README.md) and [fonts/OFL.txt](fonts/OFL.txt).
+Dashell Reader is maintained by [dashell](https://github.com/dashell7), with source at [dashell7/dashell-reader](https://github.com/dashell7/dashell-reader). Upstream Qiaomu Reader is maintained by [Qiaomu](https://qiaomu.ai). Third-party notices and copyright information are preserved in [LICENSE](LICENSE); bundled font provenance and license live in [fonts/README.md](fonts/README.md) and [fonts/OFL.txt](fonts/OFL.txt).
 
 ## License
 

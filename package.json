@@ -1,14 +1,14 @@
 {
-  "name": "qiaomu-reader-english",
+  "name": "dashell-reader",
   "version": "4.4.6",
   "description": "Dashell Reader：Obsidian 电子书和文档阅读器，支持划线笔记、AI 伴读、英语查词、划线朗读及 Spaced Repetition 复习。",
-  "homepage": "https://github.com/dashell7/qiaomu-reader-english",
+  "homepage": "https://github.com/dashell7/dashell-reader",
   "repository": {
     "type": "git",
-    "url": "https://github.com/dashell7/qiaomu-reader-english.git"
+    "url": "https://github.com/dashell7/dashell-reader.git"
   },
   "bugs": {
-    "url": "https://github.com/dashell7/qiaomu-reader-english/issues"
+    "url": "https://github.com/dashell7/dashell-reader/issues"
   },
   "main": "main.js",
   "type": "module",
