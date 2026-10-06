@@ -11,6 +11,10 @@
 
 本项目与官方 `qiaomu-reader` 插件可以同时安装。它通过 GitHub Release 分发，尚未进入 Obsidian 社区插件目录；安装请使用 BRAT 或手动安装。当前版本为 4.4.6。定制版不修改 Language Learner 的数据文件，也不会接管官方插件的协议链接。
 
+## Dashell 英语学习套件
+
+[Dashell Reader](https://github.com/dashell7/dashell-reader)负责书籍与文章阅读、查词和生词收录；[Dashell Player](https://github.com/dashell7/dashell-player)负责音视频、字幕与听写，并可把选中的单词交给 Reader 查词；[Dashell RSS](https://github.com/dashell7/dashell-rss)负责订阅、预览和保存学习材料到本地。三个插件可以分别安装，也可以组合使用。
+
 ![Qiaomu Reader 4.2.4 内置书库：六本中英文公版电子书，包含真实封面、继续阅读、划线数量与阅读笔记入口](docs/assets/showcase-4.2.4-library.jpg)
 
 **安装后，书架里就有六本书。** 从《道德经》《唐诗三百首》《世说新语》或三本英文经典开始，直接体验阅读、划线和做笔记，无需先找书或配置 AI。
@@ -253,6 +257,10 @@ This fork is not in the Obsidian Community Plugins directory yet. Install it wit
 4. Install and enable **Dashell Reader**.
 
 For a manual install, download `main.js`, `manifest.json` and `styles.css` from the [GitHub Releases](https://github.com/dashell7/dashell-reader/releases) page and place them in `.obsidian/plugins/dashell-reader/`. Reload Obsidian and enable the plugin. The plugin ID is `dashell-reader`. On the first install after the ID change, settings and reading data are copied from `.obsidian/plugins/qiaomu-reader-english/`; source files are retained, and existing data in the new folder takes precedence. Disable the old plugin before enabling this one.
+
+## The Dashell English-learning suite
+
+[Dashell Reader](https://github.com/dashell7/dashell-reader) handles books and articles, dictionary lookup, and vocabulary capture. [Dashell Player](https://github.com/dashell7/dashell-player) handles audio, video, subtitles, and dictation, and can send selected words to Reader. [Dashell RSS](https://github.com/dashell7/dashell-rss) handles feed subscriptions, previews, and saving learning materials locally. Each plugin works on its own; install the combination that fits your workflow.
 
 The custom plugin can run beside the official `qiaomu-reader` plugin. Its settings, reading progress, highlights and English review file are separate. It does not read or overwrite Language Learner data and does not take over the official protocol links.
 
