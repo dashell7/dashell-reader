@@ -104,7 +104,7 @@
     await waitFor(() => reader.pager.flow.querySelector(".qiaomu-reader-pdf-text-layer")?.textContent.includes("Text before"), "Selectable text page");
     assert(reader.pdfDocumentContext.text.includes("Text before"), "Text PDF preserves its AI and lookup text layer");
     assert(!!reader.lookupController, "English lookup controller remains attached");
-    assert(typeof plugin.openEnglishDictionary === "function" && typeof plugin.addEnglishReviewCard === "function" && !!plugin.selectionSpeech, "Dictionary, vocabulary review and speech APIs remain available");
+    assert(typeof plugin.openEnglishDictionary === "function" && typeof plugin.addEnglishReviewCard === "function" && typeof plugin.tts?.start === "function" && !!reader._ttsBar, "Dictionary, vocabulary review and Qiaomu speech APIs remain available");
     assert(!warnings.some(item => /Unable to decode|instantiateWasm|failed to initialize/i.test(item)), "No PDF decoder initialization warnings");
     assert(errors.length === 0, "No console errors during PDF reading");
     result = { passed: true, checks, cover, scan: scanPixels, warnings, errors, vault, userAgent: navigator.userAgent };

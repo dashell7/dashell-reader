@@ -10,13 +10,14 @@ Bundled dependencies retain their own licenses; esbuild preserves their legal co
 
 The English lookup and vocabulary module contains adapted code from Language Learner 1.2.16, copyright (c) 2026 OBLE, under the MIT license. Its license is retained at `src/learning/vendor/LICENSE`.
 
-Selection speech adapts the OpenAI speech request and chunked playback design from [Aloud](https://github.com/adrianlyjak/obsidian-aloud-tts), copyright (c) 2023 Adrian Lyjak, under the MIT license. Examined source commit: `0bd97a49ac256bfab8fc4d684e297ed24a412a7f`. Its license is retained at `licenses/aloud-tts-MIT.txt` and in the generated `main.js` banner.
+Speech synthesis, playback and settings are adapted from Qiaomu Reader under the project's GPL-3.0-only license. Earlier Dashell versions adapted portions of [Aloud](https://github.com/adrianlyjak/obsidian-aloud-tts), copyright (c) Adrian Lyjak, under MIT. That component has been removed; its [MIT terms](licenses/aloud-tts-MIT.txt) are retained for historical provenance.
 
 - [Foliate.js](https://github.com/johnfactotum/foliate-js) — MIT, John Factotum.
 - [PDF.js](https://github.com/mozilla/pdf.js) — Apache-2.0, Mozilla Foundation.
 - PDF image/color decoders (PDFium JBIG2/CCITT, OpenJPEG, QCMS) are bundled from the locked `pdfjs-dist` WASM resources. Their six `LICENSE_*` texts are retained verbatim in the generated `main.js` banner, with comment terminators escaped. QuickJS evaluation resources are not included. This selective offline-PDF fix is adapted from Qiaomu Reader 4.5.13, commit `45dff3c551a1f06984520a63f3b09185d5346763`; it does not adopt the upstream vocabulary or Anki features.
 - [JSZip](https://github.com/Stuk/jszip) — MIT or GPLv3, Stuart Knightley and contributors.
 - [localForage](https://github.com/localForage/localForage) — Apache-2.0, Mozilla.
+- Edge speech interoperability is adapted from [rany2/edge-tts](https://github.com/rany2/edge-tts) under LGPL-3.0; its full [license](licenses/edge-tts-LGPL.txt) accompanies the release bundle in `styles.css`. The desktop WebSocket dependency [ws](https://github.com/websockets/ws) retains its MIT notice in `main.js`.
 
 Bundled font provenance and license are in `fonts/README.md` and `fonts/OFL.txt`.
 Starter books retain their Project Gutenberg notices; see `assets/starter-books/README.md`.

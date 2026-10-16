@@ -46,7 +46,6 @@ function setup() {
     file: { path: "Book.mobi", extension: "mobi" }, app: { vault: { getName: () => "Vault" } },
     contentEl: root, areaEl: root.querySelector("article"), hlPopup: root.querySelector(".popup"),
     plugin: { settings: { defaultHlColor: "yellow", navMode: "click" }, getHighlights: () => records,
-      selectionSpeech: { play: async text => spoken.push(text) },
       setHighlightColor: (_, id, color) => { records.find(h => h.id === id).color = color; },
       addHighlight: (_, h) => records.push(h), removeHighlight: (_, id) => records.splice(records.findIndex(h => h.id === id), 1),
       saveAll: async () => true,
@@ -62,10 +61,12 @@ function setup() {
   };
   class Scope { constructor() { this.bindings = []; } register(mods, key, run) { this.bindings.push({ mods, key, run }); } }
   const translations = [];
-  const context = { selectionActionPreferences, TranslateModal: class { constructor(app, plugin, text, file) { translations.push({ text, file }); } open() {} }, window, Menu, Scope, aiSetupState: () => ({ ready: true, enabled: true }), paintAiSource() {}, qiaomuReaderTranslate: k => k, setIcon() {}, highlightBacklink,
+  const context = { selectionActionPreferences, openLookupCard: v => translations.push({ text: v._currentHl().text, file: v.file }), window, Menu, Scope, aiSetupState: () => ({ ready: true, enabled: true }), paintAiSource() {}, qiaomuReaderTranslate: k => k, setIcon() {}, highlightBacklink,
     docOf: el => el.ownerDocument, selOf: el => el.ownerDocument.getSelection(), readerIsPdf: () => false,
     qiaomuReaderRefreshHlPanel() {}, qiaomuReaderAutoFocus() {}, positionHlPopup() {},
     hlCommentQuoteBlock() {}, Notice: class {},
+    ttsText: (_plugin, key) => key,
+    openTts: (_view, text) => { view._spokenSelection = text; spoken.push(text); },
     copyToClipboard: async text => { copied.push(text); return true; },
     hlColorCss: color => color, QUICK_HL_COLOR_IDS: ["yellow", "green", "pink"],
     HL_COLORS: ["yellow", "green", "pink", "blue"].map(id => ({ id, label: () => id })),

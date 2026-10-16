@@ -45,6 +45,7 @@ export const READER_THEMES = {
     muted: "#5f6d74",
   },
   night: {
+    dark: true,
     label: "night",
     bg: "#181a1b",
     text: "#d9d7d1",
@@ -52,6 +53,62 @@ export const READER_THEMES = {
     border: "#383c3d",
     accent: "#91ab9a",
     muted: "#9a9a94",
+  },
+  bright: {
+    label: "bright",
+    bg: "#ffffff",
+    text: "#292929",
+    ui: "#f7f7f7",
+    border: "#dedede",
+    accent: "#292929",
+    muted: "#626262",
+  },
+  rice: {
+    label: "rice-paper",
+    bg: "#f8f5ee",
+    text: "#2e2a24",
+    ui: "#f1ece2",
+    border: "#e2dace",
+    accent: "#2e2a24",
+    muted: "#6b6358",
+  },
+  bamboo: {
+    label: "bamboo",
+    bg: "#edf2ec",
+    text: "#27322c",
+    ui: "#e4ebe3",
+    border: "#d3ddd2",
+    accent: "#27322c",
+    muted: "#56645b",
+  },
+  mist: {
+    label: "mist-blue",
+    bg: "#f3f5f8",
+    text: "#1f2933",
+    ui: "#eaeef3",
+    border: "#d9dfe7",
+    accent: "#1f2933",
+    muted: "#52606d",
+  },
+  deepsea: {
+    dark: true,
+    label: "deep-sea",
+    bg: "#171c24",
+    text: "#d5dce6",
+    ui: "#1d232d",
+    border: "#2a313c",
+    accent: "#d5dce6",
+    muted: "#98a3b3",
+  },
+  black: {
+    dark: true,
+    label: "ink-black",
+    bg: "#000000",
+    text: "#c8c8c8",
+    ui: "#0d0d0d",
+    border: "#222222",
+    accent: "#c8c8c8",
+    muted: "#8e8e8e",
   },
   eink: {
     label: "e-ink-2",
@@ -64,7 +121,7 @@ export const READER_THEMES = {
   },
 };
 
-export const READER_THEME_CHOICES = ["auto", "paper", "warm", "celadon", "moon", "night"];
+export const READER_THEME_CHOICES = ["auto", "bright", "paper", "rice", "warm", "celadon", "bamboo", "moon", "mist", "night", "deepsea", "black"];
 
 export function migrateReaderTheme(value) {
   if (value === "light") return "paper";

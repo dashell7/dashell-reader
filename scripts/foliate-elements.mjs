@@ -8,6 +8,43 @@ function replaceRequired(code, before, after) {
   return code.replace(before, after);
 }
 
+const frameModule = fileURLToPath(new URL("../src/engine-frame.js", import.meta.url));
+
+export function patchFoliateFrames(code, name) {
+  const imports = [];
+  if (["epub.js", "fb2.js", "mobi.js", "comic-book.js"].includes(name)) {
+    code = replaceRequired(code, "URL.createObjectURL", "createEngineObjectURL");
+    code = code.replaceAll("URL.createObjectURL", "createEngineObjectURL");
+    code = replaceRequired(code, "URL.revokeObjectURL", "revokeEngineObjectURL");
+    code = code.replaceAll("URL.revokeObjectURL", "revokeEngineObjectURL");
+    imports.push("createEngineObjectURL", "revokeEngineObjectURL");
+  } else if (name === "paginator.js") {
+    code = replaceRequired(code, `return new Promise(resolve => {
+            this.#iframe.addEventListener('load', () => {
+                const doc = this.document`,
+    "return loadEngineFrame(this.#iframe, src, doc => {");
+    code = replaceRequired(code, `                resolve()
+            }, { once: true })
+            this.#iframe.src = src`, "");
+    imports.push("loadEngineFrame");
+  } else if (name === "fixed-layout.js") {
+    code = replaceRequired(code, `return new Promise(resolve => {
+            iframe.addEventListener('load', () => {
+                const doc = iframe.contentDocument`,
+    "return loadEngineFrame(iframe, src, doc => {");
+    code = replaceRequired(code, `                resolve({
+                    element, iframe,`, `                return {
+                    element, iframe,`);
+    code = replaceRequired(code, `                    onZoom,
+                })
+            }, { once: true })
+            iframe.src = src`, `                    onZoom,
+                }`);
+    imports.push("loadEngineFrame");
+  }
+  return imports.length ? `import { ${imports.join(", ")} } from ${JSON.stringify(frameModule)}\n${code}` : code;
+}
+
 export function patchFoliatePaginator(code) {
   // ResizeObserver callbacks run during layout. Defer geometry writes to the
   // next frame so expanding a section cannot trigger an observer feedback loop.
@@ -25,9 +62,11 @@ export function patchFoliatePaginator(code) {
   code = replaceRequired(code, "this.#observer.unobserve(this)", "this.#observer.disconnect()");
   code = replaceRequired(code, "if (this.document) this.#observer.unobserve(this.document.body)", "this.#observer.disconnect()");
   code = replaceRequired(code, "this.#view.destroy()\n        this.#view = null", "this.#view?.destroy()\n        this.#view = null");
-  code = replaceRequired(code, "render() {\n        if (!this.#view) return", "render() {\n        if (!this.#view || !this.#container.clientWidth || !this.#container.clientHeight) return");
+  code = replaceRequired(code, "render() {\n        if (!this.#view) return", "render() {\n        if (!this.isConnected || !this.#view?.document?.body || !this.#view.document.defaultView || !this.#container.clientWidth || !this.#container.clientHeight) return");
   code = replaceRequired(code, "expand() {\n        const { documentElement } = this.document",
-    "expand() {\n        if (!this.#element.parentElement?.clientWidth || !this.#element.parentElement?.clientHeight) return\n        const { documentElement } = this.document");
+    "expand() {\n        if (!this.document?.body || !this.#element.isConnected || !this.#element.parentElement?.clientWidth || !this.#element.parentElement?.clientHeight) return\n        const { documentElement } = this.document");
+  code = replaceRequired(code, "if (!doc) return\n        const htmlStyle = doc.defaultView.getComputedStyle(doc.documentElement)",
+    "if (!doc?.documentElement || !doc.defaultView) return\n        const htmlStyle = doc.defaultView.getComputedStyle(doc.documentElement)");
   code = replaceRequired(code, "--_max-column-count-portrait: 1;", "--_max-column-count-portrait: var(--_max-column-count);");
   // An exception must not leave all later navigation permanently locked.
   code = replaceRequired(code, "async #turnPage(dir, distance) {\n        if (this.#locked) return\n        this.#locked = true",
@@ -59,17 +98,19 @@ export function patchFoliateZipLoader(code) {
 // cannot accidentally instantiate an older library's renderer.
 export function foliateElements(root = process.cwd()) {
   const revision = createHash("sha256").update(fs.readFileSync(path.join(root, "package-lock.json")))
-    .update(fs.readFileSync(fileURLToPath(import.meta.url))).digest("hex").slice(0, 12);
+    .update(fs.readFileSync(fileURLToPath(import.meta.url)))
+    .update(fs.readFileSync(frameModule)).digest("hex").slice(0, 12);
   const prefix = `qbr-${revision}-foliate`;
   return {
     define: { __QBR_ENGINE_VIEW_TAG__: JSON.stringify(`${prefix}-view`) },
     plugin: {
       name: "qbr-foliate-elements",
       setup(build) {
-        build.onLoad({ filter: /node_modules[\\/]foliate-js[\\/](view|paginator|fixed-layout)\.js$/ }, async ({ path: file }) => {
+        build.onLoad({ filter: /node_modules[\\/]foliate-js[\\/](view|paginator|fixed-layout|epub|fb2|mobi|comic-book)\.js$/ }, async ({ path: file }) => {
           let code = await fs.promises.readFile(file, "utf8");
           if (path.basename(file) === "paginator.js") code = patchFoliatePaginator(code);
           if (path.basename(file) === "view.js") code = patchFoliateZipLoader(code);
+          code = patchFoliateFrames(code, path.basename(file));
           code = code.replace(/(['"])foliate-(view|paginator|fxl)\1/g, (_, quote, type) => `${quote}${prefix}-${type}${quote}`);
           code = code.replace(/customElements\.define\(('([^']+)'|"([^"]+)"),/g,
             (_, literal) => `if (!customElements.get(${literal})) customElements.define(${literal},`);

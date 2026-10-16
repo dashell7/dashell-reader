@@ -70,7 +70,9 @@
     "unified": "^10.1.2",
     "unist-util-modify-children": "^3.1.1",
     "unist-util-visit": "^4.1.2",
-    "vue": "3.2.45"
+    "vue": "3.2.45",
+    "marked": "18.1.1",
+    "ws": "^8.22.0"
   },
   "overrides": {
     "@vue/compiler-sfc": "3.2.45",

@@ -672,12 +672,20 @@ test("reading themes migrate legacy names and meet WCAG AA contrast", () => {
   assert.equal(migrateReaderTheme("sepia"), "warm");
   assert.equal(migrateReaderTheme("dark"), "night");
   assert.equal(migrateReaderTheme("eink"), "moon");
-  assert.deepEqual(READER_THEME_CHOICES, ["auto", "paper", "warm", "celadon", "moon", "night"]);
+  assert.deepEqual(READER_THEME_CHOICES, ["auto", "bright", "paper", "rice", "warm", "celadon", "bamboo", "moon", "mist", "night", "deepsea", "black"]);
   assert.ok(READER_THEMES.eink, "e-ink device mode keeps its internal high-contrast palette");
+  assert.deepEqual(READER_THEME_CHOICES.filter((id) => READER_THEMES[id].dark), ["night", "deepsea", "black"]);
   for (const id of READER_THEME_CHOICES.filter((name) => name !== "auto")) {
     const theme = READER_THEMES[id];
     assert.ok(contrast(theme.bg, theme.text) >= 4.5, `${id} contrast is too low`);
   }
+});
+
+test("in-reader theme controls paint each new choice with its own palette", () => {
+  const source = fs.readFileSync(new URL("../src/main.js", import.meta.url), "utf8");
+  const start = source.indexOf("function readerSettThemeRow(");
+  const end = source.indexOf("function readerSettAdvSection(", start);
+  assert.match(source.slice(start, end), /\[\.\.\.row\.children\]\.forEach\(\(button, index\) => paintReaderThemeChoice\(button, READER_THEME_CHOICES\[index\]\)\)/);
 });
 
 test("public README uses Qiaomu branding and links to preserved third-party notices", () => {
@@ -694,7 +702,7 @@ test("public README uses Qiaomu branding and links to preserved third-party noti
 test("AI prompt and context are Chinese-first", () => {
   const source = fs.readFileSync(new URL("../src/main.js", import.meta.url), "utf8");
   const start = source.indexOf("function aiSystemChat");
-  const end = source.indexOf("const TranslateModal", start);
+  const end = source.indexOf("function lookupAiReady(", start);
   const aiSource = source.slice(start, end);
   assert.match(aiSource, /你是一名克制、准确的阅读助手/);
   assert.match(aiSource, /书名：《/);
@@ -895,9 +903,10 @@ test("book-note append asks to open only once", () => {
 });
 
 test("reader chrome follows the selected theme and removes only the reader's redundant host header", () => {
-  const css = fs.readFileSync(new URL("../styles.css", import.meta.url), "utf8");
+  const css = fs.readFileSync(new URL("../src/styles.css", import.meta.url), "utf8");
   assert.match(css, /\.qiaomu-reader-top, \.qiaomu-reader-bot \{ background:var\(--qiaomu-reader-ui/);
   assert.match(css, /\.qiaomu-reader-night \{[^}]*color-scheme: dark;/s);
+  assert.match(css, /--background-primary: var\(--qiaomu-reader-bg\)/);
   assert.match(css, /\.workspace-leaf-content\[data-type="qiaomu-reader-english"\] > \.view-header \{ display:none; \}/);
   assert.match(css, /\.qiaomu-reader-area \{[^}]*background:var\(--qiaomu-reader-bg/s);
 });
@@ -950,8 +959,8 @@ test("settings use task tabs, concise intros, and Chinese-first copy", () => {
   assert.match(chinese, /只改变书页；顶部和底部工具栏始终跟随 Obsidian/);
   assert.match(chinese, /按自己的阅读习惯调整，所有设置都会自动保存/);
   assert.match(chinese, /"confirm": "确定"/);
-  assert.match(source, /if \(cfg\.id === "custom"\) this\._aiBaseRow\(c, s, p\)/);
-  assert.match(source, /if \(needsSecret \|\| cfg\.id === "custom"\) this\._aiSecretRow\(c, s, p\)/);
+  assert.match(source, /renderAiSources\(c, plugin, \{/);
+  assert.match(source, /if \(p\.needsKey \|\| cfg\.id === "custom"\) this\._aiSecretRow\(connection, s, p\)/);
   assert.match(source, /aiSecrets: \{\}, aiBases: \{\}/);
   assert.match(source, /settings\.aiSecrets\?\.\[providerId\]/);
   assert.match(source, /settings\.aiBases\?\.\[id\]/);
@@ -1071,7 +1080,7 @@ test("confirming AI settings automatically prepares, tests, and enables the sele
   assert.match(modalSource, /probeCliAcp\(cfg\.id/);
   assert.match(modalSource, /resolveCliPath\(cfg\.id, s\.aiCliPaths\[cfg\.id\]\)/);
   assert.doesNotMatch(modalSource, /const cliStatus = await probeCliAi/);
-  assert.match(modalSource, /async function testAndEnableAi\(plugin, onStage = \(\) => \{\}\)/);
+  assert.match(modalSource, /async function testAndEnableAi\(plugin, onStage = \(\) => \{\}, signal\)/);
   assert.match(modalSource, /await testAndEnableAi\(plugin, setButtonText\)/);
   assert.match(modalSource, /plugin\.settings\.aiEnabled = true/);
   assert.match(modalSource, /plugin\.settings\.aiNeedsVerification = false/);

@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { buildProfile } from "./build-profile.mjs";
+import { buildProfile, RELEASE_ASSET_BUDGET_BYTES } from "./build-profile.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const args = process.argv.slice(2);
@@ -48,7 +48,8 @@ const assets = Object.fromEntries(releaseFiles.map((name) => {
   return [name, { bytes: fs.statSync(file).size, sha256: sha256(file) }];
 }));
 
-const mainSource = fs.readFileSync(path.join(profile.outputDir, "main.js"), "utf8");
+const mainSource = readBuildText(path.join(profile.outputDir, "main.js"));
+requireCheck(!/createElement\(\s*["']script["']\s*\)/.test(mainSource), "bundle creates script elements at runtime");
 requireCheck(mainSource.includes(`Build channel: ${profile.name}`), "bundle channel does not match verification profile");
 if (profile.name === "community") {
   const info = readJson(path.join(profile.outputDir, "build-info.json"));

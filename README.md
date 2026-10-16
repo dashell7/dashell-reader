@@ -75,7 +75,7 @@ Dashell Reader 是中文优先的 Obsidian EPUB、PDF、FB2、MOBI、AZW3 和 CB
 
 选中文字，常用操作出现在选文旁边；右键也能使用这些功能。划线颜色通过下拉菜单切换，三种颜色使用统一样式。朱雀仿宋随插件离线提供，也可选择本机字体或导入字体文件；主题、字号、行距与单/双页布局可在阅读设置中调整。书页背景覆盖阅读区域，工具栏跟随 Obsidian。
 
-选中文字或打开已保存划线的更多菜单，可点“朗读”。阅读界面的播放栏出现在顶部原工具栏位置，支持从头播放、上一段/下一段、暂停/继续、显示选区、即时调速和停止，不会挤动正文。「插件设置 → 语音朗读」提供 10 种语音服务（OpenAI、兼容 OpenAI、Azure、ElevenLabs、Gemini、Hume、MiniMax、Fish Audio、Inworld、AWS Polly），可分别设置模型、声音和密钥，并编辑试听文字。Azure 还能按可用声音选择试听语言，并在阅读时自动匹配可辨识语种；短句无法可靠判断时使用当前选定的声音。密钥由 Obsidian 密钥库保管；朗读只在主动点击后把选中文字发送给所选服务。
+点击阅读工具栏的“朗读”，可从当前阅读位置开始；选中文字或打开已保存划线的菜单，也可朗读指定内容。朗读组件使用 Qiaomu Reader 的播放器、音色选择、试听和语音设置，支持暂停/继续、上一句/下一句、调速、跟随正文和接续朗读。提供 Edge、系统语音、Mac 本地语音、本地模型、OpenAI、兼容 OpenAI、通义千问、豆包、MiniMax、硅基流动、ElevenLabs 和 Azure；可用服务随设备而异。桌面默认使用无需密钥的 Edge 在线朗读，文字会发送至微软；选择其他在线服务时，文字发送至对应服务。本地语音与本地模型在设备上合成；本地模型首次设置需联网下载。旧 Aloud 组件已移除，共同支持的服务会保留原音色、区域和密钥引用，旧设置仅保留作回退记录。
 
 ### 3. 划线成为笔记，还能回到原文
 
@@ -239,7 +239,7 @@ Dashell Reader 由 [dashell](https://github.com/dashell7) 维护，源码仓库�
 
 项目含有改编自 [Elton Reader](https://github.com/swayinfo/elton-reader) 的代码，感谢 Elton Labs 的工作；这些部分保留 MIT 许可。来源、第三方开源软件和版权声明见 [NOTICE.md](NOTICE.md) 与 [LICENSE](LICENSE)；内置字体的来源与许可见 [fonts/README.md](fonts/README.md) 与 [fonts/OFL.txt](fonts/OFL.txt)。
 
-划线朗读参考并改编自 [Aloud](https://github.com/adrianlyjak/obsidian-aloud-tts)，保留其 [MIT 许可](licenses/aloud-tts-MIT.txt)。
+语音朗读组件来自 [Qiaomu Reader](https://github.com/joeseesun/qiaomu-reader)。此前版本包含的 Aloud 朗读组件已移除，其历史来源及 [MIT 许可](licenses/aloud-tts-MIT.txt)仍保留。
 
 ---
 
@@ -278,7 +278,7 @@ When reading English text, hover over a word for the ported Language Learner pop
 
 Words saved to the vocabulary file can also appear marked in other supported reading content. The reader keeps each supplied RSS article version's progress separately, and selected text or saved highlights can be read aloud with the configured speech provider.
 
-Selected text and saved highlights can be read aloud from their menus. In the reader, playback controls replace the top toolbar without moving the page; they support restart, previous/next segment, pause/resume, selection highlighting, live speed control, and stop. **Plugin settings → Read aloud** offers ten speech services with separate credentials, models, voices, and an editable test phrase. Azure also lets you choose a test language and matching voice, and can match a detectable reading language automatically; uncertain short phrases keep the selected voice. Speech is requested only when you choose Read aloud, and the selected text is sent to that service.
+Use **Read aloud** in the reading toolbar to start at the current position, or read selected text and saved highlights from their menus. Speech now uses Qiaomu Reader's player, voice picker, previews and settings, with pause/resume, previous/next sentence, speed control, text following and saved speech progress. Available providers include Edge, system voices, Mac local speech, local models, OpenAI, OpenAI-compatible services, Qwen, Doubao, MiniMax, SiliconFlow, ElevenLabs and Azure, subject to platform availability. The desktop default is key-free Edge online speech, which sends text to Microsoft; other online providers receive the text you ask them to read. Local voices and models synthesize on-device; local models need an initial runtime/model download. The previous Aloud component has been removed. Shared providers retain existing voice, region and secret references; old settings remain only as an inert rollback record.
 
 Dictionary AI and AI sentence translation now use the service configured in Qiaomu's AI & Translation settings while retaining their learning-specific prompts; no second API key is needed. MDict lookup and Spaced Repetition synchronization have been verified in desktop Obsidian. The shared AI call, other dictionary sources, all supported formats, and physical mobile devices still need individual validation. OCR and image-only lookup are outside this build.
 

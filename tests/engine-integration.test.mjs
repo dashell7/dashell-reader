@@ -21,12 +21,11 @@ const translate = (key) => key;
 test("switching a reused PDF flow between paged and scroll modes clears stale geometry", () => {
   const method = source.slice(source.indexOf("  _styleFlow(cfg, geo, cjk) {"), source.indexOf("  _mountBookHtml("));
   const style = vm.runInNewContext(`({${method}})._styleFlow`, { resolveReaderFont: () => "serif", FONTS: {} });
-  const flow = new JSDOM("<div></div>").window.document.querySelector("div");
+  const flow = new JSDOM('<div style="transform:translate3d(-1200px,0,0)"></div>').window.document.querySelector("div");
   const pager = { flow, scrollMode: false };
   const cfg = { fontSize: 18, lineHeight: 1.8 };
   const geo = { flowWidth: 1200, innerHeight: 600, colWidth: 550, gap: 48, padTop: 20, padBottom: 20 };
   style.call(pager, cfg, geo, false);
-  flow.style.transform = "translate3d(-1200px,0,0)";
   pager.scrollMode = true;
   style.call(pager, cfg, geo, false);
   assert.equal(flow.style.transform, "");
@@ -133,6 +132,36 @@ function evaluate(dom, code) {
   return dom.window.module.exports;
 }
 
+test("engine retains renderer relocation reasons even when Foliate's view omits them", async () => {
+  const dom = new JSDOM("<body><main></main></body>", { runScripts: "outside-only" });
+  const elements = foliateElements(root);
+  const { EpubEngine } = evaluate(dom, await bundle(elements));
+  const View = dom.window.customElements.get(JSON.parse(elements.define.__QBR_ENGINE_VIEW_TAG__));
+  View.prototype.open = async function () {
+    this.book = { sections: [{}], metadata: {} };
+    this.renderer = dom.window.document.createElement("div");
+    this.renderer.getContents = () => [{ doc: dom.window.document }];
+    this.renderer.addEventListener("relocate", e => {
+      // Upstream strips reason before emitting its visible range.
+      const detail = { cfi: "test", range: e.detail.range };
+      this.lastLocation = detail;
+      this.dispatchEvent(new dom.window.CustomEvent("relocate", { detail }));
+    });
+  };
+  View.prototype.init = async function () { this.lastLocation = { cfi: "test" }; };
+  View.prototype.close = function () {};
+  const reasons = [];
+  const engine = new EpubEngine(engineHost(dom), { onRelocate: detail => reasons.push(detail.reason) });
+  try {
+    await engine.open(new Uint8Array(), "test.epub");
+    const renderer = engineHost(dom).firstElementChild.renderer;
+    for (const reason of ["navigation", "anchor", "page", "scroll"]) {
+      renderer.dispatchEvent(new dom.window.CustomEvent("relocate", { detail: { reason } }));
+    }
+    assert.deepEqual(reasons, ["navigation", "anchor", "page", "scroll"]);
+  } finally { engine.destroy(); dom.window.close(); }
+});
+
 test("built Foliate elements load twice in one host and coexist with older dependency builds", async () => {
   const dom = new JSDOM("<body></body>", { runScripts: "outside-only" });
   const elements = foliateElements(root);
@@ -197,9 +226,41 @@ test("engine searches createDocument sections, returns readable excerpts and can
   } finally { engine.destroy(); dom.window.close(); }
 });
 
+test("stored highlights are repainted when their section loads later, not only when first added", async () => {
+  const dom = new JSDOM("<body><main></main></body>", { runScripts: "outside-only" });
+  const elements = foliateElements(root);
+  const { EpubEngine } = evaluate(dom, await bundle(elements));
+  const View = dom.window.customElements.get(JSON.parse(elements.define.__QBR_ENGINE_VIEW_TAG__));
+  // Like Foliate, only a section whose overlay exists accepts an annotation.
+  const loaded = new Set([0]); const drawn = [];
+  const sectionOf = value => Number(/epubcfi\((\d+)/.exec(value)[1]);
+  View.prototype.open = async function () { this.book = { sections: [{}, {}], metadata: {} }; };
+  View.prototype.init = async function () { this.lastLocation = { cfi: "test" }; this.renderer = { getContents: () => [{ doc: dom.window.document }] }; };
+  View.prototype.close = function () {};
+  View.prototype.addAnnotation = async function ({ value }) {
+    const index = sectionOf(value);
+    if (loaded.has(index)) drawn.push(value);
+    return { index, label: "" };
+  };
+  const engine = new EpubEngine(engineHost(dom));
+  try {
+    await engine.open(new Uint8Array(), "test.epub");
+    const view = engineHost(dom).firstElementChild;
+    await engine.addHighlight("a", "epubcfi(0/1)", "yellow");
+    await engine.addHighlight("b", "epubcfi(1/1)", "yellow");
+    assert.deepEqual(drawn, ["epubcfi(0/1)"]);
+    loaded.add(1);
+    view.dispatchEvent(new dom.window.CustomEvent("create-overlay", { detail: { index: 1 } }));
+    await new Promise(resolve => setImmediate(resolve));
+    assert.deepEqual(drawn, ["epubcfi(0/1)", "epubcfi(1/1)"]);
+  } finally { engine.destroy(); dom.window.close(); }
+});
+
 test("layout supports explicit one/two columns, narrow panes and scroll mode; iframe keys respect editing", async () => {
   const dom = new JSDOM('<body><input><p tabindex="0">text</p></body>', { runScripts: "outside-only" });
   const { engineLayout, bindEngineKeys } = evaluate(dom, await bundle(foliateElements(root)));
+  assert.equal(engineLayout({}, 1200)["max-column-count"], "1");
+  assert.equal(engineLayout({ columns: "invalid" }, 1200)["max-column-count"], "1");
   assert.equal(engineLayout({ columns: "1" }, 1200)["max-column-count"], "1");
   assert.equal(engineLayout({ columns: "2" }, 1200)["max-column-count"], "2");
   assert.equal(engineLayout({ columns: "2" }, 700)["max-column-count"], "1");
@@ -216,9 +277,10 @@ test("layout supports explicit one/two columns, narrow panes and scroll mode; if
   assert.equal(key(paragraph, "ArrowLeft", { shiftKey: true }), false);
   assert.equal(key(dom.window.document.querySelector("input"), "ArrowRight"), false);
   scroll = true;
-  assert.equal(key(paragraph, "ArrowDown"), false);
+  assert.equal(key(paragraph, "ArrowDown"), true);
+  assert.equal(key(paragraph, " "), true);
   cleanup(); key(paragraph, "ArrowRight");
-  assert.deepEqual(calls, ["next", "prev"]);
+  assert.deepEqual(calls, ["next", "prev", "next", "next"]);
   dom.window.close();
 });
 
@@ -282,6 +344,44 @@ test("bundled paginator ignores hidden navigation, unlocks after errors and disc
   assert.equal(frames.size, 0, "close cancels pending geometry work");
   assert.equal(observers[0].targets.size, 0);
   dom.window.close();
+});
+
+test("resizing a paginator while its chapter document is incomplete or detached is harmless", async () => {
+  const dom = new JSDOM("<body></body>", { runScripts: "outside-only", pretendToBeVisual: true });
+  dom.window.ResizeObserver = class { observe() {} disconnect() {} };
+  dom.window.matchMedia = () => ({ addEventListener() {}, removeEventListener() {} });
+  const attachShadow = dom.window.HTMLElement.prototype.attachShadow;
+  dom.window.HTMLElement.prototype.attachShadow = function (options) {
+    return attachShadow.call(this, { ...options, mode: "open" });
+  };
+  const elements = foliateElements(root);
+  evaluate(dom, await bundle(elements));
+  const pager = dom.window.document.createElement(JSON.parse(elements.define.__QBR_ENGINE_VIEW_TAG__).replace(/view$/, "paginator"));
+  dom.window.document.body.append(pager);
+  Object.defineProperties(pager.shadowRoot.querySelector("#container"), {
+    clientWidth: { value: 1000 }, clientHeight: { value: 700 },
+  });
+  pager.sections = [{ load: async () => "blob:pending-chapter" }];
+  const navigation = pager.goTo({ index: 0 });
+  const cancelled = assert.rejects(navigation, { name: "AbortError" });
+  try {
+    await new Promise(setImmediate);
+    const frame = pager.shadowRoot.querySelector("iframe");
+    assert.ok(frame);
+    const blank = dom.window.document.createElement("iframe");
+    dom.window.document.body.append(blank);
+    const doc = blank.contentDocument;
+    Object.defineProperty(frame, "contentDocument", { value: doc });
+    assert.ok(doc);
+    doc.documentElement?.remove();
+    assert.doesNotThrow(() => pager.render());
+    pager.remove();
+    assert.doesNotThrow(() => pager.render());
+  } finally {
+    pager.remove(); pager.destroy();
+    await cancelled;
+    dom.window.close();
+  }
 });
 
 test("iframe page turns stay immersive while center taps and pointer edges reveal chrome", () => {
@@ -386,7 +486,7 @@ test("closing an unfinished PDF never replaces the last saved position with page
 });
 
 test("pending highlight restoration cannot paint the next book in either reader", async () => {
-  const methods = [...source.matchAll(/  _renderEngineHighlights\(\) \{[\s\S]*?\n  \}/g)];
+  const methods = [...source.matchAll(/ {2}_renderEngineHighlights\(\) \{[\s\S]*?\n {2}\}/g)];
   assert.equal(methods.length, 2);
   for (const [method] of methods) {
     const render = vm.runInNewContext(`({${method}})._renderEngineHighlights`, {
@@ -565,4 +665,83 @@ test("the measured paginator accepts rendered Markdown as well as PDF text layer
   const paginator = source.slice(start, end);
   assert.match(paginator, /this\._mountBookHtml\(bookHtml, cfg, geo, cjk, reuse\)/);
   assert.doesNotMatch(paginator, /PDF page surfaces required/);
+});
+
+test("a PDF visibility check with no new pages preserves a live selection and highlight nodes", async () => {
+  const dom = new JSDOM('<main><div class="surface"><img data-loaded="1"><span class="highlight">selected text</span></div></main>');
+  const flow = dom.window.document.querySelector('main');
+  const marker = flow.querySelector('span');
+  const selection = dom.window.getSelection();
+  const range = dom.window.document.createRange();
+  range.selectNodeContents(marker); selection.addRange(range);
+  let refreshes = 0;
+  const view = { pager: { flow }, _pdfLazy: {}, _renderFlowHighlights: () => { refreshes++; marker.remove(); } };
+  const render = vm.runInNewContext(`${functionSource('renderVisibleFigures')}\nrenderVisibleFigures`, {
+    figureSweepReady: () => true, sweepReaderFigures: async () => new Set(),
+    markFoundIn: () => assert.fail('search should not rebuild unchanged pages'),
+  });
+  view._foundQuery = 'selected';
+  await render(view);
+  assert.equal(refreshes, 0);
+  assert.equal(marker.isConnected, true);
+  assert.equal(selection.toString(), 'selected text');
+  dom.window.close();
+});
+
+test("PDF loading refreshes only newly rendered page surfaces", async () => {
+  const surfaces = [{ page: 2 }, { page: 3 }];
+  const refreshed = [];
+  const view = { pager: {}, _pdfLazy: {}, _renderFlowHighlights: surface => refreshed.push(surface) };
+  const render = vm.runInNewContext(`${functionSource('renderVisibleFigures')}\nrenderVisibleFigures`, {
+    figureSweepReady: () => true, sweepReaderFigures: async () => new Set(surfaces),
+  });
+  await render(view);
+  assert.deepEqual(refreshed, surfaces);
+});
+
+test("reused PDF markup updates layout CSS without replacing loaded images or selected text", () => {
+  const method = source.slice(source.indexOf('  _mountBookHtml('), source.indexOf('  _bookStyleCss('));
+  const mount = vm.runInNewContext(`({${method}})._mountBookHtml`);
+  const dom = new JSDOM('<main><style>old rules</style><img src="data:image/png;base64,loaded"><span>selected text</span></main>');
+  const flow = dom.window.document.querySelector('main');
+  const image = flow.querySelector('img'), text = flow.querySelector('span').firstChild;
+  const range = dom.window.document.createRange(); range.selectNodeContents(flow.querySelector('span'));
+  dom.window.getSelection().addRange(range);
+  mount.call({ flow, _bookStyleCss: () => 'new layout rules' }, '', {}, {}, false, true);
+  assert.equal(flow.querySelector('img'), image);
+  assert.equal(flow.querySelector('span').firstChild, text);
+  assert.equal(dom.window.getSelection().toString(), 'selected text');
+  assert.equal(flow.querySelector('style').textContent, 'new layout rules');
+  dom.window.close();
+});
+
+test("rapid page turns run in order, recover after errors and cancel queued turns on close", async () => {
+  const dom = new JSDOM("<body><main></main></body>", { runScripts: "outside-only" });
+  const elements = foliateElements(root);
+  const { EpubEngine } = evaluate(dom, await bundle(elements));
+  const View = dom.window.customElements.get(JSON.parse(elements.define.__QBR_ENGINE_VIEW_TAG__));
+  const turns = []; let release;
+  View.prototype.open = async function () { this.book = { destroy() {} }; };
+  View.prototype.init = async function () { this.lastLocation = { cfi: "test" }; this.renderer = { getContents: () => [{ doc: dom.window.document }] }; };
+  View.prototype.close = function () {};
+  View.prototype.next = async function () { turns.push("next"); await new Promise(resolve => { release = resolve; }); };
+  View.prototype.prev = async function () { turns.push("prev"); };
+  const engine = new EpubEngine(engineHost(dom));
+  try {
+    await engine.open(new Uint8Array(), "test.epub");
+    const first = engine.next(); const second = engine.prev(); const third = engine.prev();
+    await Promise.resolve();
+    assert.deepEqual(turns, ["next"]);
+    release(); await Promise.all([first, second, third]);
+    assert.deepEqual(turns, ["next", "prev", "prev"]);
+    View.prototype.next = async function () { throw new Error("turn failed"); };
+    const failure = engine.next(); const recovered = engine.prev();
+    await assert.rejects(failure, /turn failed/); await recovered;
+    assert.equal(turns.at(-1), "prev");
+    View.prototype.next = async function () { turns.push("next"); await new Promise(resolve => { release = resolve; }); };
+    const pending = engine.next(); const cancelled = engine.prev();
+    await Promise.resolve(); engine.destroy(); release();
+    const count = turns.length; await Promise.all([pending, cancelled]);
+    assert.equal(turns.length, count);
+  } finally { engine.destroy(); dom.window.close(); }
 });

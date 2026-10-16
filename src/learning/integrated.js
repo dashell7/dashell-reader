@@ -6,6 +6,7 @@ import { createApp } from "vue";
 import SubtitlePopup from "./vendor/views/SubtitlePopup.vue";
 import { normalizeReaderLink } from "./vendor/utils/readerLink.ts";
 import { EnglishVocabularyMarkerService } from "./english-vocabulary-markers.js";
+import { attachVocabularyAnkiSync } from "./anki-adapter.js";
 
 function outerDocument(target) {
   let doc = target?.ownerDocument || document;
@@ -37,6 +38,8 @@ export class QiaomuEnglishLearning extends LanguageLearner {
 
   async onload() {
     await super.onload();
+    this.register(attachVocabularyAnkiSync(this.db, word => this.host.syncLearnedWordToAnki(word),
+      error => console.warn("Dashell Reader: automatic Anki sync failed", error)));
     const markers = this.readerVocabularyMarkers = new EnglishVocabularyMarkerService(this.db, window);
     this.register(() => markers.dispose());
     const folder = String(this.settings.word_folder || "").replace(/\\/g, "/").replace(/\/+$/, "");

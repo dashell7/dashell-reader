@@ -201,6 +201,16 @@ function executablePathCandidates(binary, options = {}) {
       join(home, "bin"),
     );
   }
+  if (home && platform !== "win32" && options.fsApi) {
+    const versionsRoot = join(home, ".nvm", "versions", "node");
+    try {
+      const versions = options.fsApi.readdirSync(versionsRoot, { withFileTypes: true })
+        .filter(entry => entry.isDirectory() && /^v\d+\.\d+\.\d+$/.test(entry.name))
+        .map(entry => entry.name)
+        .sort((a, b) => b.localeCompare(a, "en", { numeric: true }));
+      for (const version of versions) dirs.push(join(versionsRoot, version, "bin"));
+    } catch { /* Version managers are optional, and never require a shell. */ }
+  }
   dirs.push(...envPath.split(delimiter).filter(Boolean));
   if (platform === "win32") {
     const appData = options.appData || "";
@@ -542,17 +552,8 @@ async function resolveLocalTool(binary, options = {}) {
     appData: window.process.env.APPDATA || "",
     localAppData: window.process.env.LOCALAPPDATA || "",
     pathApi: path,
+    fsApi: fs,
   })].filter(Boolean);
-  if (window.process.platform !== "win32") {
-    const nvmVersions = path.join(os.homedir(), ".nvm", "versions", "node");
-    try {
-      const versions = fs.readdirSync(nvmVersions, { withFileTypes: true })
-        .filter((entry) => entry.isDirectory())
-        .map((entry) => entry.name)
-        .sort((a, b) => Number((b.match(/\d+/) || [0])[0]) - Number((a.match(/\d+/) || [0])[0]));
-      for (const version of versions) candidates.push(path.join(nvmVersions, version, "bin", binary));
-    } catch { /* nvm is optional */ }
-  }
   const delimiter = window.process.platform === "win32" ? ";" : ":";
   for (const candidate of new Set(candidates)) {
     try {
@@ -597,6 +598,7 @@ export async function resolveCliPath(id, configuredPath = "", options = {}) {
     appData: window.process.env.APPDATA || "",
     localAppData: window.process.env.LOCALAPPDATA || "",
     pathApi: path,
+    fsApi: fs,
   })].filter(Boolean);
   const seen = new Set();
   for (const candidate of candidates) {
@@ -612,6 +614,7 @@ export async function resolveCliPath(id, configuredPath = "", options = {}) {
       await runProcess({ command: candidate, args: versionArgs, stdin: "", cwd: os.tmpdir() }, {
         timeoutMs: options.timeoutMs || 5_000,
         signal: options.signal,
+        env: { PATH: [path.dirname(candidate), window.process.env.PATH || ""].filter(Boolean).join(path.delimiter) },
       });
       CLI_PATH_CACHE.set(cacheKey, candidate);
       return candidate;
@@ -641,6 +644,7 @@ export async function resolveAcpPath(id, configuredPath = "", options = {}) {
     appData: window.process.env.APPDATA || "",
     localAppData: window.process.env.LOCALAPPDATA || "",
     pathApi: path,
+    fsApi: fs,
   })].filter(Boolean);
   const seen = new Set();
   for (const candidate of candidates) {
@@ -658,9 +662,25 @@ export async function resolveAcpPath(id, configuredPath = "", options = {}) {
   return "";
 }
 
+// npm links often have no extension. Detect the Node shebang rather than
+// relying on .js; launch with an explicit runtime in GUI apps with a short PATH.
+export function isNodeEntrypoint(entrypoint, fsApi) {
+  if (/\.(?:c|m)?js$/i.test(entrypoint)) return true;
+  let descriptor;
+  try {
+    descriptor = fsApi.openSync(entrypoint, "r");
+    const bytes = new Uint8Array(256);
+    const length = fsApi.readSync(descriptor, bytes, 0, bytes.length, 0);
+    return /^#![^\r\n]*\bnode(?:\s|$)/.test(new TextDecoder().decode(bytes.subarray(0, length)));
+  } catch { return false; }
+  finally { if (descriptor !== undefined) fsApi.closeSync(descriptor); }
+}
+
 async function resolveAcpNodePath(acpPath, options = {}) {
-  if (!/\.(?:c|m)?js$/i.test(acpPath)) return "";
-  const nodePath = await resolveLocalTool("node", { ...options, configuredPath: options.nodePath });
+  const { fs, path } = runtime();
+  if (!isNodeEntrypoint(acpPath, fs)) return "";
+  const sibling = path.join(path.dirname(acpPath), window.process.platform === "win32" ? "node.exe" : "node");
+  const nodePath = await resolveLocalTool("node", { ...options, configuredPath: options.nodePath || sibling });
   if (!nodePath) throw cliError("nodemissing", "Node.js was not found");
   return nodePath;
 }
@@ -715,7 +735,7 @@ function acpLaunchSpec(id, binaryPath, cliPath, model, effort, paths) {
   const args = [];
   const env = {};
   let command = binaryPath;
-  if (/\.(?:c|m)?js$/i.test(binaryPath)) {
+  if (paths.nodePath) {
     if (!paths.nodePath) throw cliError("nodemissing", "Node.js was not found");
     command = paths.nodePath;
     args.push(binaryPath);
@@ -786,7 +806,10 @@ class CliAcpManager {
       // Grok and Codex get isolated HOME directories so unrelated MCP, skill,
       // and project config cannot leak into reading chat. Their dedicated auth
       // locations still reuse the user's existing subscription login.
-      env: safeProcessEnv(this.launch.env),
+      env: safeProcessEnv({
+        ...this.launch.env,
+        PATH: [...new Set([nodePath, cliPath, binaryPath].filter(Boolean).map(file => path.dirname(file))) , source.PATH || ""].filter(Boolean).join(path.delimiter),
+      }),
       shell: false,
       windowsHide: true,
       detached: !!window.process && window.process.platform !== "win32",
