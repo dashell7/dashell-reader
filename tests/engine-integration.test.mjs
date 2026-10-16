@@ -177,6 +177,11 @@ test("built Foliate elements load twice in one host and coexist with older depen
   assert.ok(dom.window.customElements.get(tag.replace(/view$/, "fxl")));
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), "qbr-engine-lock-"));
   try {
+    const lock = fs.readFileSync(path.join(root, "package-lock.json"), "utf8").replace(/\r\n?/g, "\n");
+    fs.writeFileSync(path.join(temp, "package-lock.json"), lock);
+    const unix = foliateElements(temp);
+    fs.writeFileSync(path.join(temp, "package-lock.json"), lock.replaceAll("\n", "\r\n"));
+    assert.equal(foliateElements(temp).define.__QBR_ENGINE_VIEW_TAG__, unix.define.__QBR_ENGINE_VIEW_TAG__, "line endings do not change the engine build identity");
     fs.writeFileSync(path.join(temp, "package-lock.json"), fs.readFileSync(path.join(root, "package-lock.json"), "utf8") + "\n");
     const upgraded = foliateElements(temp);
     evaluate(dom, await bundle(upgraded));

@@ -1,6 +1,6 @@
-/* global require -- Obsidian's desktop CommonJS loader supplies this function. */
 import { Platform } from 'obsidian';
 import { checkTtsSignal, ttsError } from './tts-providers.js';
+import { getRuntimeRequire } from './model-access/services/runtime-require.js';
 
 // Fixed source only. Reading text and paths travel as JSON on stdin, never as
 // executable source, shell arguments or Apple Events to another application.
@@ -50,8 +50,11 @@ export async function runMacSpeech(payload, { signal, execute } = {}) {
   checkTtsSignal(signal);
   // Obsidian's renderer evaluates a CommonJS plugin: native dynamic imports
   // use the browser loader, so load builtins through its desktop require.
-  // eslint-disable-next-line @typescript-eslint/no-require-imports -- Desktop guarded CommonJS host; browser import() cannot load node: modules.
-  if (!execute) ({ execFile: execute } = require('node:child_process'));
+  if (!execute) {
+    const load = getRuntimeRequire();
+    if (!load) throw ttsError('macPlatform');
+    ({ execFile: execute } = load('node:child_process'));
+  }
   checkTtsSignal(signal);
   return new Promise((resolve, reject) => {
     let child, settled = false;
@@ -124,10 +127,10 @@ export function synthesizeMacSpeech(text, voice, { signal } = {}) {
   checkTtsSignal(signal);
   const task = lane.then(async () => {
     checkTtsSignal(signal);
-    // eslint-disable-next-line @typescript-eslint/no-require-imports -- This function rejects mobile before entering its native task.
-    const { mkdtemp, readFile, rm } = require('node:fs/promises');
-    // eslint-disable-next-line @typescript-eslint/no-require-imports -- Same desktop guarded CommonJS host.
-    const { tmpdir } = require('node:os'), { join } = require('node:path');
+    const load = getRuntimeRequire();
+    if (!load) throw ttsError('macPlatform');
+    const { mkdtemp, readFile, rm } = load('node:fs/promises');
+    const { tmpdir } = load('node:os'), { join } = load('node:path');
     checkTtsSignal(signal);
     const directory = await mkdtemp(join(tmpdir(), 'qiaomu-reader-tts-'));
     try {

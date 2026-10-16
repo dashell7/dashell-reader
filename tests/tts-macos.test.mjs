@@ -71,15 +71,16 @@ test('mobile and Windows cannot execute or initialize the Mac native process', a
 });
 test('the shipped CommonJS host loads native builtins lazily without browser import()', async () => {
   const built = await build({ entryPoints: ['src/tts-macos.js'], bundle: true, write: false, format: 'cjs', platform: 'browser', external: ['obsidian', 'node:*'] });
-  const platform = { isDesktop: false, isMacOS: true }, module = { exports: {} }, loads = [];
-  runInNewContext(built.outputFiles[0].text, { module, queueMicrotask, require(id) {
+  const platform = { isDesktop: false, isDesktopApp: true, isMacOS: true }, module = { exports: {} }, loads = [];
+  const hostRequire = id => {
     if (id === 'obsidian') return { Platform: platform };
     loads.push(id); assert.equal(id, 'node:child_process');
     return { execFile(_file, _args, _options, callback) {
       const stdin = new EventEmitter(); stdin.end = () => queueMicrotask(() => callback(null, '{"voices":[{"id":"v","name":"声音","lang":"zh-CN","quality":2}]}'));
       return { stdin, kill() {} };
     } };
-  } });
+  };
+  runInNewContext(built.outputFiles[0].text, { module, queueMicrotask, require: hostRequire, window: { require: hostRequire } });
   assert.equal(loads.length, 0);
   await assert.rejects(module.exports.macSpeechVoices(), { code: 'macPlatform' });
   assert.equal(loads.length, 0);

@@ -97,9 +97,12 @@ export function patchFoliateZipLoader(code) {
 // locked dependency build, so reloads reuse compatible classes and upgrades
 // cannot accidentally instantiate an older library's renderer.
 export function foliateElements(root = process.cwd()) {
-  const revision = createHash("sha256").update(fs.readFileSync(path.join(root, "package-lock.json")))
-    .update(fs.readFileSync(fileURLToPath(import.meta.url)))
-    .update(fs.readFileSync(frameModule)).digest("hex").slice(0, 12);
+  // Git checkouts can use LF or CRLF. An identical engine must retain the same
+  // element names, including across desktop reloads and CI rebuilds.
+  const text = file => fs.readFileSync(file, "utf8").replace(/\r\n?/g, "\n");
+  const revision = createHash("sha256").update(text(path.join(root, "package-lock.json")))
+    .update(text(fileURLToPath(import.meta.url)))
+    .update(text(frameModule)).digest("hex").slice(0, 12);
   const prefix = `qbr-${revision}-foliate`;
   return {
     define: { __QBR_ENGINE_VIEW_TAG__: JSON.stringify(`${prefix}-view`) },

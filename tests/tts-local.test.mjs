@@ -9,9 +9,11 @@ import { join } from 'node:path';
 import { macVoiceChoices } from '../src/tts-mac-voices.js';
 const built = await build({ entryPoints: ['src/tts-local.js'], bundle: true, write: false, format: 'cjs', platform: 'browser',
   external: ['obsidian', 'node:*'], loader: { '.py': 'text' } });
-const platform = { isDesktop: true }, loads = [], module = { exports: {} }, require = createRequire(import.meta.url);
-runInNewContext(built.outputFiles[0].text, { module, Buffer, process, window: {setTimeout, clearTimeout}, setTimeout, clearTimeout, URL, AbortController, Uint8Array,
-  require(id) { if (id === 'obsidian') return { Platform: platform }; loads.push(id); return require(id); } });
+const platform = { isDesktop: true, isDesktopApp: true }, loads = [], module = { exports: {} }, require = createRequire(import.meta.url);
+const hostRequire = id => { if (id === 'obsidian') return { Platform: platform }; loads.push(id); return require(id); };
+const hostWindow = { setTimeout, clearTimeout, require: hostRequire };
+runInNewContext(built.outputFiles[0].text, { module, Buffer, process, window: hostWindow, setTimeout, clearTimeout, URL, AbortController, Uint8Array,
+  require: hostRequire });
 const api = module.exports;
 test('desktop modules remain unloaded on mobile, even with a synced local provider', () => {
   assert.equal(loads.length, 0); platform.isDesktop = false;

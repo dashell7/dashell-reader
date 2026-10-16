@@ -2,6 +2,7 @@ import { Platform } from 'obsidian';
 import registry from './tts-local-models.json';
 import workerSource from './tts-local-runtime.py';
 import { checkTtsSignal, ttsError } from './tts-providers.js';
+import { getRuntimeRequire } from './model-access/services/runtime-require.js';
 
 export const LOCAL_MODELS = Object.entries(registry.models).map(([id, value]) => ({ id, ...value }));
 export const LOCAL_DEFAULT_MODEL = 'kokoro';
@@ -25,14 +26,14 @@ const aborted = () => Object.assign(new Error('Aborted'), { name: 'AbortError' }
 const delay = ms => new Promise(resolve => window.setTimeout(resolve, ms));
 
 // Desktop-only Node access, guarded before require so mobile never loads it.
-/* global require, process, Buffer -- Obsidian desktop provides Node globals for native operations. */
+/* global process, Buffer -- Obsidian desktop provides Node globals for native operations. */
 export function createLocalTtsManager(options = {}) {
   if (!Platform.isDesktop) throw ttsError('localPlatform');
-  /* eslint-disable @typescript-eslint/no-require-imports -- Desktop-only native bridge. */
-  const modules = { fs: require('node:fs/promises'), path: require('node:path'), os: require('node:os'),
-    cp: require('node:child_process'), crypto: require('node:crypto'), https: require('node:https'),
-    http: require('node:http'), zlib: require('node:zlib') };
-  /* eslint-enable @typescript-eslint/no-require-imports -- End guarded native imports. */
+  const load = getRuntimeRequire();
+  if (!load) throw ttsError('localPlatform');
+  const modules = { fs: load('node:fs/promises'), path: load('node:path'), os: load('node:os'),
+    cp: load('node:child_process'), crypto: load('node:crypto'), https: load('node:https'),
+    http: load('node:http'), zlib: load('node:zlib') };
   return new LocalTtsManager(modules, options);
 }
 

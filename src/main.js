@@ -8753,7 +8753,7 @@ function buildAiAppearanceSettings(host, plugin) {
   const preview = section.createDiv({ cls: "qiaomu-reader-rs-preview qiaomu-reader-ai-appearance-preview" });
   preview.createDiv({ cls: "qiaomu-reader-ai-msg", text: qiaomuReaderTranslate("reading-is-not-about-remembering-everything-but-about-finding-id") });
   const codePreview = preview.createEl("code");
-  codePreview.textContent = "const note = await app.vault.read(file);";
+  codePreview.textContent = "String(await app.vault.read(file));";
   const repaint = () => applyAiReadingAppearance(preview, plugin);
   repaint();
   const controls = section.createDiv();
