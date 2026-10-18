@@ -1,5 +1,10 @@
 # 更新记录
 
+## Unreleased
+
+- 选择性合入 Qiaomu Reader 4.7.7：DeepSeek 默认使用 `deepseek-flash`，思考模式默认显式使用 `high`；连接测试及关闭思考保持非思考模式。
+- 仅迁移官方 DeepSeek 地址下的旧 Flash 模型名，恢复阅读备份后保存；保留密钥、第三方地址、其他模型及 Dashell 英语学习设置。
+
 ## 4.4.6
 
 - 选择性移植上游 Qiaomu Reader 4.5.13 的离线 PDF 解码修复：内嵌 CCITT/JBIG2、JPEG 2000 和 ICC 解码资源，修复扫描 PDF 原页或书库封面显示为空白的问题。无文字层的扫描 PDF 仍不支持查词、搜索或文本问答；保留现有英语学习功能。

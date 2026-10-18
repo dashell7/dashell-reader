@@ -1,4 +1,5 @@
 import { noteFolderPath, ensureNoteFolder, migrateNoteFolderDefaults } from '../src/note-folders.js';
+import { migrateDeepSeekFlashSettings } from '../src/ai-providers.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -196,14 +197,51 @@ test('migration preserves custom per-book paths, existing note overrides and roo
   }
 });
 test('normal plugin load persists migrated defaults after restoring backup state and only once',async()=>{
-  let saved={settings:{notesFolder:'Custom',bookNotesFolder:''},progressBackups:{book:['keep']}};let saves=0,restored=false,migrationRan=false;
+  let saved={settings:{notesFolder:'Custom',bookNotesFolder:'',aiProvider:'deepseek',aiModel:'deepseek-v4-flash',aiModels:{deepseek:'deepseek-v4-flash'}},progressBackups:{book:['keep']}};let saves=0,restored=false,migrationRan=false;
   const start=source.indexOf('  async loadAll() {'),end=source.indexOf('  _mergeDefaultSettings(',start);
-  const load=vm.runInNewContext(`({${source.slice(start,end)}}).loadAll`,{migrateNoteFolderDefaults,applyDeviceProfile(){},normalizePath:value=>value,
+  const load=vm.runInNewContext(`({${source.slice(start,end)}}).loadAll`,{migrateNoteFolderDefaults,migrateDeepSeekFlashSettings,applyDeviceProfile(){},normalizePath:value=>value,
     LEGACY_READER_PLUGIN_ID:'qiaomu-reader-english',migrateLegacyReaderData:async()=>{migrationRan=true;}});
   const plugin={app:{vault:{configDir:'test-config',adapter:{}}},manifest:{id:'dashell-reader',dir:'test-config/plugins/dashell-reader'},
     loadData:async()=>{assert.equal(migrationRan,true);return saved;},_mergeDefaultSettings(data){this.settings={...data.settings};},_applyLegacySettingMigrations:async()=>{},_applyLanguageDefaults(){},_migrateChineseDefaults:async()=>{},
     async _restoreReadingState(data){this.progressBackups=data.progressBackups;restored=true;},async _saveLocalData(){assert.equal(restored,true);saves++;saved=JSON.parse(JSON.stringify({settings:this.settings,progressBackups:this.progressBackups}));},_repairBookNoteState:async()=>{},_adoptLegacyProgress:async()=>{}};
   await load.call(plugin);assert.equal(saved.settings.bookNotesFolder,'Custom');assert.deepEqual(saved.progressBackups,{book:['keep']});assert.equal(saves,1);
+  assert.equal(saved.settings.aiModels.deepseek,'deepseek-flash');assert.equal(saved.settings.aiModel,'deepseek-flash');
   saved.settings.bookNotesFolder='';saved.settings.lastNoteFolder='';
   await load.call(plugin);assert.equal(plugin.settings.bookNotesFolder,'');assert.equal(saves,1);
+});
+
+test('DeepSeek-only migration retries a failed save and preserves restored learning and reading data', async () => {
+  let saved = {
+    settings: { noteFolderRootSemanticsMigrated: true, aiProvider: 'deepseek', aiModel: 'deepseek-v4-flash', aiModels: { deepseek: 'deepseek-v4-flash' }, aiSecrets: { deepseek: 'existing-reference' }, tts: { provider: 'azure' } },
+    learningSettings: { reviewFile: 'Learning/Review.md' }, progressBackups: { book: ['progress'] }, highlightsBackups: { book: ['highlight'] },
+  };
+  let saves = 0, restored = false;
+  const start = source.indexOf('  async loadAll() {'), end = source.indexOf('  _mergeDefaultSettings(', start);
+  const load = vm.runInNewContext(`({${source.slice(start, end)}}).loadAll`, {
+    migrateNoteFolderDefaults, migrateDeepSeekFlashSettings, applyDeviceProfile() {},
+  });
+  const plugin = {
+    app: { vault: {} }, loadData: async () => structuredClone(saved),
+    _mergeDefaultSettings(data) { this.settings = data.settings; this.learningSettings = data.learningSettings; },
+    _applyLegacySettingMigrations: async () => {}, _applyLanguageDefaults() {}, _migrateChineseDefaults: async () => {},
+    async _restoreReadingState(data) { this.progressBackups = data.progressBackups; this.highlightsBackups = data.highlightsBackups; restored = true; },
+    async _saveLocalData() {
+      assert.equal(restored, true);
+      if (++saves === 1) return false;
+      saved = structuredClone({ settings: this.settings, learningSettings: this.learningSettings, progressBackups: this.progressBackups, highlightsBackups: this.highlightsBackups });
+      return true;
+    },
+    _repairBookNoteState: async () => {}, _adoptLegacyProgress: async () => {},
+  };
+  const before = structuredClone(saved);
+  await load.call(plugin);
+  assert.deepEqual(saved, before);
+  assert.equal(plugin.settings.aiModel, 'deepseek-flash');
+  await load.call(plugin);
+  assert.equal(saves, 2);
+  assert.equal(saved.settings.aiModel, 'deepseek-flash');
+  for (const key of ['learningSettings', 'progressBackups', 'highlightsBackups']) assert.deepEqual(saved[key], before[key]);
+  for (const key of ['aiSecrets', 'tts']) assert.deepEqual(saved.settings[key], before.settings[key]);
+  await load.call(plugin);
+  assert.equal(saves, 2);
 });

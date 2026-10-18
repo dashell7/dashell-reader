@@ -44,7 +44,7 @@ const READER_EXTENSIONS = new Set([...BOOK_EXTENSIONS, "md"]);
 // required compatibility layer while exposing the same API.
 import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
 import { unpackPdfWorker } from "./pdf-worker.js";
-import { AI_PROVIDERS, aiProviderFor, buildAiRequestBody, buildAiRequestOptions, classifyAiHttpStatus, normalizeAiBase } from "./ai-providers.js";
+import { AI_PROVIDERS, aiProviderFor, buildAiRequestBody, buildAiRequestOptions, classifyAiHttpStatus, migrateDeepSeekFlashSettings, normalizeAiBase } from "./ai-providers.js";
 import { createOpenAiSseParser } from "./ai-stream.js";
 import { composeAiAnswerNote } from "./ai-note.js";
 import { suggestAiNoteTitle } from "./ai-note-title.js";
@@ -2330,7 +2330,8 @@ const QiaomuBookReader = class extends Plugin {
     await this._migrateChineseDefaults();
     await this._restoreReadingState(saved);
     // Persist only after backup state is restored, so migration cannot drop it.
-    if (migrateNoteFolderDefaults(this.settings) || this._speechSettingsMigrated) {
+    const deepSeekMigrated = migrateDeepSeekFlashSettings(this.settings);
+    if (migrateNoteFolderDefaults(this.settings) || this._speechSettingsMigrated || deepSeekMigrated) {
       await this._saveLocalData(); this._speechSettingsMigrated = false;
     }
     await this._repairBookNoteState();
