@@ -22,11 +22,15 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
       - name: Snapshot committed release assets
         run: >-
           node -e "const fs=require('node:fs');const path=require('node:path');const dir=path.join(process.env.RUNNER_TEMP,'qiaomu-release-assets');fs.mkdirSync(dir,{recursive:true});for(const name of ['main.js','manifest.json','styles.css'])fs.copyFileSync(name,path.join(dir,name));"
       - run: npm ci
       - run: npm test
+      - run: python -B tests/tts-local-runtime.test.py
       - run: npm run check:i18n
       - name: Verify committed release assets
         run: npm run verify:release

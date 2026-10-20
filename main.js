@@ -3982,7 +3982,9 @@ def unpack_model(config, archive):
                 raise ValueError("archive")
             if member.isdir():
                 continue
-            name = str(Path(*parts[1:]))
+            # Tar members use POSIX paths; keep manifest keys stable on
+            # Windows, where str(Path(...)) would contain backslashes.
+            name = "/".join(parts[1:])
             item = expected.get(name)
             if not member.isfile() or member.issym() or member.islnk() or not item or name in seen or member.size != item["bytes"]:
                 raise ValueError("archive")
