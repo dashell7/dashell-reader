@@ -13,5 +13,5 @@ Checked on 2026-10-20. Upstream formal release: [4.7.8](https://github.com/joese
 
 - Windows local runtime tests: 6 passed, including nested archive extraction and recovery from a partial install using the verified cache without network access.
 - Node tests: 592 passed; i18n checks, source ESLint, standard/community builds, release asset verification and bundle syntax checks passed.
-- Installed the rebuilt `main.js` in `F:/qiaomu-reader-english` and reloaded Dashell Reader in Obsidian 1.14.4. The plugin re-registered 34 commands, the host captured no errors, and `data.json` remained byte-identical. The previous plugin directory is backed up under `C:/Users/zhangbo/AppData/Local/Temp/dashell-upstream-20261020-reader478/host-before`.
+- Installed the rebuilt `main.js` in the designated Windows QA vault and reloaded Dashell Reader in Obsidian 1.14.4. The plugin re-registered 34 commands, the host captured no errors, and `data.json` remained byte-identical. The previous plugin directory is backed up locally.
 - No real model download or audio synthesis was run; the path behavior is covered by local Windows archive fixtures.
