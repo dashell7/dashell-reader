@@ -1,6 +1,9 @@
 // Generated from the complete source UI dictionary and reviewed for core reading terms.
 // Keep placeholders, Markdown and HTML structure identical to the source strings.
 export const QIAOMU_READER_ZH_CN = {
+  "book-download-preparing": "正在准备…",
+  "book-download-importing": "正在加入书库…",
+  "book-download-imported": "已加入",
   "ai-connect-account-or-key": "先连接账号或填写 API Key，测试通过后即可使用。",
   "ai-appearance": "伴读外观",
   "ai-follow-book-appearance": "跟随书籍外观",

@@ -57,8 +57,9 @@ export function parseGutenbergSearch(xml, parseXml) {
     const title = atomText(entry, "title");
     if (!title) continue;
     const authorNode = atomChildren(entry, "content")[0];
-    const author = atomChildren(entry, "author").map((person) => atomText(person, "name")).filter(Boolean).join(", ") ||
+    const authorValue = atomChildren(entry, "author").map((person) => atomText(person, "name")).filter(Boolean).join(", ") ||
       (authorNode?.getAttribute("type") === "text" ? authorNode.textContent?.trim() || "" : "");
+    const author = /^[\d,. ]+\s+downloads?$/i.test(authorValue) ? "" : authorValue;
     books.set(id, { id, title, author, pageUrl: gutenbergPageUrl(id) });
   }
   return Array.from(books.values()).slice(0, 25);

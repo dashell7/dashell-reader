@@ -1,4 +1,7 @@
 export default {
+  "book-download-preparing": "準備中…",
+  "book-download-importing": "ライブラリに追加中…",
+  "book-download-imported": "追加済み",
   "ai-connect-account-or-key": "アカウントを接続するか API キーを入力し、テストに合格すると使えます。",
   "ai-appearance": "伴読の外観",
   "ai-follow-book-appearance": "書籍の外観に合わせる",

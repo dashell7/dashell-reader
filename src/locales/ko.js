@@ -1,4 +1,7 @@
 export default {
+  "book-download-preparing": "준비 중…",
+  "book-download-importing": "서재에 추가 중…",
+  "book-download-imported": "추가됨",
   "ai-connect-account-or-key": "계정을 연결하거나 API 키를 입력한 뒤 테스트를 통과하면 사용할 수 있습니다.",
   "ai-appearance": "독서 도우미 모양",
   "ai-follow-book-appearance": "책 모양에 맞추기",

@@ -30,6 +30,14 @@ test("Gutenberg search keeps book entries and canonical IDs only", () => {
   assert.equal(gutenbergDetailUrl("11"), "https://www.gutenberg.org/ebooks/11.opds");
 });
 
+test("Gutenberg download counts are not displayed as authors", () => {
+  const books = parseGutenbergSearch(feed(`
+    <entry><id>/ebooks/11.opds</id><title>Alice</title><content type="text">12,345 downloads</content></entry>
+    <entry><id>/ebooks/12.opds</id><title>Looking glass</title><content type="text">1 download</content></entry>
+    <entry><id>/ebooks/13.opds</id><title>Author</title><author><name>Lewis Carroll</name></author><content type="text">987 downloads</content></entry>`), parseXml);
+  assert.deepEqual(books.map(book => book.author), ["", "", "Lewis Carroll"]);
+});
+
 test("EPUB selection accepts only bounded Gutenberg acquisition links", () => {
   const xml = feed(`<entry>
     <link rel="http://opds-spec.org/acquisition" type="application/epub+zip" href="https://example.org/ebooks/11.epub.images" length="300"/>

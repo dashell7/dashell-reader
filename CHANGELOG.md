@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- 选择性适配 Qiaomu Reader 4.8.3 的公共书库改进：下载按钮显示准备、下载和导入阶段，完成后防止重复添加，失败可重试；关闭、换搜索或卸载后隔离旧响应，同一本书导入落盘期间保持去重。过滤误作作者的 Gutenberg 下载次数，保留既有公共来源、Dashell 关于页和学习功能。范围与验证见 [适配记录](docs/DASHELL-QIAOMU-READER-483.md)。
 - 选择性适配 Qiaomu Reader 4.7.9：EPUB 元数据分组使用局部兼容实现，避免缺少 `Object.groupBy` / `Map.groupBy` 的宿主打开失败；保留 EPUB 2/3 元数据、编码中文章节路径和目录锚点，不修改共享全局 API。引擎更新后重载使用新构建身份，无需迁移设置或阅读数据。验证边界见 [适配记录](docs/DASHELL-QIAOMU-READER-479.md)。
 
 ## 4.4.7 — 2026-10-20

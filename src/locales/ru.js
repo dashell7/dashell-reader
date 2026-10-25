@@ -1,6 +1,9 @@
 // Russian locale pack. Inherited Russian UI strings keep their original wording;
 // strings that were originally Chinese source keys are translated to Russian here.
 export default {
+  "book-download-preparing": "Подготовка…",
+  "book-download-importing": "Добавление в библиотеку…",
+  "book-download-imported": "Добавлено",
   "ai-connect-account-or-key": "Подключите аккаунт или введите API-ключ и пройдите проверку, чтобы начать работу с ИИ.",
   "ai-appearance": "Оформление помощника",
   "ai-follow-book-appearance": "Как в книге",

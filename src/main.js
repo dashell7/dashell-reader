@@ -2053,6 +2053,9 @@ const QiaomuBookReader = class extends Plugin {
     this.app.workspace.onLayoutReady(onReady);
   }
   onunload() {
+    for (const modal of this._bookDiscoveryModals || []) modal.close();
+    this._bookDiscoveryModals?.clear();
+    this._bookDiscoveryDownloads?.clear();
     cancelAccountLogins(); for (const modal of this.modelAccessModals || []) modal.close();
     this._unloading = true;
     for (const doc of this._quietUiDocuments?.keys() || []) clearEnglishLearningTheme(doc);
@@ -12585,6 +12588,7 @@ const BookDiscoveryModal = class extends Modal {
   }
   onOpen() {
     this._open = true;
+    (this.plugin._bookDiscoveryModals ||= new Set()).add(this);
     this.modalEl.addClass("qiaomu-reader-book-discovery");
     const root = this.contentEl;
     root.empty();
@@ -12669,39 +12673,66 @@ const BookDiscoveryModal = class extends Modal {
     }
   }
   async _download(book, button, status) {
-    if (button.disabled) return;
+    if (!this._open || this.plugin._unloading || button.disabled) return;
+    const request = this._request;
+    const current = () => this._open && !this.plugin._unloading && request === this._request;
+    const downloads = this.plugin._bookDiscoveryDownloads ||= new Map();
+    const pending = downloads.get(book.id);
+    if (pending?.importing || pending?.current()) return;
     const fileName = safeBookFileName(book.title, book.id);
     if (this.app.vault.getFiles().some((file) => file.name.endsWith(`(Gutenberg ${book.id}).epub`))) {
       status.setText(qiaomuReaderTranslate("book-already-in-library"));
       return;
     }
+    const ticket = { current, modal: this };
+    downloads.set(book.id, ticket);
     button.disabled = true;
-    button.setText(qiaomuReaderTranslate("downloading-book"));
+    button.setAttribute("aria-busy", "true");
+    button.setText(qiaomuReaderTranslate("book-download-preparing"));
+    let completed = false;
     try {
       const detail = await requestUrl({ url: gutenbergDetailUrl(book.id), method: "GET", throw: false });
-      if (!this._open) return;
+      if (!current()) return;
       if (detail.status !== 200) throw new Error(`Catalog HTTP ${detail.status}`);
       const epub = parseGutenbergEpub(detail.text, book.id, (xml) => new DOMParser().parseFromString(xml, "application/xml"));
       if (!epub) throw new Error("No EPUB acquisition link");
+      button.setText(qiaomuReaderTranslate("downloading-book"));
       const response = await requestUrl({ url: epub.url, method: "GET", throw: false });
-      if (!this._open) return;
+      if (!current()) return;
+      button.setText(qiaomuReaderTranslate("verifying"));
       if (response.status !== 200 || !validGutenbergEpub(response.arrayBuffer)) throw new Error("Invalid EPUB response");
+      // Another modal or manual import may have completed while the request ran.
+      if (this.app.vault.getFiles().some((file) => file.name.endsWith(`(Gutenberg ${book.id}).epub`))) {
+        completed = true;
+        status.setText(qiaomuReaderTranslate("book-already-in-library"));
+        return;
+      }
+      button.setText(qiaomuReaderTranslate("book-download-importing"));
+      ticket.importing = true;
       const imported = await this.library._importBooks([{ name: fileName, type: "application/epub+zip", arrayBuffer: async () => response.arrayBuffer }]);
       if (!imported) throw new Error("Vault import failed");
+      completed = true;
+      if (!current()) return;
       status.setText(qiaomuReaderTranslate("book-import-finished"));
     } catch (error) {
-      if (!this._open) return;
+      if (!current()) return;
       console.warn("Qiaomu Reader: book download failed", error);
       status.setText(qiaomuReaderTranslate("book-download-failed"));
     } finally {
-      if (this._open) {
-        button.disabled = false;
-        button.setText(qiaomuReaderTranslate("download-to-library"));
+      if (downloads.get(book.id) === ticket) downloads.delete(book.id);
+      if (current()) {
+        button.setAttribute("aria-busy", "false");
+        button.disabled = completed;
+        button.setText(qiaomuReaderTranslate(completed ? "book-download-imported" : "download-to-library"));
       }
     }
   }
   onClose() {
     this._open = false;
+    this.plugin._bookDiscoveryModals?.delete(this);
+    for (const [id, ticket] of this.plugin._bookDiscoveryDownloads || []) {
+      if (ticket.modal === this && !ticket.importing) this.plugin._bookDiscoveryDownloads.delete(id);
+    }
     this._request += 1;
     this.contentEl.empty();
   }

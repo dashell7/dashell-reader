@@ -1,4 +1,7 @@
 export const QIAOMU_READER_EN = {
+  "book-download-preparing": "Preparing…",
+  "book-download-importing": "Adding to library…",
+  "book-download-imported": "Added",
   "ai-connect-account-or-key": "Connect an account or enter an API key, then finish the test to start using AI.",
   "ai-appearance": "Companion appearance",
   "ai-follow-book-appearance": "Match book appearance",

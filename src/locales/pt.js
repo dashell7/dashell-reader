@@ -1,4 +1,7 @@
 export default {
+  "book-download-preparing": "Preparando…",
+  "book-download-importing": "Adicionando à biblioteca…",
+  "book-download-imported": "Adicionado",
   "ai-connect-account-or-key": "Conecte uma conta ou insira uma chave de API e conclua o teste para usar a IA.",
   "ai-appearance": "Aparência do assistente",
   "ai-follow-book-appearance": "Usar aparência do livro",
