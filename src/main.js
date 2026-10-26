@@ -29,7 +29,9 @@ import { HL_COLOR_SWATCHES } from "./highlight-colors.js";
  * esbuild at build time — see esbuild.config.mjs for what gets stubbed out.
  */
 import { AbstractInputSuggest, Component, FuzzySuggestModal, ItemView, MarkdownView, MarkdownRenderer, Menu, Modal, Notice, Platform, Plugin, PluginSettingTab, Scope, SecretComponent, Setting, TFile, TFolder, normalizePath, parseYaml, requestUrl, setIcon } from "obsidian";
-import { EpubEngine, ENGINE_EXTENSIONS, coverFromBytes } from "./reader-engine.js";
+import { EpubEngine, ENGINE_EXTENSIONS, coverFromBytes, readBookMetadata } from "./reader-engine.js";
+import { bookMetadata, catalogMetadata, bookMatches } from "./book-catalog.js";
+import { sortLibrary, findDuplicateBook } from "./library-data.js";
 import { bindReaderPageKeys } from "./reader-keyboard.js";
 import { coverPalette, migrateCoverCache } from "./book-cover.js";
 // One place decides which extensions the reader opens: the rendering engine
@@ -165,7 +167,7 @@ const DEFAULT_SPEECH = {
 const DEFAULT_LIBRARY_UI = {
   bookNoteLinks: {}, locationMarks: [], bookNotePrompted: {}, coverFits: {},
   textBookPaths: [], removedBookPaths: [],
-  syncMode: "auto", libCategory: "all",
+  syncMode: "auto", libCategory: "all", libSort: "read", bookImports: {},
 };
 const DEFAULT_READER_SESSION = {
   readerAdvOpen: false, readerHistOpen: false,
@@ -1973,7 +1975,7 @@ const QiaomuBookReader = class extends Plugin {
         const next = file.path + path.slice(oldPath.length);
         if (moved.has(path)) return next;
         moved.add(path);
-        for (const store of [this.progress, this.progressBackups, this.settings.bookNoteLinks, this.settings.bookNotePrompted, this.settings.coverFits, this.settings.bookTags]) {
+        for (const store of [this.progress, this.progressBackups, this.settings.bookNoteLinks, this.settings.bookNotePrompted, this.settings.coverFits, this.settings.bookTags, this.settings.bookImports]) {
           if (store && Object.hasOwn(store, path)) { store[next] = store[path]; delete store[path]; }
         }
         void this._persistHighlights(next, disk => {
@@ -1983,6 +1985,7 @@ const QiaomuBookReader = class extends Plugin {
         if (this.settings.lastBookPath === path) this.settings.lastBookPath = next;
         return next;
       };
+      for (const path of Object.keys(this.settings.bookImports || {})) rename(path);
       this.settings.textBookPaths = selected.map(rename);
       this.settings.removedBookPaths = (this.settings.removedBookPaths || []).map(rename);
       if (changed) { void this.saveAll(); this.registerBookCommands(); }
@@ -2000,6 +2003,9 @@ const QiaomuBookReader = class extends Plugin {
     }));
     this.registerEvent(this.app.vault.on("delete", file => {
       let changed = false;
+      for (const path of Object.keys(this.settings.bookImports || {})) {
+        if (path === file.path || path.startsWith(`${file.path}/`)) { delete this.settings.bookImports[path]; changed = true; }
+      }
       for (const key of ["textBookPaths", "removedBookPaths"]) {
         const paths = this.settings[key] || [];
         const remaining = paths.filter(path => path !== file.path && !path.startsWith(`${file.path}/`));
@@ -2346,6 +2352,7 @@ const QiaomuBookReader = class extends Plugin {
     this.settings.aiCliPaths = { ...(this.settings.aiCliPaths || {}) };
     this.settings.aiAcpPaths = { ...(this.settings.aiAcpPaths || {}) };
     this.settings.calibreImports = { ...(this.settings.calibreImports || {}) };
+    this.settings.bookImports = { ...(this.settings.bookImports || {}) };
     this.settings.aiModels = { ...(this.settings.aiModels || {}) };
     this.settings.aiSecrets = { ...(this.settings.aiSecrets || {}) };
     this.settings.aiBases = { ...(this.settings.aiBases || {}) };
@@ -2759,6 +2766,7 @@ const QiaomuBookReader = class extends Plugin {
         uuid: book.uuid || "",
         path: vaultPath,
         title: book.title || "",
+        author: book.authors || "",
         format,
         isbn: book.isbn || "",
         addedAt: Date.now(),
@@ -11922,13 +11930,12 @@ function libChipMatches(chipId, f, booksFolder, getProgress, getTags) {
   if (kind === "tag") return (getTags ? getTags(f.path) : []).includes(arg);
   return true;
 }
-function filterLibBooks(bookFiles, chipId, query, booksFolder, getProgress, getTags) {
+function filterLibBooks(bookFiles, chipId, query, booksFolder, getProgress, getTags, metadataOf = () => ({})) {
   const needle = (query || "")
     .trim()
     .toLowerCase();
   return bookFiles.filter((f) => {
-    const haystack = f.basename.toLowerCase();
-    if (needle && !haystack.includes(needle)) return false;
+    if (!bookMatches(f, metadataOf(f.path), needle)) return false;
     const noChip = !chipId || chipId === "all";
     if (noChip) return true;
     return libChipMatches(chipId, f, booksFolder, getProgress, getTags);
@@ -11970,7 +11977,7 @@ const LibraryModal = class extends Modal {
     contentEl.addClass("qiaomu-reader-lib");
     this._applyLibTheme(modalEl);
     const hdr = this._buildLibBrand(contentEl); this._setupDropZone();
-    const { input } = this._buildLibTools(hdr);
+    const { input, sort } = this._buildLibTools(hdr);
     try { await this.plugin.ensureStarterBooks(); }
     catch (error) {
       console.warn("Qiaomu Reader: starter books could not be installed", error);
@@ -12004,8 +12011,9 @@ const LibraryModal = class extends Modal {
       chips = rebuildChips();
     }
     const redraw = (query) => {
+      this._sortLibBooks(files);
       grid.empty();
-      const shown = filterLibBooks(files, selected, query, folder, progressOf, tagsOf)
+      const shown = filterLibBooks(files, selected, query, folder, progressOf, tagsOf, path => catalogMetadata(this.plugin.settings, path))
         .filter(f => selected !== "study:highlights" || marked.has(f.path));
       if (shown.length === 0) {
         grid.createDiv("qiaomu-reader-lib-noresult").setText(qiaomuReaderTranslate("nothing-found"));
@@ -12041,6 +12049,11 @@ const LibraryModal = class extends Modal {
       await this.plugin._saveLocalData(); drawChipRow(); redraw(input.value);
     };
     drawChipRow();
+    sort.addEventListener("change", () => {
+      this.plugin.settings.libSort = sort.value;
+      void this.plugin._saveLocalData();
+      redraw(input.value);
+    });
     input.addEventListener("input", () => redraw(input.value));
     redraw("");
     qiaomuReaderAutoFocus(input, 60);
@@ -12105,18 +12118,18 @@ const LibraryModal = class extends Modal {
     const searchIcon = search.createDiv("qiaomu-reader-lib-search-ic");
     svgIcon(searchIcon, "search");
     const input = search.createEl("input", { cls: "qiaomu-reader-lib-search-input", attr: { type: "text", placeholder: qiaomuReaderTranslate("search-a-book"), spellcheck: "false" } });
-    return { input };
+    const label = tools.createEl("label", { cls: "qiaomu-reader-lib-sort" });
+    label.createSpan({ text: qiaomuReaderTranslate("library-sort") });
+    const sort = label.createEl("select");
+    for (const mode of ["read", "added", "title"]) sort.createEl("option", { value: mode, text: qiaomuReaderTranslate("library-sort-" + mode) });
+    sort.value = this.plugin.settings.libSort || "read";
+    return { input, sort };
   }
   _libVaultBooks(folder) {
     return this.app.vault.getFiles().filter((f) => BOOK_EXTENSIONS.has(f.extension.toLowerCase()) && isListedBook(f, folder, this.plugin.settings.textBookPaths, this.plugin.settings.removedBookPaths));
   }
   _sortLibBooks(bookFiles) {
-    const lastRead = (p) => this.plugin.getProgress(p)?.lastRead ?? 0;
-    bookFiles.sort((a, b) => {
-      const pa = lastRead(a.path), pb = lastRead(b.path);
-      if (pb !== pa) return pb - pa;
-      return a.basename.localeCompare(b.basename, "ru");
-    });
+    sortLibrary(bookFiles, this.plugin.settings.libSort || "read", qiaomuReaderLocale(), path => this.plugin.getProgress(path), this.plugin.settings.bookImports);
   }
   _buildLibEmpty(contentEl, folder) {
     const box = contentEl.createDiv("qiaomu-reader-lib-empty");
@@ -12232,7 +12245,13 @@ const LibraryModal = class extends Modal {
     while (this.app.vault.getAbstractFileByPath(p)) p = join(`${base} (${i++})`);
     return p;
   }
-  async _importBooks(incoming) {
+  _importBooks(incoming) {
+    const work = (this.plugin._bookImportQueue || Promise.resolve()).then(() => this._importBookBatch(incoming));
+    this.plugin._bookImportQueue = work.catch(() => {});
+    return work;
+  }
+  async _importBookBatch(incoming) {
+    if (this.plugin._unloading) return 0;
     const exts = [...BOOK_EXTENSIONS];
     const batch = incoming || [];
     const detectExt = (f) => {
@@ -12277,22 +12296,34 @@ const LibraryModal = class extends Modal {
       const making = this.app.vault.createFolder(target);
       await making.catch(() => {});
     }
-    let ok = 0; const errors = [];
+    let ok = 0, existing = 0; const errors = [];
+    const records = this.plugin.settings.bookImports ||= {};
     for (const item of picked) {
       try {
         const data = await item.arrayBuffer();
-        const added = await this.app.vault.createBinary(this._freeBookPath(target, item.name), data);
+        if (this.plugin._unloading) break;
+        const known = new Map([...this.plugin.bookFiles(), ...this.app.vault.getFiles().filter(file => Object.hasOwn(records, file.path))].map(file => [file.path, file]));
+        const { digest, duplicate } = await findDuplicateBook(data, [...known.values()], records, file => this.app.vault.readBinary(file));
+        const metadata = { ...bookMetadata(await readBookMetadata(data, item.name)), ...bookMetadata(item.bookMetadata) };
+        if (this.plugin._unloading) break;
+        const added = duplicate || await this.app.vault.createBinary(this._freeBookPath(target, item.name), data);
+        records[added.path] = { ...records[added.path], ...metadata, sha256: digest, addedAt: records[added.path]?.addedAt || Date.now(), mtime: added.stat.mtime, size: added.stat.size };
         await this.plugin.rememberTextBook(added);
-        ok += 1;
+        if (duplicate) { existing++; new Notice(qiaomuReaderTranslate("library-duplicate", duplicate.path)); }
+        else ok += 1;
       } catch (error) {
         errors.push(item.name);
         console.warn("Qiaomu Reader: could not import", item && item.name, error);
       }
     }
+    if (ok || existing) {
+      const saved = await this.plugin._saveLocalData();
+      if (!saved) { new Notice(qiaomuReaderTranslate("library-metadata-save-failed")); return 0; }
+    }
     if (ok) new Notice(qiaomuReaderTranslate("books-added-0", ok) + (rejected.length ? " · " + qiaomuReaderTranslate("skipped-0", rejected.length) : ""));
     if (errors.length) new Notice(qiaomuReaderTranslate("could-not-add-0", errors.join(", ")));
-    if (ok > 0) this._refresh();
-    return ok;
+    if ((ok || existing) && this.contentEl?.isConnected) this._refresh();
+    return ok + existing;
   }
   _refresh() {
     this.contentEl.empty();
@@ -12363,6 +12394,8 @@ const LibraryModal = class extends Modal {
   }
   renderCard(host, file) {
     const bookPath = file.path;
+    const metadata = catalogMetadata(this.plugin.settings, bookPath);
+    const title = metadata.title || file.basename;
     const prog = this.plugin.getProgress(bookPath);
     const pct = prog?.percent ?? 0;
     const card = host.createDiv("qiaomu-reader-lib-card");
@@ -12373,11 +12406,11 @@ const LibraryModal = class extends Modal {
     const fits = settings.coverFits ?? (settings.coverFits = {});
     if (fits[bookPath] === "fill") cover.addClass("qiaomu-reader-fit-fill");
     const ph = cover.createDiv("qiaomu-reader-lib-ph");
-    const [paper, ink] = coverPalette(file.basename);
+    const [paper, ink] = coverPalette(title);
     ph.style.setProperty("--qbr-cover-paper", paper);
     ph.style.setProperty("--qbr-cover-ink", ink);
     ph.createDiv("qiaomu-reader-lib-ph-ext").setText(file.extension.toUpperCase());
-    ph.createDiv("qiaomu-reader-lib-ph-title").setText(file.basename);
+    ph.createDiv("qiaomu-reader-lib-ph-title").setText(title);
     void this.loadThumb(file, cover, ph);
     const fitBtn = cover.createEl("button", { cls: "qiaomu-reader-lib-fitbtn", attr: { type: "button" } });
     fitBtn.setAttribute("aria-label", qiaomuReaderTranslate("cover-fit"));
@@ -12403,7 +12436,8 @@ const LibraryModal = class extends Modal {
       strip.createDiv("qiaomu-reader-lib-strip-fill").style.width = `${pct}%`;
     }
     const info = card.createDiv("qiaomu-reader-lib-info");
-    info.createDiv("qiaomu-reader-lib-book-title").setText(file.basename);
+    info.createDiv("qiaomu-reader-lib-book-title").setText(title);
+    if (metadata.author) info.createDiv({ cls: "qiaomu-reader-lib-book-author", text: metadata.author });
     const meta = info.createDiv("qiaomu-reader-lib-book-meta");
     if (prog?.lastRead) {
       const day = new Date(prog.lastRead).toLocaleDateString(qiaomuReaderLocale(), { day: "numeric", month: "short" });
@@ -12709,7 +12743,7 @@ const BookDiscoveryModal = class extends Modal {
       }
       button.setText(qiaomuReaderTranslate("book-download-importing"));
       ticket.importing = true;
-      const imported = await this.library._importBooks([{ name: fileName, type: "application/epub+zip", arrayBuffer: async () => response.arrayBuffer }]);
+      const imported = await this.library._importBooks([{ bookMetadata: { ...book, source: "gutenberg", sourceId: book.id }, name: fileName, type: "application/epub+zip", arrayBuffer: async () => response.arrayBuffer }]);
       if (!imported) throw new Error("Vault import failed");
       completed = true;
       if (!current()) return;

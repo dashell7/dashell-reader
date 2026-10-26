@@ -4,6 +4,7 @@ import vm from "node:vm";
 import test from "node:test";
 import { JSDOM } from "jsdom";
 import { coverPalette } from "../src/book-cover.js";
+import { catalogMetadata } from "../src/book-catalog.js";
 
 const source = fs.readFileSync(new URL("../src/main.js", import.meta.url), "utf8");
 function setup() {
@@ -30,7 +31,7 @@ function setup() {
   const Library = vm.runInNewContext(`${code}; LibraryModal`, { Modal: class { close() {} }, window,
     qiaomuReaderTranslate: (key, n) => n === undefined ? key : `${key}:${n}`, svgIcon() {},
     bookNoteLinkFor: () => "linked", resolveBookNote: () => ({}), openOrCreateBookNoteBeside: async () => { notes++; },
-    Notice: class {}, Date, qiaomuReaderPath: value => value, coverPalette,
+    Notice: class {}, Date, qiaomuReaderPath: value => value, coverPalette, catalogMetadata,
   });
   const library = new Library({}, plugin);
   library.loadThumb = async () => {};

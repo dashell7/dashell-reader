@@ -1,4 +1,11 @@
 export default {
+  "library-sort": "並べ替え",
+  "library-sort-read": "最近読んだ順",
+  "library-sort-added": "追加した順",
+  "library-sort-title": "書名",
+  "library-duplicate": "同じ内容の本があります：{0}",
+  "library-metadata-save-failed": "本は保存されていますが、書誌情報を保存できませんでした。再試行しても重複しません。",
+
   "book-download-preparing": "準備中…",
   "book-download-importing": "ライブラリに追加中…",
   "book-download-imported": "追加済み",

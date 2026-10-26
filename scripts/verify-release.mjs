@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { buildProfile, RELEASE_ASSET_BUDGET_BYTES } from "./build-profile.mjs";
+import { buildProfile, assertReleaseAssetSize } from "./build-profile.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const args = process.argv.slice(2);
@@ -43,8 +43,7 @@ requireCheck(versions[manifest.version] === manifest.minAppVersion, "versions.js
 const assets = Object.fromEntries(releaseFiles.map((name) => {
   const file = path.join(profile.outputDir, name);
   requireCheck(fs.existsSync(file), `missing release asset: ${name}`);
-  requireCheck(fs.statSync(file).size <= 7_000_000, `release asset exceeds 7 MB: ${name}`);
-  requireCheck(fs.statSync(file).size > 0, `empty release asset: ${name}`);
+  assertReleaseAssetSize(name, fs.statSync(file).size);
   return [name, { bytes: fs.statSync(file).size, sha256: sha256(file) }];
 }));
 
@@ -59,6 +58,7 @@ if (profile.name === "community") {
   requireCheck(!mainSource.includes("ACP installed but its executable was not found"), "installer execution code leaked into the community bundle");
 }
 const cssSource = fs.readFileSync(path.join(profile.outputDir, "styles.css"), "utf8");
+requireCheck(cssSource.replace(/\r\n?/g, "\n").includes(readBuildText(path.join(root, "LICENSE")).replaceAll("*/", "* /")), "styles.css is missing the complete project license");
 requireCheck(cssSource.includes("#qiaomu-english-search") && cssSource.includes(".langr-subtitle-popup"),
   "styles.css is missing the Language Learner dictionary and hover component styles");
 const readerCssSource = fs.readFileSync(path.join(root, "src/styles.css"), "utf8");
@@ -76,6 +76,7 @@ const fontPayloads = bundledFonts.map(({ file, family }) => {
 requireCheck(!mainSource.includes("ACP installed but its executable was not found"), "release bundle includes an ACP dependency installer");
 requireCheck(mainSource.includes(readBuildText(path.join(root, "licenses/elton-reader-MIT.txt"))), "main.js is missing the inherited MIT license");
 requireCheck(mainSource.includes("SIL OPEN FONT LICENSE Version 1.1"), "main.js is missing the bundled font license");
+requireCheck(mainSource.includes(readBuildText(path.join(root, "node_modules/pako/LICENSE")).replaceAll("*/", "* /")), "main.js is missing the complete Pako license");
 for (const name of ["LICENSE_JBIG2", "LICENSE_OPENJPEG", "LICENSE_QCMS", "LICENSE_PDFJS_JBIG2", "LICENSE_PDFJS_OPENJPEG", "LICENSE_PDFJS_QCMS"]) {
   const license = readBuildText(path.join(root, "node_modules", "pdfjs-dist", "wasm", name)).replaceAll("*/", "* /");
   requireCheck(mainSource.includes(`${name}\n${license}`), `main.js is missing a bundled PDF decoder license: ${name}`);

@@ -1,4 +1,11 @@
 export const QIAOMU_READER_EN = {
+  "library-sort": "Sort",
+  "library-sort-read": "Recently read",
+  "library-sort-added": "Recently added",
+  "library-sort-title": "Title",
+  "library-duplicate": "Identical book already in library: {0}",
+  "library-metadata-save-failed": "The book is retained, but its metadata could not be saved. Retry the import; it will not add another copy.",
+
   "book-download-preparing": "Preparing…",
   "book-download-importing": "Adding to library…",
   "book-download-imported": "Added",

@@ -1,6 +1,13 @@
 // Generated from the complete source UI dictionary and reviewed for core reading terms.
 // Keep placeholders, Markdown and HTML structure identical to the source strings.
 export const QIAOMU_READER_ZH_CN = {
+  "library-sort": "排序",
+  "library-sort-read": "最近阅读",
+  "library-sort-added": "最近添加",
+  "library-sort-title": "书名",
+  "library-duplicate": "书库已有相同内容：{0}",
+  "library-metadata-save-failed": "图书已保留，但书目信息保存失败。请重试导入；不会重复添加。",
+
   "book-download-preparing": "正在准备…",
   "book-download-importing": "正在加入书库…",
   "book-download-imported": "已加入",

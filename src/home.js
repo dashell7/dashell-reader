@@ -1,6 +1,7 @@
 // What Qiaomu Reader shows on Qiaomu Home (see qiaomu-home.js): books in progress with covers, a shortcut to add books,
 // and title search over the library. Reads only in-memory state; never opens books or files until the user clicks.
 import { homeProvider } from "./qiaomu-home.js";
+import { bookMatches, catalogMetadata } from "./book-catalog.js";
 
 const MAX_ITEMS = 4;
 const LIBRARY_VIEW_TYPE = "qiaomu-reader-english-library";
@@ -38,7 +39,7 @@ export function createHomeProvider(plugin, translate) {
     const image = cover(file.path);
     return {
       id: file.path,
-      title: file.basename,
+      title: catalogMetadata(plugin.settings, file.path).title || file.basename,
       subtitle: file.extension.toUpperCase(),
       ...(record ? { meta: `${Math.round(progress * 100)}%`, progress } : {}),
       icon: "book",
@@ -78,7 +79,7 @@ export function createHomeProvider(plugin, translate) {
     search(query, limit) {
       const q = query.toLowerCase();
       return readableFiles()
-        .filter((file) => file.basename.toLowerCase().includes(q))
+        .filter((file) => bookMatches(file, catalogMetadata(plugin.settings, file.path), q))
         .sort((a, b) => lastReadAt(plugin.getProgress(b.path)) - lastReadAt(plugin.getProgress(a.path)))
         .slice(0, limit)
         .map(bookItem);

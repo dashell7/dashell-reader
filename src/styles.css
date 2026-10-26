@@ -2128,3 +2128,7 @@ body.qiaomu-reader-english-active-view .status-bar { display: none; }
 .qiaomu-reader-src-section > .setting-item { padding: 10px 0 4px; border-top: 0; }
 .qiaomu-reader-src-section .setting-item-description .qiaomu-reader-ai-setup-feedback { padding: 2px 0 0; font-size: var(--font-ui-smaller); }
 .qiaomu-reader-src-section .setting-item-control select { max-width: 260px; }
+.qiaomu-reader-lib-sort { display:flex; align-items:center; gap:8px; color:var(--text-muted); white-space:nowrap; }
+.qiaomu-reader-lib-sort select { max-width:140px; }
+.qiaomu-reader-lib-book-author { margin-bottom:4px; font-size:11px; color:var(--text-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+@media (max-width:600px) { .qiaomu-reader-lib-tools { flex-wrap:wrap; } .qiaomu-reader-lib-sort { margin-left:auto; } }

@@ -1,4 +1,11 @@
 export default {
+  "library-sort": "Trier",
+  "library-sort-read": "Lectures récentes",
+  "library-sort-added": "Ajouts récents",
+  "library-sort-title": "Titre",
+  "library-duplicate": "Ce contenu existe déjà dans la bibliothèque : {0}",
+  "library-metadata-save-failed": "Le livre est conservé, mais ses métadonnées n’ont pas été enregistrées. Réessayez l’importation ; aucun doublon ne sera ajouté.",
+
   "book-download-preparing": "Préparation…",
   "book-download-importing": "Ajout à la bibliothèque…",
   "book-download-imported": "Ajouté",

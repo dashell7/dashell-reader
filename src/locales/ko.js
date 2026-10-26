@@ -1,4 +1,11 @@
 export default {
+  "library-sort": "정렬",
+  "library-sort-read": "최근 읽음",
+  "library-sort-added": "최근 추가",
+  "library-sort-title": "제목",
+  "library-duplicate": "같은 내용의 책이 이미 있습니다: {0}",
+  "library-metadata-save-failed": "책은 보존되었지만 메타데이터를 저장하지 못했습니다. 다시 가져와도 중복되지 않습니다.",
+
   "book-download-preparing": "준비 중…",
   "book-download-importing": "서재에 추가 중…",
   "book-download-imported": "추가됨",

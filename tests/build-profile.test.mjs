@@ -4,9 +4,15 @@ import vm from "node:vm";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
-import { buildProfile } from "../scripts/build-profile.mjs";
+import { buildProfile, assertReleaseAssetSize, RELEASE_ASSET_BUDGET_BYTES } from "../scripts/build-profile.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+
+test("both build profiles reject empty, invalid and oversized installation assets", () => {
+  assert.equal(RELEASE_ASSET_BUDGET_BYTES, 5_600_000);
+  for (const bytes of [0, -1, NaN, Infinity, 1.5, RELEASE_ASSET_BUDGET_BYTES + 1]) assert.throws(() => assertReleaseAssetSize("main.js", bytes));
+  assert.doesNotThrow(() => assertReleaseAssetSize("main.js", RELEASE_ASSET_BUDGET_BYTES));
+});
 
 async function compiled(entry, profileName) {
   const profile = buildProfile(profileName, root);

@@ -3,8 +3,9 @@ import JSZip from "jszip";
 import process from "process";
 import fs from "fs";
 import path from "path";
-import { buildProfile, RELEASE_ASSET_BUDGET_BYTES } from "./scripts/build-profile.mjs";
+import { buildProfile, assertReleaseAssetSize } from "./scripts/build-profile.mjs";
 import { foliateElements } from "./scripts/foliate-elements.mjs";
+import { compactTranslations } from "./scripts/compact-translations.mjs";
 import vue from "@the_tree/esbuild-plugin-vue3";
 
 const profileArg = process.argv.find((arg) => arg.startsWith("--profile="));
@@ -52,6 +53,8 @@ EDGE TTS INTEROPERABILITY LICENSE / WS LICENSE
 Edge TTS interoperability: LGPLv3; full notices and license accompany this bundle
 in styles.css and licenses/edge-tts-LGPL.txt in the source repository.
 ${fs.readFileSync("node_modules/ws/LICENSE", "utf8").replaceAll("*/", "* /")}
+BUNDLED PAKO LICENSE
+${readBuildText("node_modules/pako/LICENSE").replaceAll("*/", "* /")}
 Build channel: ${profile.name}
 If you want to view the source, please visit the plugin's GitHub repository:
 https://github.com/dashell7/dashell-reader
@@ -61,7 +64,7 @@ ${pdfDecoderLicenses}
 
 PROJECT LICENSE — GPL-3.0-only
 Copyright (c) 2026 向阳乔木
-${projectLicense}
+The complete GPL-3.0-only license is included in the accompanying styles.css.
 
 ADAPTED ELTON READER PORTIONS — ORIGINAL MIT LICENSE
 ${upstreamLicense}
@@ -207,7 +210,7 @@ const ctx = await esbuild.context({
   metafile: true,
   // License paragraphs, indentation and whitespace are preserved verbatim.
   banner: { js: banner },
-  plugins: [vue({ isProd: prod }), ...profile.plugins, speechWebSocket, neutralise, foliate.plugin],
+  plugins: [vue({ isProd: prod }), ...profile.plugins, ...(prod ? [await compactTranslations()] : []), speechWebSocket, neutralise, foliate.plugin],
   charset: "utf8",
   minifyWhitespace: prod,
   minifySyntax: prod,
@@ -227,7 +230,7 @@ if (prod) {
   const componentCss = fs.existsSync(componentCssPath) ? readBuildText(componentCssPath) : "";
   const css = readBuildText("src/styles.css") + `\n/* Bundled reading subset: SIL OFL 1.1\n${fontLicense}\n*/\n@font-face { font-family: 'QBR Zhuque Fangsong'; src: url('data:font/woff2;base64,${fontData}') format('woff2'); font-style: normal; font-weight: 400; font-display: swap; }\n`
     + learnerCss.outputFiles[0].text + "\n" + componentCss;
-  fs.writeFileSync(path.join(profile.outputDir, "styles.css"), css);
+  fs.writeFileSync(path.join(profile.outputDir, "styles.css"), css + `\n/* Project license — GPL-3.0-only\n${projectLicense.replaceAll("*/", "* /")}\n*/\n`);
   if (fs.existsSync(componentCssPath)) fs.unlinkSync(componentCssPath);
   const markedLicense = readBuildText("licenses/marked-MIT.txt").replaceAll("*/", "* /");
   const edgeLicense = readBuildText("licenses/edge-tts-LGPL.txt").replaceAll("*/", "* /");
@@ -240,7 +243,7 @@ if (prod) {
   }
   for (const name of ["main.js", "styles.css"]) {
     const bytes = fs.statSync(path.join(profile.outputDir, name)).size;
-    if (bytes > 7_000_000) throw new Error(`${name} exceeds the 7 MB release budget: ${bytes} bytes`);
+    assertReleaseAssetSize(name, bytes);
     console.log(`${name}: ${bytes} bytes`);
   }
   // The pdf.js worker is now embedded in main.js (see loadPatchedWorker above), so

@@ -461,6 +461,15 @@ export class EpubEngine {
     }
 }
 
+// Metadata extraction never opens a view or changes the source book.
+export async function readBookMetadata(bytes, fileName) {
+    if (isTextBook(fileName) || /\.pdf$/i.test(fileName)) return {};
+    let book;
+    try { book = await makeBook(new File([bytes], fileName)); return book.metadata || {}; }
+    catch { return {}; }
+    finally { book?.destroy?.(); }
+}
+
 // Prefer embedded artwork; otherwise create an offline metadata cover. Existing
 // book bytes and reading locations stay untouched. Return a durable thumbnail Blob.
 export async function coverFromBytes(bytes, fileName, resolveStarterCover) {

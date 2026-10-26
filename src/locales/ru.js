@@ -1,6 +1,13 @@
 // Russian locale pack. Inherited Russian UI strings keep their original wording;
 // strings that were originally Chinese source keys are translated to Russian here.
 export default {
+  "library-sort": "Сортировка",
+  "library-sort-read": "Недавно прочитанные",
+  "library-sort-added": "Недавно добавленные",
+  "library-sort-title": "Название",
+  "library-duplicate": "Книга с таким содержимым уже есть: {0}",
+  "library-metadata-save-failed": "Книга сохранена, но метаданные записать не удалось. Повторите импорт; дубликат не появится.",
+
   "book-download-preparing": "Подготовка…",
   "book-download-importing": "Добавление в библиотеку…",
   "book-download-imported": "Добавлено",
