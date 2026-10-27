@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 4.4.8 — 2026-10-27
+
 - 选择性适配 Qiaomu Reader 4.9.2：Codex CLI 登录检测支持 `API key configured`，保留 ChatGPT 与旧版 API Key 状态；拒绝 `Not logged in` 和非零进程退出，避免误判。验证与边界见 [适配记录](docs/DASHELL-QIAOMU-READER-492.md)。
 - 选择性适配 Qiaomu Reader 4.9.1：无损压缩离线语言与 PDF CMap 数据；导入保留书名、作者、年份、语言、ISBN 和来源，书库/Home 支持书目信息检索，增加最近添加、最近阅读和书名排序。按 SHA-256 识别同内容，串行导入及保存失败重试避免重复写入；保留原文件名、下载目录、伴随笔记及学习流程。范围与实测边界见 [适配记录](docs/DASHELL-QIAOMU-READER-491.md)。
 - 选择性适配 Qiaomu Reader 4.8.3 的公共书库改进：下载按钮显示准备、下载和导入阶段，完成后防止重复添加，失败可重试；关闭、换搜索或卸载后隔离旧响应，同一本书导入落盘期间保持去重。过滤误作作者的 Gutenberg 下载次数，保留既有公共来源、Dashell 关于页和学习功能。范围与验证见 [适配记录](docs/DASHELL-QIAOMU-READER-483.md)。

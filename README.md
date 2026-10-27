@@ -9,7 +9,7 @@
 
 产品名称和插件 ID 已改为 **Dashell Reader**（`dashell-reader`）。首次安装新 ID 时会从旧 `qiaomu-reader-english` 插件目录复制设置与阅读数据；原文件保留，目标目录中已有的数据优先。旧、新插件不要同时启用。
 
-本项目与官方 `qiaomu-reader` 插件可以同时安装。它通过 GitHub Release 分发，尚未进入 Obsidian 社区插件目录；安装请使用 BRAT 或手动安装。当前版本为 4.4.7。定制版不修改 Language Learner 的数据文件，也不会接管官方插件的协议链接。
+本项目与官方 `qiaomu-reader` 插件可以同时安装。它通过 GitHub Release 分发，尚未进入 Obsidian 社区插件目录；安装请使用 BRAT 或手动安装。当前版本为 4.4.8。定制版不修改 Language Learner 的数据文件，也不会接管官方插件的协议链接。
 
 ## Dashell 英语学习套件
 
