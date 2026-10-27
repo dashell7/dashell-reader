@@ -1,7 +1,7 @@
 {
   "id": "dashell-reader",
   "name": "Dashell Reader",
-  "version": "4.4.7",
+  "version": "4.4.8",
   "minAppVersion": "1.11.4",
   "description": "Read books and documents with highlights, AI companion, English lookup, read-aloud, and spaced-repetition cards.",
   "author": "dashell",
