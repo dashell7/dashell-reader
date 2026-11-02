@@ -10237,6 +10237,9 @@ function bookNoteAction(settings, bookPath) {
   return asked[bookPath] ? "prompted" : "ask";
 }
 const WHATS_NEW = [
+  { v: "4.4.9", items: [
+    qiaomuReaderTranslate("ai-quick-prompts-can-now-be-added-edited-deleted-and-restored-to")
+  ] },
   { v: "4.0.1", items: [
     qiaomuReaderTranslate("ai-assistance-now-binds-to-the-newly-opened-book-immediately-so"),
     qiaomuReaderTranslate("fixed-blank-first-screens-collapsed-pagination-during-sidebar-ch"),
