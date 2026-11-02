@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 4.4.9 — 2026-11-03
+
+- 选择性适配 Qiaomu Reader 4.9.3：AI 快捷提示词可命名、编辑完整正文、新增或删除；快捷按钮和斜杠菜单共用同一份最多 20 条的列表。可恢复随界面语言变化的默认提示词，保存失败会保留草稿供重试。详见[适配记录](docs/DASHELL-QIAOMU-READER-493.md)。
+
 ## 4.4.8 — 2026-10-27
 
 - 选择性适配 Qiaomu Reader 4.9.2：Codex CLI 登录检测支持 `API key configured`，保留 ChatGPT 与旧版 API Key 状态；拒绝 `Not logged in` 和非零进程退出，避免误判。验证与边界见 [适配记录](docs/DASHELL-QIAOMU-READER-492.md)。
