@@ -1,6 +1,9 @@
 // Generated from the complete source UI dictionary and reviewed for core reading terms.
 // Keep placeholders, Markdown and HTML structure identical to the source strings.
+import { SHELF_TEXT } from "./shelf-i18n.js";
+
 export const QIAOMU_READER_ZH_CN = {
+  ...SHELF_TEXT.zh,
   "library-sort": "排序",
   "library-sort-read": "最近阅读",
   "library-sort-added": "最近添加",

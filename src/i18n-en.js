@@ -1,4 +1,7 @@
+import { SHELF_TEXT } from "./shelf-i18n.js";
+
 export const QIAOMU_READER_EN = {
+  ...SHELF_TEXT.en,
   "library-sort": "Sort",
   "library-sort-read": "Recently read",
   "library-sort-added": "Recently added",

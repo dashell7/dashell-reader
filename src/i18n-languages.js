@@ -5,6 +5,7 @@ import de from "./locales/de.js";
 import ko from "./locales/ko.js";
 import pt from "./locales/pt.js";
 import ru from "./locales/ru.js";
+import { SHELF_TEXT } from "./shelf-i18n.js";
 
 export const UI_LANGUAGES = Object.freeze([
   { id: "zh", label: "简体中文", locale: "zh-CN", cjk: true },
@@ -18,7 +19,15 @@ export const UI_LANGUAGES = Object.freeze([
   { id: "pt", label: "Português (Brasil)", locale: "pt-BR", cjk: false },
 ]);
 
-export const UI_TRANSLATIONS = Object.freeze({ ja, es, fr, de, ko, pt, ru });
+export const UI_TRANSLATIONS = Object.freeze({
+  ja: { ...ja, ...SHELF_TEXT.ja },
+  es: { ...es, ...SHELF_TEXT.es },
+  fr: { ...fr, ...SHELF_TEXT.fr },
+  de: { ...de, ...SHELF_TEXT.de },
+  ko: { ...ko, ...SHELF_TEXT.ko },
+  pt: { ...pt, ...SHELF_TEXT.pt },
+  ru: { ...ru, ...SHELF_TEXT.ru },
+});
 
 export function normalizeUiLanguage(value) {
   const id = String(value || "").trim().toLowerCase().split(/[-_]/)[0];
