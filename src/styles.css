@@ -2150,9 +2150,9 @@ body.qiaomu-reader-english-active-view .status-bar { display: none; }
 
 .modal .qiaomu-reader-prompt-editor :is(input, textarea, button):focus { border-color: var(--text-muted); box-shadow: none; }
 
-.qiaomu-reader-discovery-source-tabs { display:flex; gap:4px; margin-top:18px; border-bottom:1px solid var(--background-modifier-border); }
+.qiaomu-reader-discovery-source-tabs { display:flex; flex-wrap:wrap; gap:4px; margin-top:18px; border-bottom:1px solid var(--background-modifier-border); }
 .qiaomu-reader-book-discovery button.qiaomu-reader-discovery-source-tab { margin:0; border-radius:6px 6px 0 0; background:transparent; box-shadow:none; color:var(--text-muted); }
-.qiaomu-reader-discovery-source-tabs button { margin:0; border-radius:6px 6px 0 0; background:transparent; box-shadow:none; color:var(--text-muted); }
+.qiaomu-reader-discovery-source-tabs button { height:auto; max-width:100%; margin:0; border-radius:6px 6px 0 0; background:transparent; box-shadow:none; color:var(--text-muted); white-space:normal; overflow-wrap:anywhere; }
 .qiaomu-reader-discovery-source-tabs button[aria-selected="true"] { color:var(--text-normal); box-shadow:inset 0 -2px 0 var(--text-normal); }
 .qiaomu-reader-discovery-source-tabs button:focus-visible,.qiaomu-reader-book-discovery :is(a,button,[role="button"]):focus-visible { outline:2px solid var(--text-muted); outline-offset:2px; }
 .qiaomu-reader-discovery-shelf-panel[hidden],.qiaomu-reader-discovery-other-panel[hidden] { display:none; }
