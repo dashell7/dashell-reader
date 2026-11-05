@@ -102,7 +102,8 @@ import { EnglishDictionaryView, EnglishReviewView, ENGLISH_DICTIONARY_VIEW_TYPE,
 import { QiaomuEnglishLearning } from "./learning/integrated.js";
 import { englishLearningAiRequest } from "./learning/qiaomu-ai.js";
 import { resolveEnglishReviewFormat, upsertEnglishReviewCard } from "./english-review.js";
-import { externalBookSearchUrls, gutenbergSearchUrl, gutenbergDetailUrl, parseGutenbergSearch, parseGutenbergEpub, validGutenbergEpub, safeBookFileName } from "./book-discovery.js";
+import { externalBookSearchUrls, gutenbergSearchUrl, gutenbergDetailUrl, parseGutenbergSearch, parseGutenbergEpub, validGutenbergEpub, safeBookFileName, normalizeShelfMarks } from "./book-discovery.js";
+import { BookShelf } from "./book-shelf.js";
 import { isLookupTerm, cleanLookupTerm, rangeContext, sentenceAround, buildTranslateMessages, googleDetectedLanguage, sameLanguage, fallbackTarget, looksLikeLanguage, lookupEngine, lookupSessionKey, lookupCacheKey, createLookupCache } from "./lookup.js";
 import { learningAnkiNotes } from "./learning/anki-adapter.js";
 import { ANKI_DEFAULT_URL, ANKI_DEFAULT_DECK, ANKI_ADDON_CODE, addAnkiNotes, ensureAnkiSetup } from "./anki.js";
@@ -166,7 +167,7 @@ const DEFAULT_ENGLISH_LEARNING = {
 const DEFAULT_SPEECH = {
 };
 const DEFAULT_LIBRARY_UI = {
-  bookNoteLinks: {}, locationMarks: [], bookNotePrompted: {}, coverFits: {},
+  bookNoteLinks: {}, locationMarks: [], bookNotePrompted: {}, coverFits: {}, shelfMarks: {},
   textBookPaths: [], removedBookPaths: [],
   syncMode: "auto", libCategory: "all", libSort: "read", bookImports: {},
 };
@@ -2364,6 +2365,7 @@ const QiaomuBookReader = class extends Plugin {
     this.settings.aiCliEfforts = { ...(this.settings.aiCliEfforts || {}) };
     this.settings.aiChatHistory = normalizeAiChatHistory(this.settings.aiChatHistory);
     this.settings.locationMarks = normalizeLocationMarks(this.settings.locationMarks);
+    this.settings.shelfMarks = normalizeShelfMarks(this.settings.shelfMarks);
     if (this.settings.aiProvider && this.settings.aiModel && !this.settings.aiModels[this.settings.aiProvider]) {
       this.settings.aiModels[this.settings.aiProvider] = this.settings.aiModel;
     }
@@ -12699,7 +12701,39 @@ const BookDiscoveryModal = class extends Modal {
     const label = form.createEl("label", { text: qiaomuReaderTranslate("book-title-or-author") });
     const field = label.createEl("input", { attr: { type: "search", autocomplete: "off", placeholder: qiaomuReaderTranslate("book-title-or-author") } });
     form.createEl("button", { attr: { type: "submit" }, text: qiaomuReaderTranslate("search") });
-    const primary = root.createEl("section", { cls: "qiaomu-reader-discovery-primary" });
+    const tabs = root.createDiv({ cls: "qiaomu-reader-discovery-source-tabs", attr: { role: "tablist" } });
+    const shelfTab = tabs.createEl("button", { text: qiaomuReaderTranslate("shelf-source"), attr: { type: "button", role: "tab", "aria-selected": "true" } });
+    const otherTab = tabs.createEl("button", { text: qiaomuReaderTranslate("other-book-sources"), attr: { type: "button", role: "tab", "aria-selected": "false" } });
+    const shelfPanel = root.createDiv({ cls: "qiaomu-reader-discovery-shelf-panel", attr: { role: "tabpanel" } });
+    const otherPanel = root.createDiv({ cls: "qiaomu-reader-discovery-other-panel", attr: { role: "tabpanel", hidden: "true" } });
+    let source = "shelf";
+    const selectSource = (value) => {
+      source = value;
+      shelfPanel.hidden = value !== "shelf";
+      otherPanel.hidden = value !== "other";
+      shelfTab.setAttribute("aria-selected", String(value === "shelf"));
+      otherTab.setAttribute("aria-selected", String(value === "other"));
+    };
+    shelfTab.addEventListener("click", () => selectSource("shelf"));
+    otherTab.addEventListener("click", () => selectSource("other"));
+    shelfPanel.createDiv({ cls: "qiaomu-reader-discovery-privacy", text: qiaomuReaderTranslate("shelf-privacy") });
+    this._shelf = new BookShelf(shelfPanel, {
+      plugin: this.plugin,
+      translate: (key, ...values) => qiaomuReaderTranslate(key, ...values),
+      chinese: qiaomuReaderLanguage === "zh",
+      locale: qiaomuReaderLocale,
+      vaultBooks: () => this.library._libVaultBooks(this.plugin.settings.booksFolder),
+      scroller: root,
+      field,
+      searchGutenberg: (query) => {
+        if (!this._open) return;
+        selectSource("other");
+        field.value = query;
+        updateLinks();
+        void this._search(query, status, results);
+      },
+    });
+    const primary = otherPanel.createEl("section", { cls: "qiaomu-reader-discovery-primary" });
     primary.createEl("h3", { text: qiaomuReaderTranslate("browser-book-sources") });
     const primaryLinks = primary.createDiv({ cls: "qiaomu-reader-discovery-primary-links" });
     const anna = primaryLinks.createEl("a", { href: "https://annas-archive.gl/", attr: { target: "_blank", rel: "noopener noreferrer" } });
@@ -12708,7 +12742,7 @@ const BookDiscoveryModal = class extends Modal {
     const zlibrary = primaryLinks.createEl("a", { href: "https://z-library.sk/", attr: { target: "_blank", rel: "noopener noreferrer" } });
     zlibrary.createSpan({ text: "Z-Library" });
     setIcon(zlibrary.createSpan({ cls: "qiaomu-reader-discovery-link-icon" }), "arrow-up-right");
-    const gutenberg = root.createEl("section", { cls: "qiaomu-reader-discovery-gutenberg" });
+    const gutenberg = otherPanel.createEl("section", { cls: "qiaomu-reader-discovery-gutenberg" });
     gutenberg.createEl("h3", { text: qiaomuReaderTranslate("search-gutenberg") });
     const status = gutenberg.createDiv({ cls: "qiaomu-reader-discovery-status" });
     status.setAttribute("role", "status");
@@ -12725,6 +12759,10 @@ const BookDiscoveryModal = class extends Modal {
     };
     form.addEventListener("submit", (event) => {
       event.preventDefault();
+      if (source === "shelf") {
+        this._shelf.searchNow(field.value);
+        return;
+      }
       const urls = externalBookSearchUrls(field.value);
       if (!urls) return;
       window.open(urls.anna, "_blank", "noopener");
@@ -12732,7 +12770,7 @@ const BookDiscoveryModal = class extends Modal {
       void this._search(field.value, status, results);
     });
     field.addEventListener("input", updateLinks);
-    const other = root.createEl("section", { cls: "qiaomu-reader-discovery-other" });
+    const other = otherPanel.createEl("section", { cls: "qiaomu-reader-discovery-other" });
     other.createEl("h3", { text: qiaomuReaderTranslate("other-book-sources") });
     const external = other.createDiv({ cls: "qiaomu-reader-discovery-sources" });
     const sources = [
@@ -12830,6 +12868,7 @@ const BookDiscoveryModal = class extends Modal {
   }
   onClose() {
     this._open = false;
+    this._shelf?.dispose();
     this.plugin._bookDiscoveryModals?.delete(this);
     for (const [id, ticket] of this.plugin._bookDiscoveryDownloads || []) {
       if (ticket.modal === this && !ticket.importing) this.plugin._bookDiscoveryDownloads.delete(id);

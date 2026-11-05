@@ -37,9 +37,15 @@ function setup(requestUrl) {
     open() { this.onOpen(); }
     close() { this.onClose(); }
   }
+  class BookShelf {
+    constructor(parent, ctx) { this.parent = parent; this.ctx = ctx; this.query = ""; }
+    searchNow(query) { this.query = query; }
+    dispose() { this.disposed = true; }
+  }
   const Discovery = vm.runInNewContext(`${code};BookDiscoveryModal`, {
-    ...discovery, Modal, requestUrl, DOMParser: window.DOMParser, window,
+    ...discovery, Modal, BookShelf, requestUrl, DOMParser: window.DOMParser, window,
     qiaomuReaderTranslate: key => key, setIcon() {}, console: { warn() {} },
+    qiaomuReaderLanguage: "en", qiaomuReaderLocale: () => "en-US",
     ANNA_SOURCE_NAME: "Anna", URL, Set, Map
   });
   const files = [];
@@ -57,6 +63,21 @@ const book = { id: "11", title: "Alice" };
 const detail = { status: 200, text: `<feed xmlns="http://www.w3.org/2005/Atom"><entry><link rel="http://opds-spec.org/acquisition" type="application/epub+zip" href="https://www.gutenberg.org/ebooks/11.epub3.images"/></entry></feed>` };
 const bytes = new Uint8Array(128); bytes.set([80, 75, 3, 4]);
 const epub = { status: 200, arrayBuffer: bytes.buffer };
+
+test("book discovery opens on the shelf and keeps its search local", async t => {
+  const state = setup(async () => { throw new Error("the shelf search must not request a query"); });
+  t.after(state.cleanup);
+  const { modal, document, window } = state;
+  const [shelfTab] = modal.contentEl.querySelectorAll(".qiaomu-reader-discovery-source-tabs button");
+  assert.equal(shelfTab.getAttribute("aria-selected"), "true");
+  assert.ok(modal.contentEl.querySelector(".qiaomu-reader-discovery-privacy"));
+  const field = modal.contentEl.querySelector('input[type="search"]');
+  field.value = "private query";
+  modal.contentEl.querySelector("form").dispatchEvent(new window.Event("submit", { bubbles: true, cancelable: true }));
+  assert.equal(modal._shelf.query, "private query");
+  modal.close();
+  assert.equal(modal._shelf.disposed, true);
+});
 
 test("download shows progress, ignores repeated activation and stays completed", async t => {
   const catalog = deferred(), binary = deferred();
