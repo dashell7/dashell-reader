@@ -1,4 +1,9 @@
 export default {
+  "book-find-searching": "Buch wird durchsucht…",
+  "book-find-failed": "Die Suche konnte nicht abgeschlossen werden. Erneut versuchen.",
+  "library-clear-search-filters": "Suche und Filter zurücksetzen",
+  "library-no-results-for": "Keine Bücher für „{0}“ gefunden.",
+  "search-gutenberg-action": "Project Gutenberg durchsuchen",
   "library-sort": "Sortieren",
   "library-sort-read": "Zuletzt gelesen",
   "library-sort-added": "Zuletzt hinzugefügt",

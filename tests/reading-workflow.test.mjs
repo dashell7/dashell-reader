@@ -143,7 +143,7 @@ test("real search controller handles IME, wraps hits, preserves one return point
   // controller's debounce/IME logic runs for real.
   const code = source.slice(source.indexOf("function prepareNavigationPanel("), source.indexOf("function buildTocPanelFor("));
   const build = vm.runInNewContext(`${code}; buildFindPanelFor`, {
-    window, qiaomuReaderTranslate: (s) => s, searchableQuery, searchBookBlocks, nextSearchIndex,
+    window, AbortController, qiaomuReaderTranslate: (s) => s, searchableQuery, searchBookBlocks, nextSearchIndex,
     clearFoundIn() {}, markFoundIn() {}, readerSearchTexts: () => ["书中有书"],
     pageForBlock: () => "", readerIsPdf: () => false, chapterForBlock: () => "第一章",
     rememberReaderJump: () => returns++, restoreReadingAnchor: (_pager, anchor) => { positions.push(anchor.offset); return [0, 1]; },

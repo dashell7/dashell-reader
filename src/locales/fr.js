@@ -1,4 +1,9 @@
 export default {
+  "book-find-searching": "Recherche dans ce livre…",
+  "book-find-failed": "La recherche a échoué. Réessayez.",
+  "library-clear-search-filters": "Effacer la recherche et les filtres",
+  "library-no-results-for": "Aucun livre ne correspond à « {0} ».",
+  "search-gutenberg-action": "Rechercher sur Project Gutenberg",
   "library-sort": "Trier",
   "library-sort-read": "Lectures récentes",
   "library-sort-added": "Ajouts récents",

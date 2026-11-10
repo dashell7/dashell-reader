@@ -1,6 +1,26 @@
 // English
 
 export default {
+    "Open community plugins": "Open community plugins",
+    "Vocabulary": "Vocabulary",
+    "Add vocabulary": "Add word",
+    "Start vocabulary review": "Start review",
+    "View saved vocabulary": "View saved word",
+    "Search vocabulary": "Search words or meanings",
+    "Loading vocabulary": "Loading saved words…",
+    "Saved vocabulary": "Saved words",
+    "Matches": "Matches",
+    "Vocabulary no matches": "No words match this search.",
+    "Vocabulary empty": "Save a word while reading, or add your first word.",
+    "Clear vocabulary search": "Clear search",
+    "Vocabulary load failed": "Could not load saved words. Retry to continue.",
+    "Retry vocabulary": "Retry",
+    "Vocabulary action failed": "Could not open review. Check Reader learning settings and retry.",
+    "Enable review plugin": "Enable Spaced Repetition in Community plugins, then return here to start review.",
+    "Save word": "Save word",
+    "Save phrase": "Save phrase",
+    "Choose phrase for multiple words": "Choose Phrase for an expression containing multiple words.",
+
     "English learning prompts": "English learning prompts",
     // plugin.ts
     "Convert to reading article": "Convert to reading article",
@@ -22,6 +42,12 @@ export default {
     "Search Panel": "Search Panel",
 
     // SearchPanel.vue
+    "Search prompt": "Enter a word or phrase, or select text in your book to look it up.",
+    "Dictionary request failed": "Could not load this dictionary. Check your connection or settings, then retry.",
+    "Dictionary no result": "No entry was returned. Check the spelling or retry.",
+    "Check AI dictionary settings": "Review the AI service and model in Reader settings.",
+    "Error details": "Error details",
+    "Retry dictionary search": "Retry",
     "Search": "Search",
     "Enter word": "Enter a word or phrase",
     "Previous search": "Previous search",

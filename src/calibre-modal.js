@@ -163,7 +163,9 @@ export class CalibreSearchModal extends Modal {
     if (token === this._lastSearched && !this._busy) return;
     const gen = ++this._searchGen;
     this._busy = true;
+    this._error = "";
     this._setSearchBusy(true);
+    this._listEl?.querySelector("[data-calibre-retry]")?.remove();
     if (this._foot) this._paintFoot();
     try {
       const libraryPath = this._libraryPath();
@@ -185,7 +187,7 @@ export class CalibreSearchModal extends Modal {
     } catch (error) {
       if (gen !== this._searchGen) return;
       console.warn("Qiaomu Reader: Calibre search failed", error);
-      this._lastSearched = token;
+      this._lastSearched = null;
       this._books = [];
       this._error = error && error.message === "calibredb-missing"
         ? tx(this.plugin, "calibre-calibredb-missing")
@@ -237,6 +239,9 @@ export class CalibreSearchModal extends Modal {
     host.empty();
     if (this._error) {
       host.createDiv({ cls: "qiaomu-reader-calibre-empty", text: this._error });
+      const retry = host.createEl("button", { text: tx(this.plugin, "try-again"), attr: { type: "button", "data-calibre-retry": "true" } });
+      retry.disabled = this._busy;
+      retry.addEventListener("click", () => this._flushSearch());
       return;
     }
     if (!this._books.length) {

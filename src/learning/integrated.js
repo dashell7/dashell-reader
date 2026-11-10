@@ -7,6 +7,7 @@ import SubtitlePopup from "./vendor/views/SubtitlePopup.vue";
 import { normalizeReaderLink } from "./vendor/utils/readerLink.ts";
 import { EnglishVocabularyMarkerService } from "./english-vocabulary-markers.js";
 import { attachVocabularyAnkiSync } from "./anki-adapter.js";
+import { VocabularyView, VOCABULARY_VIEW_TYPE, openVocabulary, startVocabularyReview } from "./vocabulary-view.js";
 
 function outerDocument(target) {
   let doc = target?.ownerDocument || document;
@@ -38,6 +39,10 @@ export class QiaomuEnglishLearning extends LanguageLearner {
 
   async onload() {
     await super.onload();
+    this.registerDomEvent(window, "qiaomu-english-event-search", event => {
+      const detail = event.detail;
+      if (detail?.selection?.trim()) this.latestLearningQuery = { ...detail, target: undefined };
+    });
     this.register(attachVocabularyAnkiSync(this.db, word => this.host.syncLearnedWordToAnki(word),
       error => console.warn("Dashell Reader: automatic Anki sync failed", error)));
     const markers = this.readerVocabularyMarkers = new EnglishVocabularyMarkerService(this.db, window);
@@ -69,15 +74,23 @@ export class QiaomuEnglishLearning extends LanguageLearner {
   supportsLegacyReadingView() { return false; }
 
   registerCustomViews() {
+    this.registerView(VOCABULARY_VIEW_TYPE, (leaf) => new VocabularyView(leaf, this));
     this.registerView(SEARCH_PANEL_VIEW, (leaf) => new SearchPanelView(leaf, this));
     this.addRibbonIcon(SEARCH_ICON, t("Open word search panel"), () => void this.activateView(SEARCH_PANEL_VIEW, "left"));
     this.registerView(LEARN_PANEL_VIEW, (leaf) => new LearnPanelView(leaf, this));
-    this.addRibbonIcon(LEARN_ICON, t("Open new word panel"), () => void this.activateView(LEARN_PANEL_VIEW, "right"));
+    this.addRibbonIcon(LEARN_ICON, t("Open new word panel"), () => void this.addVocabulary());
   }
 
   async activateView(type, side) {
     if (side === "tab") return super.activateView(type, side);
     return this.app.workspace.ensureSideLeaf(type, side, { active: false, split: false, reveal: true });
+  }
+
+  openVocabulary(expression = "") { return openVocabulary(this, expression); }
+  startVocabularyReview() { return startVocabularyReview(this); }
+  async addVocabulary() {
+    await this.activateView(LEARN_PANEL_VIEW, "right");
+    window.dispatchEvent(new CustomEvent("qiaomu-english-event-new-word"));
   }
 
   registerContextMenu() {}

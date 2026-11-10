@@ -2,32 +2,46 @@
     <div id="qiaomu-english-search" @click="handleClick">
         <div class="search-bar">
             <div class="search-history-buttons">
-                <button class="search-nav-btn" :disabled="historyIndex <= 0" @click="switchHistory('prev')" :aria-label="t('Previous search')">
+                <button class="search-nav-btn" :disabled="historyIndex <= 0" @click="switchHistory('prev')">
+                    <span class="search-sr-only">{{ t('Previous search') }}</span>
                     <svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
                 </button>
-                <button class="search-nav-btn" :disabled="historyIndex >= lastHistory" @click="switchHistory('next')" :aria-label="t('Next search')">
+                <button class="search-nav-btn" :disabled="historyIndex >= lastHistory" @click="switchHistory('next')">
+                    <span class="search-sr-only">{{ t('Next search') }}</span>
                     <svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
                 </button>
             </div>
-            <input 
+            <label class="search-sr-only" :for="searchInputId">{{ t('Enter word') }}</label>
+            <input
+                :id="searchInputId"
                 class="search-input" 
                 type="text" 
                 :placeholder="t('Enter word')"
                 v-model="inputWord" 
-                @keydown.enter="handleSearch" 
+                @keydown.enter="handleSearch"
+                @compositionstart="isComposing = true"
+                @compositionend="isComposing = false"
             />
-            <button class="search-submit-btn" @click="handleSearch" :aria-label="t('Search')">{{ t("Search") }}</button>
+            <button class="search-submit-btn" @click="handleSearch">{{ t("Search") }}</button>
         </div>
         <div class="dict-area" :style="{ fontSize: dictFontSize, fontFamily: dictFontFamily || undefined }" :aria-busy="isSearching">
             <div v-if="components.length === 0" class="dict-empty-state" role="status">
                 {{ t("No dictionaries enabled") }}
             </div>
-            <DictItem v-for="(cp, i) in components" :key="cp.id" :loading="loadings[i]" :name="cp.name" :id="cp.id">
-                <KeepAlive>
-                    <Component @loading="loading" :is="cp.type" :word="word"
-                        v-bind="cp.id === 'ai' ? { context: aiContext } : {}"
-                        v-show="shows[i] || cp.id.startsWith('mdict_')"></Component>
-                </KeepAlive>
+            <div v-else-if="!word" class="dict-empty-state" role="status">{{ t('Search prompt') }}</div>
+            <DictItem v-for="(cp, i) in components" v-show="word" :key="cp.id" :loading="loadings[i]" :name="cp.name" :id="cp.id" :has-result="shows[i]">
+                <div v-if="statuses[i]?.state === 'empty' || statuses[i]?.state === 'error'" class="dict-query-feedback" role="status">
+                    <p>{{ statuses[i]?.state === 'error' ? t('Dictionary request failed') : t('Dictionary no result') }}</p>
+                    <p v-if="cp.id === 'ai' && statuses[i]?.state === 'error'">{{ t('Check AI dictionary settings') }}</p>
+                    <details v-if="statuses[i]?.message">
+                        <summary>{{ t('Error details') }}</summary>
+                        <p>{{ statuses[i].message }}</p>
+                    </details>
+                    <button type="button" @click="retrySearch(cp.id)">{{ t('Retry dictionary search') }}</button>
+                </div>
+                <Component :key="`${cp.id}:${queryRevision}:${retryRevisions[cp.id] || 0}`" @loading="loading" :is="cp.type" :word="word"
+                    v-bind="cp.id === 'ai' ? { context: aiContext } : {}"
+                    v-show="shows[i]"></Component>
             </DictItem>
         </div>
     </div>
@@ -42,8 +56,13 @@ import PluginType from "@/plugin";
 import { dicts } from "@dict/list";
 import { playAudio } from "@/utils/helpers";
 import { logger } from "@/utils/logger";
+import type { DictionaryStatus } from "@dict/uses";
 
 const plugin = getCurrentInstance().appContext.config.globalProperties.plugin as PluginType;
+const searchInputId = `reader-dictionary-query-${getCurrentInstance().uid}`;
+let isComposing = false;
+const queryRevision = ref(0);
+const retryRevisions = ref<Record<string, number>>({});
 let dictFontSize = toRef(plugin.store, "dictFontSize");
 let dictFontFamily = toRef(plugin.store, "dictFontFamily");
 
@@ -51,6 +70,7 @@ let components = ref([]);
 let map: { [K in string]: number } = {};
 let loadings = ref<boolean[]>([]);
 let shows = ref<boolean[]>([]);
+let statuses = ref<DictionaryStatus[]>([]);
 const isSearching = computed(() => loadings.value.some(Boolean));
 watch(() => plugin.store.dictsChange, () => {
     let collection = Object.keys(plugin.settings.dictionaries)
@@ -76,19 +96,36 @@ watch(() => plugin.store.dictsChange, () => {
             type: dicts[dict.id].Cp,
         };
     });
+    map = {};
     collection.forEach((v, i) => {
         map[v.id] = i;
     });
     loadings.value = Array(collection.length).fill(false);
     shows.value = Array(collection.length).fill(false);
+    statuses.value = collection.map(dict => ({ id: dict.id, loading: false, result: false, state: 'idle' }));
+    // A changed source configuration must refresh retained result instances too.
+    retrySearch();
 
 }, {
     immediate: true
 });
 
-function loading({ id, loading, result }: { id: string, loading: boolean, result: boolean; }) {
-    loadings.value[map[id]] = loading;
-    shows.value[map[id]] = result;
+function loading(status: DictionaryStatus) {
+    const index = map[status.id];
+    if (index === undefined) return;
+    loadings.value[index] = status.loading;
+    shows.value[index] = status.result;
+    statuses.value[index] = status;
+}
+
+function retrySearch(id?: string) {
+    // Remount only results, retaining the query, reader context and typed draft.
+    // A fresh instance also prevents an older same-word request replacing a retry.
+    if (id) retryRevisions.value[id] = (retryRevisions.value[id] || 0) + 1;
+    else {
+        retryRevisions.value = {};
+        queryRevision.value++;
+    }
 }
 
 // 提供一个前进后退查询记录的功能
@@ -105,16 +142,18 @@ function switchHistory(direction: "prev" | "next") {
     word.value = history[historyIndex.value];
     inputWord.value = history[historyIndex.value];
     aiContext.value = { sentence: "", bookTitle: "" };
+    retrySearch();
+    publishQuery();
 }
 function appendHistory() {
-    if (!word.value.trim() || history[history.length - 1] === word.value.trim()) return;
+    if (!word.value.trim()) return;
     word.value = word.value.trim();
     if (historyIndex.value < history.length - 1) {
         history = history.slice(0, historyIndex.value + 1);
     }
-    history.push(word.value);
+    if (history[history.length - 1] !== word.value) history.push(word.value);
     lastHistory.value = history.length - 1;
-    historyIndex.value++;
+    historyIndex.value = lastHistory.value;
 }
 
 let inputWord = ref("");
@@ -124,6 +163,7 @@ let aiContext = ref({ sentence: "", bookTitle: "" });
 // Debounce search to avoid redundant API calls when the same word fires rapidly
 let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 const onSearch = (evt: CustomEvent) => {
+    if (evt.detail.source === searchInputId) return;
     const text = evt.detail.selection as string;
     const context = {
         sentence: String(evt.detail.sentence || ""),
@@ -139,16 +179,29 @@ const onSearch = (evt: CustomEvent) => {
         word.value = text;
         inputWord.value = text;
         appendHistory();
+        retrySearch();
     }, 80);
 };
 
-function handleSearch() {
+function handleSearch(event?: KeyboardEvent | MouseEvent) {
+    if (isComposing || (event instanceof KeyboardEvent && (event.isComposing || event.keyCode === 229))) return;
     if (searchDebounceTimer !== null) clearTimeout(searchDebounceTimer);
     searchDebounceTimer = null;
-    aiContext.value = { sentence: "", bookTitle: "" };
-    word.value = inputWord.value.trim();
+    const query = inputWord.value.trim();
+    if (query !== word.value) aiContext.value = { sentence: "", bookTitle: "" };
+    word.value = query;
     if (!word.value) return;
     appendHistory();
+    retrySearch();
+    publishQuery();
+}
+
+// Every dictionary navigation shares the same word with the learning form.
+// The source identifies this panel so its own event cannot replay history.
+function publishQuery() {
+    dispatchEvent(new CustomEvent('qiaomu-english-event-search', {
+        detail: { selection: word.value, ...aiContext.value, source: searchInputId },
+    }));
 }
 
 function handleClick(evt: MouseEvent) {
@@ -173,6 +226,8 @@ function handleClick(evt: MouseEvent) {
         inputWord.value = word.value;
         if (!word.value) return;
         appendHistory();
+        retrySearch();
+        publishQuery();
     }
 }
 
@@ -192,6 +247,26 @@ onUnmounted(() => {
 
 <style lang="scss">
 #qiaomu-english-search {
+    .search-sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+    }
+
+    .dict-empty-state,
+    .dict-query-feedback {
+        padding: 12px 8px;
+        color: var(--text-muted);
+        line-height: 1.5;
+        overflow-wrap: anywhere;
+        p { margin: 0 0 8px; }
+        details { margin-bottom: 8px; }
+        summary { cursor: pointer; }
+    }
     height: 100%;
     width: 100%;
     overflow: hidden;
@@ -211,6 +286,7 @@ onUnmounted(() => {
         
         .search-history-buttons {
             display: flex;
+            flex-shrink: 0;
             gap: 2px;
             
             .search-nav-btn {
@@ -246,6 +322,7 @@ onUnmounted(() => {
         
         .search-input {
             flex: 1;
+            min-width: 0;
             height: 32px;
             padding: 4px 8px;
             background: var(--background-primary);
@@ -268,6 +345,7 @@ onUnmounted(() => {
         }
         
         .search-submit-btn {
+            flex-shrink: 0;
             height: 32px;
             padding: 0 12px;
             background: var(--interactive-accent);

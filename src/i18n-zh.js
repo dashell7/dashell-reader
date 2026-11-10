@@ -3,6 +3,11 @@
 import { SHELF_TEXT } from "./shelf-i18n.js";
 
 export const QIAOMU_READER_ZH_CN = {
+  "book-find-searching": "正在搜索书内内容…",
+  "book-find-failed": "书内搜索未完成，请重试。",
+  "library-clear-search-filters": "清除搜索与筛选",
+  "library-no-results-for": "没有找到与“{0}”匹配的图书。",
+  "search-gutenberg-action": "搜索 Project Gutenberg",
   ...SHELF_TEXT.zh,
   "library-sort": "排序",
   "library-sort-read": "最近阅读",

@@ -26,12 +26,13 @@ const loading = ref(false);
 const error = ref('');
 const contentContainer = ref<HTMLElement | null>(null);
 let activeRender: Component | null = null;
+let disposed = false;
 
 async function onSearch(): Promise<boolean> {
     if (!props.word) return false;
     const query = props.word;
     const context = { sentence: props.context?.sentence || '', bookTitle: props.context?.bookTitle || '' };
-    const isCurrent = () => query === props.word && context.sentence === (props.context?.sentence || '')
+    const isCurrent = () => !disposed && query === props.word && context.sentence === (props.context?.sentence || '')
         && context.bookTitle === (props.context?.bookTitle || '');
 
     error.value = '';
@@ -69,12 +70,12 @@ async function onSearch(): Promise<boolean> {
         if (!isCurrent()) return false;
         error.value = e.message || "Error fetching AI response";
         logger.error('AI search failed:', e);
-        return false;
+        throw e;
     }
 }
 
-useLoading(() => [props.word, props.context?.sentence || '', props.context?.bookTitle || ''].join('\u0000'), "ai", onSearch, emits);
-onUnmounted(() => activeRender?.unload());
+useLoading(() => props.word.trim() ? [props.word, props.context?.sentence || '', props.context?.bookTitle || ''].join('\u0000') : '', "ai", onSearch, emits);
+onUnmounted(() => { disposed = true; activeRender?.unload(); });
 </script>
 
 <style scoped>

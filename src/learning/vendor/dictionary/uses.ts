@@ -1,24 +1,36 @@
 import { watch } from "vue";
 
-type Emit = (event: "loading", status: { id: string, loading: boolean, result: boolean }) => void;
+export type DictionaryStatus = {
+    id: string;
+    loading: boolean;
+    result: boolean;
+    state?: "idle" | "loading" | "ready" | "empty" | "error";
+    message?: string;
+};
+type Emit = (event: "loading", status: DictionaryStatus) => void;
 
-function useLoading(watchee: () => any, id: string, search: () => Promise<boolean>, emit: Emit, immediate = false) {
+function useLoading(watchee: () => string, id: string, search: () => Promise<boolean>, emit: Emit, immediate = true) {
     let requestId = 0;
     watch(
         watchee,
-        async (_value, _oldValue, onCleanup) => {
+        async (value, _oldValue, onCleanup) => {
             const currentRequest = ++requestId;
             let cancelled = false;
             onCleanup(() => { cancelled = true; });
-            emit("loading", { id, loading: true, result: false });
+            if (!value?.trim()) {
+                emit("loading", { id, loading: false, result: false, state: "idle" });
+                return;
+            }
+            emit("loading", { id, loading: true, result: false, state: "loading" });
             try {
                 const result = await search();
                 if (!cancelled && currentRequest === requestId) {
-                    emit("loading", { id, loading: false, result });
+                    emit("loading", { id, loading: false, result, state: result ? "ready" : "empty" });
                 }
             } catch (e) {
                 if (!cancelled && currentRequest === requestId) {
-                    emit("loading", { id, loading: false, result: false });
+                    emit("loading", { id, loading: false, result: false, state: "error",
+                        message: e instanceof Error ? e.message : String(e) });
                 }
             }
         },
