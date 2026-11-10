@@ -33,6 +33,10 @@ env_key = "FIXTURE_ROUTING_KEY"
 wire_api = "responses"
 [model_providers.fixture-gateway.http_headers]
 X-Fixture = "fixture-header"
+[model_providers.fixture-gateway.env_http_headers]
+X-Environment = "FIXTURE_HEADER_ENV"
+X-Process-Control = "NODE_OPTIONS"
+X-Home = "CODEX_HOME"
 [model_providers.fixture-gateway.auth]
 command = "unsafe-auth-helper"
 [model_providers.unselected]
@@ -53,7 +57,7 @@ readline.createInterface({input: process.stdin}).on('line', line => {
  if(m.method==='initialize') {
   const fs=require('node:fs'),path=require('node:path');
   const read=name=>{const file=path.join(process.env.CODEX_HOME,name);return fs.existsSync(file)?fs.readFileSync(file,'utf8'):'';};
-  fs.writeFileSync(${JSON.stringify(capture)},JSON.stringify({home:process.env.CODEX_HOME,config:read('config.toml'),auth:read('auth.json'),key:process.env.OPENAI_API_KEY,codexKey:process.env.CODEX_API_KEY}));
+  fs.writeFileSync(${JSON.stringify(capture)},JSON.stringify({home:process.env.CODEX_HOME,config:read('config.toml'),auth:read('auth.json'),key:process.env.OPENAI_API_KEY,codexKey:process.env.CODEX_API_KEY,routeKey:process.env.FIXTURE_ROUTING_KEY,headerKey:process.env.FIXTURE_HEADER_ENV,unrelated:process.env.UNRELATED_FIXTURE_SECRET,nodeOptions:process.env.NODE_OPTIONS}));
   send({id:m.id,result:{protocolVersion:1}});
  }
  if(m.method==='session/new')send({id:m.id,result:{sessionId:'test'}});
@@ -66,7 +70,7 @@ readline.createInterface({input: process.stdin}).on('line', line => {
   const prior = globalThis.window;
   // Deny symlinks to exercise the Windows fallback without touching real CLI credentials.
   const isolatedFs = new Proxy(fs,{get(target,key){return key==='symlinkSync'?()=>{throw Error('fixture link denied');}:Reflect.get(target,key);}});
-  globalThis.window = { process: { platform: process.platform, env: { PATH: '/usr/bin:/bin', HOME: root, CODEX_HOME: codexHome }, getBuiltinModule: name=>name==='fs'?isolatedFs:process.getBuiltinModule(name) }, setTimeout, clearTimeout };
+  globalThis.window = { process: { platform: process.platform, env: { PATH: '/usr/bin:/bin', HOME: root, CODEX_HOME: codexHome, FIXTURE_ROUTING_KEY:'fixture-routing-key', FIXTURE_HEADER_ENV:'fixture-header-key', UNRELATED_FIXTURE_SECRET:'never-forward', NODE_OPTIONS:'--no-warnings' }, getBuiltinModule: name=>name==='fs'?isolatedFs:process.getBuiltinModule(name) }, setTimeout, clearTimeout };
   try {
     assert.equal(isNodeEntrypoint(adapter, fs), true);
     assert.equal(isNodeEntrypoint(process.execPath, fs), false);
@@ -76,7 +80,9 @@ readline.createInterface({input: process.stdin}).on('line', line => {
     assert.equal(probe.sessionId, 'test');
     const received=JSON.parse(fs.readFileSync(capture,'utf8'));
     assert.notEqual(received.home,codexHome); assert.equal(received.auth,auth); assert.equal(received.key,'fixture-auth-key');
-    assert.deepEqual(JSON.parse(JSON.stringify(parse(received.config))),{model:'fixture-model',model_provider:'fixture-gateway',model_providers:{'fixture-gateway':{name:'Fixture provider',base_url:'https://gateway.test/v1',env_key:'FIXTURE_ROUTING_KEY',wire_api:'responses',http_headers:{'X-Fixture':'fixture-header'}}}});
+    assert.equal(received.routeKey,'fixture-routing-key'); assert.equal(received.headerKey,'fixture-header-key'); assert.equal(received.unrelated,undefined);
+    assert.equal(received.nodeOptions,undefined);
+    assert.deepEqual(JSON.parse(JSON.stringify(parse(received.config))),{model:'fixture-model',model_provider:'fixture-gateway',model_providers:{'fixture-gateway':{name:'Fixture provider',base_url:'https://gateway.test/v1',env_key:'FIXTURE_ROUTING_KEY',wire_api:'responses',http_headers:{'X-Fixture':'fixture-header'},env_http_headers:{'X-Environment':'FIXTURE_HEADER_ENV','X-Process-Control':'NODE_OPTIONS','X-Home':'CODEX_HOME'}}}});
     assert.equal(fs.readFileSync(configPath,'utf8'),config); assert.equal(fs.readFileSync(path.join(codexHome,'auth.json'),'utf8'),auth);
     const answer = await runCliAi('codex-cli', { binaryPath: cli, acpPath: adapter, sessionKey: 'chat', messages: [{ role: 'user', content: 'hello' }] });
     assert.equal(answer.answer, 'CONNECTED');

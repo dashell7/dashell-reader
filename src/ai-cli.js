@@ -789,7 +789,7 @@ function codexProviderConfig(text) {
       [providerId]: Object.fromEntries(fields.filter(field => Object.hasOwn(provider, field)).map(field => [field, provider[field]])),
     };
   }
-  return stringify(result);
+  return result;
 }
 
 class CliAcpManager {
@@ -824,6 +824,7 @@ class CliAcpManager {
     const grokHome = source.GROK_HOME || path.join(realHome, ".grok");
     let codexApiKey = "";
     let codexApiKeyName = "";
+    const codexProviderEnv = {};
     if (id === "codex-cli") {
       fs.mkdirSync(this.codexHome, { mode: 0o700 });
       const realCodexHome = source.CODEX_HOME || path.join(realHome, ".codex");
@@ -840,7 +841,16 @@ class CliAcpManager {
         if (fs.existsSync(configFile)) {
           // ACP's empty mcpServers list does not disable Codex's own MCPs.
           const config = codexProviderConfig(fs.readFileSync(configFile, "utf8"));
-          fs.writeFileSync(path.join(this.codexHome, "config.toml"), config, { mode: 0o600 });
+          const provider = config.model_providers?.[config.model_provider];
+          const headers = provider?.env_http_headers;
+          const names = [provider?.env_key, ...(headers && typeof headers === "object" && !Array.isArray(headers) ? Object.values(headers) : [])];
+          // Forward only environment variables explicitly referenced by this
+          // provider, never unrelated terminal credentials or executable hooks.
+          for (const name of names) {
+            const control = /^(?:NODE_.*|ELECTRON_.*|LD_.*|DYLD_.*|PATH|HOME|USERPROFILE|CODEX_HOME|CLAUDE_CONFIG_DIR|GROK_HOME|XDG_CONFIG_HOME|SHELL|COMSPEC|BASH_ENV|ENV|PYTHONPATH|PYTHONHOME|RUBYOPT|PERL5OPT)$/i;
+            if (typeof name === "string" && /^[A-Za-z_][A-Za-z0-9_]*$/.test(name) && !control.test(name) && typeof source[name] === "string") codexProviderEnv[name] = source[name];
+          }
+          fs.writeFileSync(path.join(this.codexHome, "config.toml"), stringify(config), { mode: 0o600 });
         }
         if (fs.existsSync(authFile)) {
           const isolatedAuth = path.join(this.codexHome, "auth.json");
@@ -875,6 +885,7 @@ class CliAcpManager {
       // and project config cannot leak into reading chat. Their dedicated auth
       // locations still reuse the user's existing subscription login.
       env: safeProcessEnv({
+        ...codexProviderEnv,
         ...this.launch.env,
         ...(codexApiKey ? { [codexApiKeyName || "OPENAI_API_KEY"]: codexApiKey } : {}),
         PATH: [...new Set([nodePath, cliPath, binaryPath].filter(Boolean).map(file => path.dirname(file))) , source.PATH || ""].filter(Boolean).join(path.delimiter),

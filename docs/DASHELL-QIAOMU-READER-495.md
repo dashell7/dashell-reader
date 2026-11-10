@@ -45,6 +45,13 @@ The completed November 5 publication of 4.5.0 is not reopened.
   child's CODEX_API_KEY then OPENAI_API_KEY environment value, then dedicated
   auth-file keys. Request-time API-key and ACP-auth errors are distinct from
   the existing CLI login-status probe. No real credentials were read in tests.
+  Forward only source environment variables explicitly named by the selected
+  provider's `env_key` or `env_http_headers`; synthetic child regressions
+  reproduce upstream dropping those values and verify unrelated credentials
+  are excluded. No new credential value is written into plugin settings.
+  Process-control variables are excluded even if referenced by a provider;
+  selected HTTP credentials cannot replace the isolated home or inject Node
+  runtime options.
 - Losslessly pack the existing local-model catalog through the already
   bundled Pako JSON codec. Dashell's own QR assets are retained. The new TOML
   parser is pinned to `smol-toml@1.9.1`; its full BSD-3-Clause license is
