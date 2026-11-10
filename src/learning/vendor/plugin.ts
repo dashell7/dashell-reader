@@ -810,7 +810,7 @@ export default class LanguageLearner extends Plugin {
             && this.app.vault.getAbstractFileByPath(file.path) === file;
     }
 
-    refreshReviewDb = async (): Promise<void> => { await this.syncReviewDatabase(); };
+    refreshReviewDb = async (): Promise<boolean> => this.syncReviewDatabase();
 
     private activeSpacedRepetition(): unknown {
         // Obsidian has no public API for another plugin's settings. Keep this
@@ -821,10 +821,10 @@ export default class LanguageLearner extends Plugin {
         return plugins?.["obsidian-spaced-repetition"];
     }
 
-    private syncReviewDatabase(): Promise<void> {
+    private syncReviewDatabase(): Promise<boolean> {
         const path = this.settings.review_database ? normalizePath(this.settings.review_database) : "";
         const sync = this.reviewSyncTail.then(() => this.writeReviewDatabase(path));
-        this.reviewSyncTail = sync.catch((): void => undefined);
+        this.reviewSyncTail = sync.then((): void => undefined, (): void => undefined);
         return sync;
     }
 
@@ -840,29 +840,29 @@ export default class LanguageLearner extends Plugin {
         return path;
     }
 
-    private async writeReviewDatabase(path: string): Promise<void> {
-        if (this.unloaded) return;
+    private async writeReviewDatabase(path: string): Promise<boolean> {
+        if (this.unloaded) return false;
         if (!path) {
             new Notice(t("Review db path not set"));
-            return;
+            return false;
         }
         const dataBase = this.app.vault.getAbstractFileByPath(path);
         if (!(dataBase instanceof TFile) || dataBase.extension !== "md") {
             new Notice(t("Review db path invalid"));
-            return;
+            return false;
         }
         const srPlugin = this.activeSpacedRepetition();
         const srFormat = resolveEnglishReviewFormat(srPlugin) as { tag: string; delimiter: string } | null;
         if (srPlugin && !srFormat) {
             new Notice(t("Review SR format unavailable"));
-            return;
+            return false;
         }
         // Without SR, retain the user's manual export format for later use.
         // Once SR is active its configured tag and separator are authoritative.
         const format = srFormat || { tag: "#flashcards", delimiter: this.settings.review_delimiter.trim() };
         if (!format.delimiter || /[\r\n]/.test(format.delimiter)) {
             new Notice(t("Review SR format unavailable"));
-            return;
+            return false;
         }
         const stillCurrent = () => {
             if (!this.isReviewTarget(dataBase)) return false;
@@ -874,7 +874,7 @@ export default class LanguageLearner extends Plugin {
         try {
             if (!stillCurrent()) {
                 new Notice(t("Review context changed"));
-                return;
+                return false;
             }
             // Fetch all words regardless of last_sync.
             // Read inside the shared queue so a late older snapshot cannot win.
@@ -882,11 +882,11 @@ export default class LanguageLearner extends Plugin {
             const data = deduplicateWords(allData).filter(w => w.status > 0);
             if (!stillCurrent()) {
                 if (!this.unloaded) new Notice(t("Review context changed"));
-                return;
+                return false;
             }
             if (data.length === 0) {
                 new Notice(t("Review db no words"));
-                return;
+                return false;
             }
             const before = await this.app.vault.read(dataBase);
             if (!stillCurrent()) throw new Error(t("Review context changed"));
@@ -898,7 +898,7 @@ export default class LanguageLearner extends Plugin {
                     : plan.reason === "markers" ? "Review markers invalid"
                     : "Review unowned content";
                 new Notice(t(message), 12000);
-                return;
+                return false;
             }
             if (!stillCurrent()) throw new Error(t("Review context changed"));
             let backupPath = "";
@@ -909,18 +909,19 @@ export default class LanguageLearner extends Plugin {
                     return plan.text;
                 });
             }
-            if (!stillCurrent()) return;
+            if (!stillCurrent()) return false;
             this.settings.last_sync = moment.utc().toISOString();
             await this.saveSettings();
-            if (!stillCurrent()) return;
+            if (!stillCurrent()) return false;
             if (backupPath) new Notice(`${t("Review legacy backup saved")}：${backupPath}`, 8000);
             const srNote = plan.preservedSR > 0 ? `，${plan.preservedSR} ${t("Review db sr preserved")}` : "";
             const offlineNote = srPlugin ? "" : `。${t("Review SR inactive export")}`;
             new Notice(`${t("Review db synced")} ${data.length} ${t("words count")}${srNote}${offlineNote}`);
+            return true;
         } catch (error) {
             logger.error("refreshReviewDb failed:", error);
             if (!this.unloaded) new Notice(`${t("Review db sync failed")}：${(error as Error).message || String(error)}`);
-            return;
+            return false;
         }
     }
 

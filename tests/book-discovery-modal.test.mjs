@@ -79,6 +79,24 @@ test("book discovery opens on the shelf and keeps its search local", async t => 
   assert.equal(modal._shelf.disposed, true);
 });
 
+test("other-source search names Gutenberg and never opens external pages implicitly", async t => {
+  let requests = 0, externalPages = 0;
+  const state = setup(async () => { requests++; return { status: 200, text: '<feed xmlns="http://www.w3.org/2005/Atom"/>' }; });
+  t.after(state.cleanup);
+  const { modal, window } = state;
+  window.open = () => { externalPages++; };
+  const [, otherTab] = modal.contentEl.querySelectorAll(".qiaomu-reader-discovery-source-tabs button");
+  otherTab.click();
+  const form = modal.contentEl.querySelector("form"), field = form.querySelector("input");
+  assert.equal(form.querySelector("button").textContent, "search-gutenberg-action");
+  field.value = "Alice";
+  form.dispatchEvent(new window.Event("submit", { bubbles: true, cancelable: true }));
+  await new Promise(setImmediate);
+  assert.equal(requests, 1);
+  assert.equal(externalPages, 0);
+  assert.match(modal.contentEl.querySelector(".qiaomu-reader-discovery-primary-links a").href, /Alice/);
+});
+
 test("download shows progress, ignores repeated activation and stays completed", async t => {
   const catalog = deferred(), binary = deferred();
   let calls = 0;

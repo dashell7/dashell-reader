@@ -1,6 +1,11 @@
 // Russian locale pack. Inherited Russian UI strings keep their original wording;
 // strings that were originally Chinese source keys are translated to Russian here.
 export default {
+  "book-find-searching": "Поиск в книге…",
+  "book-find-failed": "Поиск не завершён. Попробуйте ещё раз.",
+  "library-clear-search-filters": "Сбросить поиск и фильтры",
+  "library-no-results-for": "Книг по запросу «{0}» не найдено.",
+  "search-gutenberg-action": "Искать в Project Gutenberg",
   "library-sort": "Сортировка",
   "library-sort-read": "Недавно прочитанные",
   "library-sort-added": "Недавно добавленные",

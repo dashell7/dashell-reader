@@ -1,4 +1,9 @@
 export default {
+  "book-find-searching": "책 내용을 검색하는 중…",
+  "book-find-failed": "검색을 완료하지 못했습니다. 다시 시도해 주세요.",
+  "library-clear-search-filters": "검색 및 필터 지우기",
+  "library-no-results-for": "“{0}”에 해당하는 책이 없습니다.",
+  "search-gutenberg-action": "Project Gutenberg 검색",
   "library-sort": "정렬",
   "library-sort-read": "최근 읽음",
   "library-sort-added": "최근 추가",

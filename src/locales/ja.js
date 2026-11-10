@@ -1,4 +1,9 @@
 export default {
+  "book-find-searching": "本の内容を検索中…",
+  "book-find-failed": "本の検索が完了しませんでした。もう一度お試しください。",
+  "library-clear-search-filters": "検索と絞り込みを解除",
+  "library-no-results-for": "「{0}」に一致する本はありません。",
+  "search-gutenberg-action": "Project Gutenberg を検索",
   "library-sort": "並べ替え",
   "library-sort-read": "最近読んだ順",
   "library-sort-added": "追加した順",

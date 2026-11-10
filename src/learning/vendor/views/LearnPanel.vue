@@ -1,22 +1,33 @@
 <template>
 	<div id="qiaomu-english-learn-panel">
 		<NConfigProvider :theme="theme" :theme-overrides="themeOverrides">
+			<div v-if="plugin.openVocabulary" class="learn-navigation">
+				<button type="button" @click="plugin.openVocabulary()">{{ t('Vocabulary') }}</button>
+			</div>
 			<!-- <NThemeEditor> -->
-			<NForm :model="model" label-placement="top" label-width="auto" :rules="rules"
+			<NForm :model="model" label-placement="top" label-width="auto"
 				require-mark-placement="right-hanging">
 				<!-- 一个单词或短语字符串 -->
-				<NFormItem :label="t('Expression')" :label-style="labelStyle" path="expression">
-					<NInput size="small" v-model:value="model.expression" :placeholder="t('A word or a phrase')" />
+				<NFormItem :label-style="labelStyle" path="expression" required
+					:validation-status="formErrors.expression ? 'error' : undefined">
+					<template #label><label :for="`${fieldId}-expression`">{{ t('Expression') }}</label></template>
+					<NInput ref="expressionInput" size="small" v-model:value="model.expression" :placeholder="t('A word or a phrase')"
+						:input-props="{ id: `${fieldId}-expression`, 'aria-invalid': !!formErrors.expression, 'aria-describedby': formErrors.expression ? `${fieldId}-expression-error` : undefined }" />
+					<template #feedback><span v-if="formErrors.expression" :id="`${fieldId}-expression-error`" role="alert">{{ formErrors.expression }}</span></template>
 				</NFormItem>
 				<!-- 单词或短语的含义(精简) -->
-				<NFormItem :label="t('Meaning')" :label-style="labelStyle" path="meaning">
-					<NInput size="small" v-model:value="model.meaning" :placeholder="t('A short definition')"
-						type="textarea" autosize />
+				<NFormItem :label-style="labelStyle" path="meaning" required
+					:validation-status="formErrors.meaning ? 'error' : undefined">
+					<template #label><label :for="`${fieldId}-meaning`">{{ t('Meaning') }}</label></template>
+					<NInput ref="meaningInput" size="small" v-model:value="model.meaning" :placeholder="t('A short definition')"
+						type="textarea" :rows="2" :input-props="{ id: `${fieldId}-meaning`, 'aria-invalid': !!formErrors.meaning, 'aria-describedby': formErrors.meaning ? `${fieldId}-meaning-error` : undefined }" />
+					<template #feedback><span v-if="formErrors.meaning" :id="`${fieldId}-meaning-error`" role="alert">{{ formErrors.meaning }}</span></template>
 				</NFormItem>
 				<!-- 变形 -->
 				<NFormItem :label="t('aliases')" :label-style="labelStyle" path="aliases">
+					<!-- Keep enrichment from resizing the sidebar during ResizeObserver delivery. -->
 					<NInput size="small" v-model:value="model.aliases" :placeholder="t('The inflections with , spacing')"
-						type="textarea" autosize />
+						type="textarea" :rows="2" />
 				</NFormItem>
 				<!-- 类别，可以是Word或Phrase -->
 				<NFormItem :label="t('Type')" :label-style="labelStyle" path="t">
@@ -71,16 +82,16 @@
 						">
 						<NFormItem :show-label="false" :path="`sentences[${index}].text`" :rule="sourceRule">
 							<NInput size="small" type="textarea" v-model:value="model.sentences[index].text"
-								:placeholder="t('Origin sentence')" :autosize="{ minRows: 1, maxRows: 3 }" />
+								:placeholder="t('Origin sentence')" :rows="3" />
 						</NFormItem>
 						<NFormItem :show-feedback="false" :show-label="false" :path="`sentences[${index}].trans`">
 							<NInput size="small" type="textarea" v-model:value="model.sentences[index].trans"
-								:placeholder="t('Translation (Optional)')" :autosize="{ minRows: 1, maxRows: 3 }" />
+								:placeholder="t('Translation (Optional)')" :rows="2" />
 						</NFormItem>
 						<NFormItem :show-feedback="false" :show-label="false" :path="`sentences[${index}].origin`">
 							<NInput size="small" type="textarea" v-model:value="
 								model.sentences[index].origin
-							" :placeholder="t('Origin (Optional)')" :autosize="{ minRows: 1, maxRows: 3 }" />
+								" :placeholder="t('Origin (Optional)')" :rows="1" />
 						</NFormItem>
 						<button v-if="sentence.readerLink" type="button" class="reader-backlink"
 							@click="plugin.openReaderLink(sentence.readerLink)">{{ t("Back to book") }}</button>
@@ -131,7 +142,14 @@
 			<!-- 提交按钮 -->
 			<div style="margin-top: 10px">
 				<NButton size="small" style="--n-width: 100%" attr-type="submit" @click="submit"
-					:loading="submitLoading">{{ t("Submit") }}</NButton>
+					:loading="submitLoading">{{ model.t === 'PHRASE' ? t('Save phrase') : t('Save word') }}</NButton>
+			</div>
+			<div v-if="lastSavedExpression" class="learn-save-result">
+				<p role="status">{{ t('Submit success') }} · {{ lastSavedExpression }}</p>
+				<div class="learn-save-actions">
+					<button v-if="plugin.openVocabulary" type="button" @click="plugin.openVocabulary(lastSavedExpression)">{{ t('View saved vocabulary') }}</button>
+					<button v-if="plugin.startVocabularyReview" type="button" @click="plugin.startVocabularyReview()">{{ t('Start vocabulary review') }}</button>
+				</div>
 			</div>
 			<!-- </NThemeEditor> -->
 		</NConfigProvider>
@@ -147,6 +165,7 @@ import {
 	onUnmounted,
 	getCurrentInstance,
 	computed,
+	nextTick,
 	CSSProperties,
     watch,
 } from "vue";
@@ -180,7 +199,12 @@ import { normalizeReaderLink } from "@/utils/readerLink";
 
 const view: LearnPanelView =
 	getCurrentInstance().appContext.config.globalProperties.view;
-const plugin: Plugin & { openReaderLink: (link: string) => void } =
+const fieldId = `reader-vocabulary-${getCurrentInstance().uid}`;
+const plugin: Plugin & { openReaderLink: (link: string) => void;
+	openVocabulary?: (expression?: string) => unknown;
+	startVocabularyReview?: () => unknown;
+	latestLearningQuery?: Record<string, unknown>;
+} =
 	getCurrentInstance().appContext.config.globalProperties.plugin;
 
 // 切换明亮/黑暗模式
@@ -277,28 +301,6 @@ let model = ref<any>({
     date: Date.now(),
 });
 
-// 表单检查规则
-let rules = {
-	expression: {
-		required: true,
-		trigger: ["blur", "input"],
-		message: t("Please input a word/phrase"),
-	},
-	meaning: {
-		required: true,
-		trigger: ["blur", "input"],
-		message: t("A short definition is needed"),
-	},
-	t: {
-		required: true,
-		trigger: "change",
-		message: "Expression can be a word or phrase",
-	},
-	status: {
-		required: true,
-	},
-};
-
 let sourceRule = {
 	required: true,
 	trigger: ["blur", "input"],
@@ -363,37 +365,60 @@ async function tagSearch(query: string) {
 
 // 提交信息到数据库的加载状态
 let submitLoading = ref(false);
+const expressionInput = ref<{ focus: () => void } | null>(null);
+const meaningInput = ref<{ focus: () => void } | null>(null);
+const submitAttempted = ref(false);
+const lastSavedExpression = ref("");
+const formErrors = computed(() => {
+	if (!submitAttempted.value) return {};
+	const errors: { expression?: string; meaning?: string } = {};
+	const expression = String(model.value.expression || "").trim();
+	if (!expression) errors.expression = t("Please input a word/phrase");
+	else if (expression.split(/\s+/).length > 1 && model.value.t === "WORD") {
+		errors.expression = t("Choose phrase for multiple words");
+	}
+	if (!String(model.value.meaning || "").trim()) errors.meaning = t("A short definition is needed");
+	return errors;
+});
+// Temporary drafts belong to this mounted panel, never to the saved vocabulary.
+// Keep complete form snapshots so looking up another word is non-destructive.
+const wordDrafts = new Map<string, { draft: string; translationTypes: Record<number, 'machine' | 'ai'> }>();
+let currentDraftKey = "";
+
+function rememberDraft() {
+	const expression = String(model.value.expression || "").trim().toLowerCase();
+	if (!expression) return;
+	wordDrafts.set(currentDraftKey || expression, {
+		draft: JSON.stringify(model.value),
+		translationTypes: { ...translationTypes.value },
+	});
+}
 
 async function submit() {
 	if (submitLoading.value) return; // prevent double-submit
-	// 表单内容检查
-	if (!model.value.expression) {
-		new Notice(t("Expression is empty!"));
-		return;
-	}
-	if (!model.value.meaning) {
-		new Notice(t("Meaning is empty!"));
-		return;
-	}
-	if (
-		model.value.expression.trim().split(" ").length > 1 &&
-		model.value.t === "WORD"
-	) {
-		new Notice(t("It looks more like a PHRASE than a WORD"));
+	submitAttempted.value = true;
+	if (formErrors.value.expression || formErrors.value.meaning) {
+		await nextTick();
+		(formErrors.value.expression ? expressionInput : meaningInput).value?.focus();
 		return;
 	}
 	submitLoading.value = true;
-	const aliasesValue = (model.value.aliases ?? "").toString();
+	const submittedToken = selectionToken.value;
+	const submittedDraft = JSON.stringify(model.value);
+	const submittedKey = currentDraftKey || model.value.expression.trim().toLowerCase();
+	// Normalize the saved copy only; the editable draft must survive a failed
+	// write or further edits made while that write is pending.
+	const data = JSON.parse(submittedDraft);
+	const aliasesValue = (data.aliases ?? "").toString();
 	if (aliasesValue.trim().length !== 0) {
-		model.value.aliases = aliasesValue
+		data.aliases = aliasesValue
 			.toLowerCase()
 			.split(/[,，]/)
 			.map((s: string) => s.trim())
 			.filter((s: string) => s.length > 0);
 	} else {
-		model.value.aliases = [];
+		data.aliases = [];
 	}
-	let data = JSON.parse(JSON.stringify(model.value));
 	(data as any).expression = (data as any).expression.trim().toLowerCase();
 	// 超过1条例句时，sentences中的对象会变成Proxy，尚不知原因，因此用JSON转换一下
 	
@@ -403,7 +428,7 @@ async function submit() {
 	} catch (error: any) {
 		submitLoading.value = false;
 		const reason = error?.message || "Unknown error";
-		new Notice(`${t("Submit failed")}: ${reason}`);
+		new Notice(`${t("Submit failed")} · ${data.expression}: ${reason}`);
 		logger.error("Submit failed:", error);
 		return;
 	}
@@ -411,12 +436,13 @@ async function submit() {
 
 	if (statusCode !== 200) {
 		const reason = `status ${statusCode}`;
-		new Notice(`${t("Submit failed")}: ${reason}`);
+		new Notice(`${t("Submit failed")} · ${data.expression}: ${reason}`);
 		logger.error("Submit failed:", { statusCode, data });
 		return;
 	}
 
-	new Notice(t("Submit success"));
+	new Notice(`${t("Submit success")} · ${data.expression}`);
+	lastSavedExpression.value = data.expression;
 	logger.info("Submit success:", {
 		expression: data.expression,
 		type: data.t,
@@ -426,11 +452,11 @@ async function submit() {
 	dispatchEvent(
 		new CustomEvent("qiaomu-english-event-refresh", {
 			detail: {
-				expression: model.value.expression,
-				type: model.value.t,
-				status: model.value.status,
-				meaning: model.value.meaning,
-				aliases: model.value.aliases,
+				expression: data.expression,
+				type: data.t,
+				status: data.status,
+				meaning: data.meaning,
+				aliases: data.aliases,
 			},
 		})
 	);
@@ -439,11 +465,21 @@ async function submit() {
 	if (plugin.settings.auto_refresh_db) {
 		plugin.scheduleRefreshTextDB(500);
 	}
-	clearPanel();
+	if (wordDrafts.get(submittedKey)?.draft === submittedDraft) {
+		wordDrafts.delete(submittedKey);
+	}
+	if ((selectionToken.value === submittedToken || currentDraftKey === submittedKey)
+		&& JSON.stringify(model.value) === submittedDraft) {
+		clearPanel();
+	}
 };
 
 //清空词表单
 function clearPanel(){
+	// Invalidate outstanding enrichment for the draft that was just cleared.
+	selectionToken.value++;
+	currentDraftKey = "";
+	submitAttempted.value = false;
 	model.value = {
 		expression: null,
 		meaning: null,
@@ -498,12 +534,21 @@ function extractGoogleTranslation(res: any): string {
 }
 
 // 查询词汇时自动填充新词表单
-useEvent(window, "qiaomu-english-event-search", async (evt: CustomEvent) => {
+const applyLookup = async (evt: CustomEvent) => {
 	const selectionRaw = (evt.detail.selection as string) || "";
 	const selection = selectionRaw.trim();
 	if (!selection) return;
+	rememberDraft();
+	submitAttempted.value = false;
 	const token = ++selectionToken.value;
 	const normalized = selection.toLowerCase();
+	currentDraftKey = normalized;
+	const restoredDraft = wordDrafts.get(normalized);
+	if (restoredDraft) {
+		model.value = JSON.parse(restoredDraft.draft);
+		translationTypes.value = { ...restoredDraft.translationTypes };
+		return;
+	}
 	const exprType = selection.includes(" ") ? "PHRASE" : "WORD";
 	const target = evt.detail.target as HTMLElement;
 	let sentenceText = "";
@@ -560,6 +605,9 @@ useEvent(window, "qiaomu-english-event-search", async (evt: CustomEvent) => {
 			translationTypes.value[idx] = "machine";
 		});
 	}
+	// Only replace an untouched form with the saved entry. Automatic enrichment
+	// may advance this snapshot; manual edits must never be replaced by a late read.
+	let replaceableDraft = JSON.stringify(model.value);
 
 	const exprPromise = plugin.db.getExpression(selection).catch((): null => null);
 	const storedSenPromise = sentenceText
@@ -580,7 +628,7 @@ useEvent(window, "qiaomu-english-event-search", async (evt: CustomEvent) => {
 		if (!expr || !isCurrent()) return;
 
 		const storedSen: Sentence = await storedSenPromise;
-		if (!isCurrent()) return;
+		if (!isCurrent() || JSON.stringify(model.value) !== replaceableDraft) return;
 
 		if (sentenceText) {
 			const added = expr.sentences.find((sen: Sentence) => sen.text === sentenceText
@@ -612,7 +660,9 @@ useEvent(window, "qiaomu-english-event-search", async (evt: CustomEvent) => {
 			const forms = extractWordForms((res.result as any).pattern);
 			const uniqueForms = [...new Set(forms)];
 			if (uniqueForms.length > 0) {
+				const untouched = JSON.stringify(model.value) === replaceableDraft;
 				model.value.aliases = uniqueForms.join(", ");
+				if (untouched) replaceableDraft = JSON.stringify(model.value);
 			}
 		}
 	})();
@@ -626,11 +676,22 @@ useEvent(window, "qiaomu-english-event-search", async (evt: CustomEvent) => {
 		const sentences = model.value.sentences || [];
 		const targetSen = sentences.find((sen: any) => sen.text === sentenceText);
 		if (targetSen && !targetSen.trans) {
+			const untouched = JSON.stringify(model.value) === replaceableDraft;
 			targetSen.trans = filledTrans;
+			if (untouched) replaceableDraft = JSON.stringify(model.value);
 			if (!translationCache.value[sentenceText]) translationCache.value[sentenceText] = {};
 			translationCache.value[sentenceText].machine = filledTrans;
 		}
 	})();
+};
+useEvent(window, "qiaomu-english-event-search", applyLookup);
+useEvent(window, "qiaomu-english-event-new-word", () => {
+	rememberDraft();
+	clearPanel();
+	expressionInput.value?.focus();
+});
+onMounted(() => {
+	if (plugin.latestLearningQuery) void applyLookup(new CustomEvent("qiaomu-english-event-search", { detail: plugin.latestLearningQuery }));
 });
 
 // 翻译切换逻辑
@@ -729,6 +790,12 @@ watch(() => model.value, () => {
 }
 
 #qiaomu-english-learn-panel {
+	.learn-navigation { display:flex; justify-content:flex-end; margin-bottom:12px; }
+	.n-radio-group { display:flex; flex-wrap:wrap; gap:4px; height:auto; max-width:100%; }
+	.n-radio-group__splitor { display:none; }
+	.learn-save-result { margin-top:16px; }
+	.learn-save-result p { margin:0 0 8px; overflow-wrap:anywhere; }
+	.learn-save-actions { display:flex; flex-wrap:wrap; gap:8px; }
 	padding-bottom: 18px;
 	.reader-backlink {
 		align-self: flex-start;
