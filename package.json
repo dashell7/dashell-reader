@@ -67,6 +67,7 @@
     "parse-english": "^5.0.0",
     "pdfjs-dist": "^6.2.108",
     "retext-english": "^4.1.0",
+    "smol-toml": "1.9.1",
     "turndown": "^7.2.4",
     "turndown-plugin-gfm": "^1.0.2",
     "unified": "^10.1.2",

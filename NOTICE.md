@@ -13,6 +13,7 @@ The English lookup and vocabulary module contains adapted code from Language Lea
 Speech synthesis, playback and settings are adapted from Qiaomu Reader under the project's GPL-3.0-only license. Earlier Dashell versions adapted portions of [Aloud](https://github.com/adrianlyjak/obsidian-aloud-tts), copyright (c) Adrian Lyjak, under MIT. That component has been removed; its [MIT terms](licenses/aloud-tts-MIT.txt) are retained for historical provenance.
 
 - [Foliate.js](https://github.com/johnfactotum/foliate-js) — MIT, John Factotum.
+- [smol-toml](https://github.com/squirrelchat/smol-toml), version 1.9.1 — BSD-3-Clause, Squirrel Chat et al.; the [complete license](licenses/smol-toml-BSD-3-Clause.txt) is included in the generated `main.js`. Used to parse and serialize the isolated Codex ACP provider configuration.
 - [PDF.js](https://github.com/mozilla/pdf.js) — Apache-2.0, Mozilla Foundation.
 - PDF image/color decoders (PDFium JBIG2/CCITT, OpenJPEG, QCMS) are bundled from the locked `pdfjs-dist` WASM resources. Their six `LICENSE_*` texts are retained verbatim in the generated `main.js` banner, with comment terminators escaped. QuickJS evaluation resources are not included. This selective offline-PDF fix is adapted from Qiaomu Reader 4.5.13, commit `45dff3c551a1f06984520a63f3b09185d5346763`; it does not adopt the upstream vocabulary or Anki features.
 - [JSZip](https://github.com/Stuk/jszip) — MIT or GPLv3, Stuart Knightley and contributors.

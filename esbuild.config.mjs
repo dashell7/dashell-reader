@@ -55,6 +55,8 @@ in styles.css and licenses/edge-tts-LGPL.txt in the source repository.
 ${fs.readFileSync("node_modules/ws/LICENSE", "utf8").replaceAll("*/", "* /")}
 BUNDLED PAKO LICENSE
 ${readBuildText("node_modules/pako/LICENSE").replaceAll("*/", "* /")}
+BUNDLED SMOL-TOML LICENSE
+${readBuildText("licenses/smol-toml-BSD-3-Clause.txt").replaceAll("*/", "* /")}
 Build channel: ${profile.name}
 If you want to view the source, please visit the plugin's GitHub repository:
 https://github.com/dashell7/dashell-reader
