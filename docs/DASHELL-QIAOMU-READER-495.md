@@ -85,20 +85,25 @@ source-map and development-tool findings are not fixed by this adaptation.
 Only the new TOML parser/root lock entry was added; existing package versions
 were not upgraded. No audit threshold was reduced.
 
-**Host acceptance is blocked.** The required `F:/qiaomu-reader-english` path
-does not exist and registered ID `f3d4f84f4640589d` is absent. Obsidian now
-registers `G:/qiaomu-reader-english` as `72af7e9296446625`; another user task
-is doing UX acceptance there. This task does not substitute that vault,
-overwrite its candidate, change notes/settings or restore its layout.
+**Host acceptance is pending exclusive access.** On November 10 the user
+confirmed that the designated vault moved from F: to
+`G:/qiaomu-reader-english`, registered as `72af7e9296446625`. This supersedes
+the old F: path and ID. Another user task is actively preparing the Reader
+UX release using that vault and its installed candidate. Do not replace
+those assets or restore its data/layout while that task is active. The
+earlier missing-F observation remains historical evidence, not a current
+path-authorization blocker. This task has not changed notes/settings/layout.
 Desktop UI, physical mobile/macOS, actual speech/model providers, candidate
 cold start and synchronization are unverified. No installation, remote
 merge/push, new CI, PR, Issue, tag, Release or directory submission occurred.
 
 Original dirty Reader 494 UX work and the separate missing-database/VideoCaptioner
-candidates were not edited. Resume this candidate after the designated host
-is restored or the user explicitly updates the test-vault instruction;
-recheck current assets/data and concurrent work, back up current data, run
-host acceptance, then recheck remote HEAD/protection and use normal checks.
+candidates were not edited. Resume this candidate on G: after the active
+release task finishes; recheck actual default HEAD, formal version and any
+released UX changes before integrating this candidate. Recheck current
+assets/data and concurrent work, back up current data, run host acceptance,
+then recheck remote HEAD/protection and use normal checks. Do not downgrade
+the default manifest if the concurrent release has advanced it.
 
 Evidence: `C:/Users/zhangbo/AppData/Local/Temp/dashell-upstream-20261110/`:
 `remote-state.json`, `reader-compare.json`, test/build/audit logs,
