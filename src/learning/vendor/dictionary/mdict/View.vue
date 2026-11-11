@@ -56,13 +56,14 @@ async function onSearch(): Promise<boolean> {
     if (!engine) {
         loaded.value = true;
         loadError.value = '词典引擎未就绪';
-        return false;
+        throw new Error(loadError.value);
     }
 
     const res = await engine.search(query);
     if (query !== props.word) return false;
     loaded.value = true;
     loadError.value = engine.loadError;
+    if (loadError.value) throw new Error(loadError.value);
 
     if (!res?.result) return false;
 

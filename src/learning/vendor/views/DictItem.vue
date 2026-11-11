@@ -11,8 +11,8 @@
                 type="button"
                 @click.stop="onOpen"
                 :aria-expanded="isOpen"
-                :aria-label="t('Toggle dictionary entry')"
             >
+                <span class="dict-sr-only">{{ t('Toggle dictionary entry') }}: {{ props.name }}</span>
                 <svg class="fold-arrow" width="18" height="18" viewBox="0 0 59.414 59.414"
                     xmlns="http://www.w3.org/2000/svg">
                     <path class="dictItemHead-FoldArrowPath"
@@ -20,11 +20,12 @@
                 </svg>
             </button>
         </header>
-        <div class="dict-item-body" :style="isOpen && !isExpand ? { maxHeight: defaultHeight } : undefined">
+        <div class="dict-item-body" :style="isOpen && !isExpand && props.hasResult ? { maxHeight: defaultHeight } : undefined">
             <article>
                 <slot></slot>
             </article>
-            <button class="fold-mask" type="button" @click="onExpand" :aria-label="t('Expand dictionary entry')">
+            <button v-if="props.hasResult" class="fold-mask" type="button" @click="onExpand">
+                <span class="dict-sr-only">{{ t('Expand dictionary entry') }}: {{ props.name }}</span>
                 <svg class="fold-mask-arrow" width="15" height="15" viewBox="0 0 59.414 59.414"
                     xmlns="http://www.w3.org/2000/svg">
                     <path d="M58 14.146L29.707 42.44 1.414 14.145 0 15.56 29.707 45.27 59.414 15.56"></path>
@@ -36,9 +37,7 @@
 
 <script setup lang="ts">
 import { ref, watch, getCurrentInstance, toRef } from "vue";
-import { Platform } from "obsidian";
 import PluginType from "@/plugin";
-import { getRGB } from "@/utils/style";
 import { t } from "@/lang/helper";
 
 const plugin = getCurrentInstance().appContext.config.globalProperties
@@ -53,6 +52,7 @@ const props = defineProps<{
     loading: boolean;
     name: string;
     id: string;
+    hasResult: boolean;
 }>();
 
 watch(
@@ -87,6 +87,15 @@ function onExpand() {
 
 <style lang="scss">
 .dict-item {
+    .dict-sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+    }
     header.dict-item-header {
         display: flex;
         position: sticky;

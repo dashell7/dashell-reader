@@ -1,4 +1,4 @@
-# Reader 4.9.5 selective adaptation — local candidate, 2026-11-10
+# Reader 4.9.5 selective adaptation — verified integration, 2026-11-11
 
 Source: Qiaomu Reader official tag `4.9.5`, commit
 `fbf42809c8d91500d7275147ba7f865ad2baae54`, published
@@ -6,11 +6,11 @@ Source: Qiaomu Reader official tag `4.9.5`, commit
 (`b857729a7e41eeaf5b04a1f58c65e60776872ea6`): 21 commits, 70 files.
 Unreleased upstream main is not the adaptation source.
 
-Based on Dashell's actual remote default `main` at
-`f298fd5dc4e132ba08ed4dba8b2834b6fdc0e6b8`. Formal manifest/package
-remain **4.5.0**. This is an unmerged local candidate on
-`codex/reader-495-sync`, not a new public Release or an installed host build.
-The completed November 5 publication of 4.5.0 is not reopened.
+The candidate started at Dashell main `f298fd5` and now merges the completed
+4.5.1 UX release, main `e3df393ba7dc92a67436056b2a3ffc29a21cc41a`.
+Formal manifest/package remain **4.5.1**. The vocabulary, dictionary/save
+feedback, keyboard panels, learning width and error recovery from that
+release are preserved. This daily sync creates no tag or Release.
 
 ## Selected behavior
 
@@ -85,26 +85,48 @@ source-map and development-tool findings are not fixed by this adaptation.
 Only the new TOML parser/root lock entry was added; existing package versions
 were not upgraded. No audit threshold was reduced.
 
-**Host acceptance is pending exclusive access.** On November 10 the user
-confirmed that the designated vault moved from F: to
-`G:/qiaomu-reader-english`, registered as `72af7e9296446625`. This supersedes
-the old F: path and ID. Another user task is actively preparing the Reader
-UX release using that vault and its installed candidate. Do not replace
-those assets or restore its data/layout while that task is active. The
-earlier missing-F observation remains historical evidence, not a current
-path-authorization blocker. This task has not changed notes/settings/layout.
-Desktop UI, physical mobile/macOS, actual speech/model providers, candidate
-cold start and synchronization are unverified. No installation, remote
-merge/push, new CI, PR, Issue, tag, Release or directory submission occurred.
+## November 11 integration acceptance
 
-Original dirty Reader 494 UX work and the separate missing-database/VideoCaptioner
-candidates were not edited. Resume this candidate on G: after the active
-release task finishes; recheck actual default HEAD, formal version and any
-released UX changes before integrating this candidate. Recheck current
-assets/data and concurrent work, back up current data, run host acceptance,
-then recheck remote HEAD/protection and use normal checks. Do not downgrade
-the default manifest if the concurrent release has advanced it.
+The 4.5.1 UX release task completed. The designated vault remains
+`G:/qiaomu-reader-english`, registered `72af7e9296446625`; no other vault
+was used. At the start of this run both installed plugins matched public
+Reader 4.5.1 / RSS 2.7.5 assets byte for byte. The previously installed
+VideoCaptioner candidate was no longer the current host installation; its
+independent source was not modified.
 
-Evidence: `C:/Users/zhangbo/AppData/Local/Temp/dashell-upstream-20261110/`:
-`remote-state.json`, `reader-compare.json`, test/build/audit logs,
-`host-unavailable.json`, final assessment and reproducibility records.
+After backing up the current host, the integrated three assets were
+installed temporarily in Windows Obsidian 1.15.1. A synthetic Markdown
+book rendered through the actual engine and Obsidian MarkdownRenderer;
+a local image loaded with width=120 / height=80. Native mouse drag selected
+text, displayed the toolbar without page movement, and Escape dismissed
+it without stale reopening. The selection lifecycle was disposed after
+closing. The inherited 4.5.1 TOC focus and vocabulary entry remained.
+The Sound dialog retained its draft without settings writes. A controlled
+controller completion unlocked only that draft; a false settings-save
+result rolled back state and allowed a successful retry, which was read
+back from disk. The controller was intercepted to avoid a real speech
+or paid provider request. Top speech actions remained visible and within
+the reading pane at 400px and 1280px; screenshots were inspected.
+
+Final combined checks passed: **720 Node tests**, **6 Python tests**,
+**1607 language keys**, learning types, source ESLint with zero warnings,
+standard/community builds and release-asset gates. Independent LF-export
+rebuild evidence is recorded externally against the final integration
+commit. The main bundle remains greater than decimal 5 MB.
+
+The host was restored to its original public 4.5.1 / 2.7.5 assets and layout.
+All **26 original Markdown files and 63 plugin files** matched the fresh
+backup byte for byte. QA source/image/companion were removed; the three
+newly generated daily rescue files were retained outside the vault with
+this run's evidence. Functional scripts captured no errors. Restoration
+captured ResizeObserver notifications and one progress JSON verification
+warning; the subsequent idle check found original bytes and memory settings
+intact. The warning remains recorded; it is not presented as a clean log
+or as a diagnosed candidate defect. No physical mobile/macOS, candidate
+cold start, cross-device sync, real speech/model/ACP service was tested.
+
+Evidence: `C:/Users/zhangbo/AppData/Local/Temp/dashell-upstream-20261111/`:
+remote-state, combined test/build logs, host installation/functional/layout
+and preservation JSON, screenshots, restoration diagnostics and independent
+rebuild results. The November 10 assessment remains historical. The separate
+missing-database and VideoCaptioner candidates were not edited.

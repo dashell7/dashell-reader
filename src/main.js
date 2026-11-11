@@ -8,6 +8,7 @@ import { apiSourceState, renderAiSources } from './ai-sources.js';
 import { completeChatGPT, connectionToken } from './model-access/client.js';
 import { cancelAccountLogins, readAccount } from './model-access/services/provider-auth.js';
 import { watchPaneDividers } from "./pane-dividers.js";
+import { watchLearningLayout, bookNoteOpenMode } from "./learning-layout.js";
 import { selectionActionPreferences } from "./selection-preferences.js";
 import { createReaderSelectionLifecycle } from "./reader-selection.js";
 import supportQrImage from "./assets/about/dashell-support-qr.jpg";
@@ -1656,6 +1657,7 @@ const QiaomuBookReader = class extends Plugin {
     this._registerCommandsAndSettings();
     this.learning = new QiaomuEnglishLearning(this);
     await this.learning.onload();
+    watchLearningLayout(this);
     this.app.workspace.onLayoutReady(() => {
       this.app.workspace.detachLeavesOfType(ENGLISH_DICTIONARY_VIEW_TYPE);
       this.app.workspace.detachLeavesOfType(ENGLISH_REVIEW_VIEW_TYPE);
@@ -4065,6 +4067,25 @@ function syncNavigationPanel(view, name) {
   view.findBtn?.setAttribute("aria-expanded", String(name === "find"));
   view.tocBtn?.setAttribute("aria-expanded", String(name === "toc"));
 }
+function focusOpenedReaderPanel(view, name) {
+  const panel = name === "toc" ? view.tocPan : name === "highlights" ? view.hlPan : null;
+  if (!panel) return;
+  const active = panel.ownerDocument.activeElement;
+  const panels = [view.tocPan, view.hlPan, view.findPan, view.settPan];
+  // Switching between panels must not remember a control that is about to
+  // become hidden. Keep the original reading/toolbar return target instead.
+  if (!panels.some((item) => item?.contains(active))) {
+    view._panelReturnFocus = active?.isConnected && active !== panel.ownerDocument.body ? active : view.areaEl;
+  }
+  (panel.querySelector("input, button:not([disabled]), a[href], [tabindex='0']") || panel).focus({ preventScroll: true });
+}
+function restoreReaderPanelFocus(view) {
+  const doc = view.areaEl?.ownerDocument;
+  const active = doc?.activeElement;
+  if (![view.tocPan, view.hlPan, view.findPan, view.settPan].some((panel) => panel?.contains(active))) return;
+  const target = view._panelReturnFocus;
+  (target?.isConnected ? target : view.areaEl)?.focus({ preventScroll: true });
+}
 async function jumpToAiQuote(plugin, file, quote) {
   plugin._aiQuoteJumpController?.abort();
   const controller = new AbortController();
@@ -5163,7 +5184,7 @@ function renderLookupActions(card, state) {
   });
 }
 async function openVocabulary(plugin) {
-  await plugin.learning.activateView("qiaomu-english-learn-panel", "right");
+  await plugin.learning.openVocabulary();
 }
 // Anki goes through AnkiConnect on the same computer (or AnkiConnect Android).
 function ankiPost(url, body) {
@@ -5903,63 +5924,89 @@ function openSelectionMoreMenu(view, event, includePrimary = false) {
 
 // Single skeleton for the highlights panel in both the paged view and the
 // modal. The owner supplies the mutating callbacks, so late-bound state
-// (file, plugin, app) is still read at event time exactly as before; delAria
-// is optional because the modal historically ships without it.
+// (file, plugin, app) is still read at event time exactly as before.
 function renderHighlightPanel(p, owner, opts) {
   p.empty();
   p.createDiv("qiaomu-reader-pan-title").setText(qiaomuReaderTranslate("highlights"));
+  const close = () => {
+    (owner.closePanel || owner._closePanel)?.call(owner);
+    (owner._panelReturnFocus?.isConnected ? owner._panelReturnFocus : owner.areaEl)?.focus({ preventScroll: true });
+  };
+  p.onkeydown = (event) => {
+    if (event.key === "Escape" && !event.isComposing && event.keyCode !== 229) {
+      event.preventDefault(); event.stopPropagation(); close();
+    }
+  };
+  const controls = p.createDiv("qiaomu-reader-find-controls");
+  controls.createEl("button", { text: qiaomuReaderTranslate("close"), attr: { type: "button" } }).addEventListener("click", close);
   const list = owner.file ? owner.plugin.getHighlights(owner.file.path) : [];
   if (!list.length) {
     p.createDiv("qiaomu-reader-toc-empty").setText(qiaomuReaderTranslate("no-highlights-yet-select-text-and-pick-a-color"));
     return;
   }
-  const exp = p.createDiv("qiaomu-reader-hl-export");
+  const exp = p.createEl("button", { cls: "qiaomu-reader-hl-export", attr: { type: "button" } });
   iconLabel(exp, "download", qiaomuReaderTranslate("export-to-notes-0", list.length));
-  exp.setAttribute("aria-label", qiaomuReaderTranslate("export-all-highlights"));
   exp.addEventListener("click", (e) => owner.exportHighlights(e));
   const wrap = p.createDiv("qiaomu-reader-toc-list");
   for (const hl of list) {
     const item = wrap.createDiv("qiaomu-reader-hl-item");
+    item.dataset.highlightId = hl.id;
     const dot = item.createDiv("qiaomu-reader-hl-dot");
     dot.style.background = hlColorCss(hl.color);
-    const body = item.createDiv("qiaomu-reader-hl-body");
-    const txt = body.createDiv("qiaomu-reader-hl-text");
+    const body = item.createEl("button", { cls: "qiaomu-reader-hl-body", attr: { type: "button" } });
+    const txt = body.createSpan("qiaomu-reader-hl-text");
     txt.setText(hl.text.length > 160 ? hl.text.slice(0, 160) + "…" : hl.text);
-    if (hl.comment) body.createDiv("qiaomu-reader-hl-comment").setText(hl.comment);
+    if (hl.comment) body.createSpan("qiaomu-reader-hl-comment").setText(hl.comment);
+    const jump = async () => {
+      await owner.goToHighlight(hl.id);
+      if (!p.classList.contains("qiaomu-reader-panel-open")) owner.areaEl?.focus({ preventScroll: true });
+    };
+    body.addEventListener("click", () => void jump());
     const showMenu = (e) => {
       e.preventDefault();
       e.stopPropagation();
       if (!owner.file) return;
       const menu = new Menu();
+      let acted = false;
       menu.addItem((it) => {
         it.setTitle(qiaomuReaderTranslate("create-note")).setIcon("file-plus");
-        it.onClick(() => createNoteFromSelection(owner.app, owner.plugin, hl.text, owner.file, { extra: hlCommentMd(hl), color: hl.color, hl }));
+        it.onClick(() => { acted = true; createNoteFromSelection(owner.app, owner.plugin, hl.text, owner.file, { extra: hlCommentMd(hl), color: hl.color, hl }); });
       });
       menu.addItem((it) => {
         it.setTitle(qiaomuReaderTranslate("as-text-into-the-book-note")).setIcon("text-quote");
-        it.onClick(() => sendQuoteToBookNote(owner, hl));
+        it.onClick(() => { acted = true; sendQuoteToBookNote(owner, hl); });
       });
       menu.addItem((it) => {
         it.setTitle(qiaomuReaderTranslate("tts-speak")).setIcon("volume-2");
-        it.onClick(() => openTts(owner, hl.text));
+        it.onClick(() => { acted = true; openTts(owner, hl.text); });
       });
-      menu.showAtMouseEvent(e);
+      menu.onHide(() => window.setTimeout(() => { if (!acted && more.isConnected) more.focus(); }, 0));
+      if (e.type === "click" && e.detail === 0) {
+        const rect = more.getBoundingClientRect();
+        menu.showAtPosition({ x: rect.left, y: rect.bottom }, more.ownerDocument);
+      } else menu.showAtMouseEvent(e);
     };
-    const more = item.createDiv("qiaomu-reader-hl-more");
+    const more = item.createEl("button", { cls: "qiaomu-reader-hl-more", attr: { type: "button", "aria-haspopup": "menu" } });
     svgIcon(more, "more");
-    more.setAttribute("aria-label", qiaomuReaderTranslate("more"));
+    more.createSpan({ cls: "qiaomu-reader-sr-only", text: qiaomuReaderTranslate("more") });
     more.addEventListener("click", showMenu);
-    const del = item.createDiv("qiaomu-reader-hl-del");
+    const del = item.createEl("button", { cls: "qiaomu-reader-hl-del", attr: { type: "button" } });
     svgIcon(del, "trash");
-    if (opts.delAria) del.setAttribute("aria-label", opts.delAria);
+    del.createSpan({ cls: "qiaomu-reader-sr-only", text: opts.delAria || qiaomuReaderTranslate("delete-highlight") });
     del.addEventListener("click", (e) => {
       e.stopPropagation();
       if (!owner.file) return;
+      const index = Array.from(wrap.children).indexOf(item);
+      const restoreFocus = item.contains(p.ownerDocument.activeElement);
       owner.plugin.removeHighlight(owner.file.path, hl.id);
       owner._unwrapHighlight(hl.id);
       opts.rebuild();
+      if (restoreFocus) {
+        const remaining = p.querySelectorAll(".qiaomu-reader-hl-body");
+        (remaining[Math.min(index, remaining.length - 1)] || p.querySelector("button"))?.focus();
+      }
     });
-    item.addEventListener("click", () => owner.goToHighlight(hl.id));
+    item.addEventListener("click", (event) => { if (!event.target.closest("button")) void jump(); });
     item.addEventListener("contextmenu", showMenu);
   }
 }
@@ -7675,7 +7722,9 @@ function buildFindPanelFor(view, panel, { close }) {
   const box = panel.createDiv("qiaomu-reader-toc-find");
   const input = box.createEl("input", { type: "text", cls: "qiaomu-reader-toc-find-input" });
   input.placeholder = qiaomuReaderTranslate("what-to-find-in-the-book");
-  input.setAttribute("aria-label", input.placeholder);
+  const inputLabel = box.createEl("label", { cls: "qiaomu-reader-sr-only", text: input.placeholder });
+  input.id = `qiaomu-reader-find-${Math.random().toString(36).slice(2)}`;
+  inputLabel.htmlFor = input.id;
   const info = panel.createDiv("qiaomu-reader-find-info");
   info.setAttribute("aria-live", "polite");
   const controls = panel.createDiv("qiaomu-reader-find-controls");
@@ -7684,16 +7733,24 @@ function buildFindPanelFor(view, panel, { close }) {
   const expand = controls.createEl("button", { text: qiaomuReaderTranslate("search-results") });
   const clearBtn = controls.createEl("button", { cls: "qiaomu-reader-find-off" });
   clearBtn.setText(qiaomuReaderTranslate("clear-highlight"));
+  const retry = controls.createEl("button", { text: qiaomuReaderTranslate("try-again") });
+  retry.hidden = true;
   const done = controls.createEl("button", { text: qiaomuReaderTranslate("close") });
   const finish = () => { close(); view.findBtn?.focus(); };
   done.addEventListener("click", finish);
   const list = panel.createDiv("qiaomu-reader-toc-list");
-  let matches = [], cursor = -1, lastQuery = "";
+  let matches = [], cursor = -1, lastQuery = "", state = "idle", generation = 0, disposed = false, searchController = null;
   const ime = { active: false };
-  view._disposeFindPanel = () => cancelTyping();
+  view._disposeFindPanel = () => { disposed = true; generation++; searchController?.abort(); cancelTyping(); };
   const update = () => {
     prev.disabled = next.disabled = !matches.length;
-    info.setText(!lastQuery ? qiaomuReaderTranslate("enter-one-chinese-character-or-at-least-two-characters") : matches.length ? `${cursor < 0 ? "—" : cursor + 1} / ${matches.length}${matches.length === 300 ? "+" : ""}` : qiaomuReaderTranslate("nothing-found"));
+    retry.hidden = state !== "error";
+    list.setAttribute("aria-busy", String(state === "loading"));
+    info.setText(state === "loading" ? qiaomuReaderTranslate("book-find-searching")
+      : state === "error" ? qiaomuReaderTranslate("book-find-failed")
+      : !lastQuery || !searchableQuery(lastQuery) ? qiaomuReaderTranslate("enter-one-chinese-character-or-at-least-two-characters")
+      : matches.length ? `${cursor < 0 ? "—" : cursor + 1} / ${matches.length}${matches.length === 300 ? "+" : ""}`
+      : qiaomuReaderTranslate("nothing-found"));
     Array.from(list.children).forEach((el, i) => el.toggleClass("qiaomu-reader-toc-active", i === cursor));
   };
   const visit = (index) => {
@@ -7721,13 +7778,14 @@ function buildFindPanelFor(view, panel, { close }) {
   };
   const step = (direction) => {
     cancelTyping();
-    if (lastQuery !== input.value) search();
+    if (lastQuery !== input.value || state === "error") search();
     visit(nextSearchIndex(cursor, direction, matches.length));
   };
   prev.addEventListener("click", () => step(-1));
   next.addEventListener("click", () => step(1));
   expand.addEventListener("click", () => panel.removeClass("qiaomu-reader-find-browsing"));
   clearBtn.addEventListener("click", () => {
+    generation++; searchController?.abort(); state = "idle";
     matches = []; cursor = -1; lastQuery = "";
     view._searchReturnSaved = false;
     cancelTyping(); clearFoundIn(view);
@@ -7738,7 +7796,10 @@ function buildFindPanelFor(view, panel, { close }) {
   });
   view._findInput = input;
   const search = () => {
-    if (view._findInput !== input || !panel.isConnected) return;
+    if (disposed || view._closed || view._findInput !== input || !panel.isConnected) return;
+    const request = ++generation;
+    searchController?.abort();
+    const controller = searchController = new AbortController();
     const query = input.value;
     lastQuery = query;
     cursor = -1;
@@ -7746,21 +7807,28 @@ function buildFindPanelFor(view, panel, { close }) {
     panel.removeClass("qiaomu-reader-find-browsing");
     list.empty();
     if (!searchableQuery(query)) {
+      state = "idle";
       update();
       info.setText(qiaomuReaderTranslate("enter-one-chinese-character-or-at-least-two-characters"));
-      clearFoundIn(view); return;
+      clearFoundIn(view);
+      if (view.engine) void view.engine.clearSearchHits();
+      return;
     }
     if (view.engine) {
       // Engine formats: stream matches from the library's own searcher; each
       // hit arrives as a CFI and is painted as an outline by the engine.
       const collected = [];
+      const engine = view.engine;
+      const current = () => !disposed && !view._closed && generation === request && view.engine === engine
+        && view._findInput === input && panel.isConnected && input.value === query;
       matches = collected;
       lastQuery = query;
+      state = "loading";
       update();
       void (async () => {
         try {
-          for await (const h of view.engine.search(query)) {
-            if (view._findInput !== input || !panel.isConnected || lastQuery !== query || collected.length >= 300) return;
+          for await (const h of engine.search(query, { signal: controller.signal })) {
+            if (!current()) return;
             collected.push(h);
             const row = list.createEl("button", { cls: "qiaomu-reader-toc-item qiaomu-reader-find-item" });
             row.createDiv("qiaomu-reader-find-text").setText(String(h.excerpt || ""));
@@ -7769,12 +7837,18 @@ function buildFindPanelFor(view, panel, { close }) {
               visit(idx < 0 ? collected.length - 1 : idx);
             });
             update();
+            if (collected.length >= 300) break;
           }
-        } catch (e) { console.warn("Qiaomu Reader: book search failed", e); }
-        if (view._findInput === input && !panel.hasClass("qiaomu-reader-find-browsing")) update();
+          if (current()) { state = "ready"; update(); }
+        } catch (e) {
+          if (!current()) return;
+          console.warn("Qiaomu Reader: book search failed", e);
+          state = "error"; update();
+        }
       })();
       return;
     }
+    state = "ready";
     if (!view._findCorpus) view._findCorpus = readerSearchTexts(view.pager && view.pager.flow);
     matches = searchBookBlocks(view._findCorpus, query);
     update();
@@ -7795,6 +7869,13 @@ function buildFindPanelFor(view, panel, { close }) {
       row.addEventListener("click", () => visit(index));
     }
   };
+  retry.addEventListener("click", () => { cancelTyping(); search(); });
+  // Invalidate immediately, including the debounce/IME interval. A former
+  // request must not add rows after the user changes or clears the query.
+  input.addEventListener("input", () => {
+    generation++; searchController?.abort(); state = "idle"; lastQuery = ""; matches = []; cursor = -1;
+    list.empty(); update();
+  });
   const cancelTyping = bindComposingSearch(input, ime, search);
   panel.onkeydown = (e) => {
     if (ime.active || e.isComposing || e.keyCode === 229) return;
@@ -7809,7 +7890,7 @@ function buildFindPanelFor(view, panel, { close }) {
 function buildTocPanelFor(view, panel, { close, jump: openItem }) {
   prepareNavigationPanel(panel, qiaomuReaderTranslate("contents"));
   panel.onkeydown = (event) => {
-    if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); close(); view.tocBtn?.focus(); }
+    if (event.key === "Escape" && !event.isComposing && event.keyCode !== 229) { event.preventDefault(); event.stopPropagation(); close(); view.tocBtn?.focus(); }
   };
   const marks = panel.createDiv("qiaomu-reader-find-controls");
   marks.createEl("button", { text: qiaomuReaderTranslate("bookmark-this-location") }).addEventListener("click", () => { close(); addLocationMark(view); });
@@ -7825,6 +7906,9 @@ function buildTocPanelFor(view, panel, { close, jump: openItem }) {
     const box = panel.createDiv("qiaomu-reader-toc-find");
     const input = box.createEl("input", { type: "text", cls: "qiaomu-reader-toc-find-input" });
     input.placeholder = qiaomuReaderTranslate("filter-by-title");
+    input.id = `qiaomu-reader-toc-filter-${Math.random().toString(36).slice(2)}`;
+    const label = box.createEl("label", { cls: "qiaomu-reader-sr-only", text: input.placeholder });
+    label.htmlFor = input.id;
     input.addEventListener("input", () => {
       filterText = input.value.trim().toLowerCase();
       redraw();
@@ -7838,8 +7922,8 @@ function buildTocPanelFor(view, panel, { close, jump: openItem }) {
     for (const entry of entries) {
       if (filterText && !entry.label.toLowerCase().includes(filterText)) continue;
       visible++;
-      const node = list.createDiv("qiaomu-reader-toc-item");
-      const row = node.createDiv("qiaomu-reader-toc-row");
+      const node = list.createEl("button", { cls: "qiaomu-reader-toc-item", attr: { type: "button" } });
+      const row = node.createSpan("qiaomu-reader-toc-row");
       row.createSpan({ cls: "qiaomu-reader-toc-label", text: entry.label });
       const spread = !view.engine && view.pager && view.pager.spreadForBlock ? view.pager.spreadForBlock(entry.block) : null;
       const meta = [];
@@ -7850,6 +7934,7 @@ function buildTocPanelFor(view, panel, { close, jump: openItem }) {
       if (typeof spread === "number" && spread === activeSpread) node.addClass("active");
       node.addEventListener("click", () => {
         close();
+        view.areaEl?.focus({ preventScroll: true });
         openItem(entry);
       });
     }
@@ -9682,7 +9767,7 @@ function splitExportedHighlights(noteText, highlights) {
   return { fresh, already };
 }
 async function openNoteBesideBook(app, plugin, file, line, opts = {}) {
-  const mode = opts.mode || plugin && plugin.settings && plugin.settings.noteOpenMode || "split";
+  const mode = bookNoteOpenMode(app.workspace, opts.mode || plugin && plugin.settings && plugin.settings.noteOpenMode || "split");
   if (mode === "none" || !file) return null;
   const back = opts.background === true;
   const prev = back ? app.workspace.getMostRecentLeaf() : null;
@@ -11591,10 +11676,10 @@ const ReaderView = class extends ItemView {
     if (badge) badge.setText(count ? String(count) : "");
   }
   _addHistoryChip(row, snap) {
-    const chip = row.createDiv("qiaomu-reader-hist-chip");
+    const chip = row.createEl("button", { cls: "qiaomu-reader-hist-chip", attr: { type: "button" } });
     const at = new Date(snap.ts || snap.lastRead || Date.now());
     chip.setText(`${snap.percent}% \xB7 ${at.toLocaleString(qiaomuReaderLocale(), { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}`);
-    chip.addEventListener("click", () => this._restoreHistorySnapshot(snap));
+    chip.addEventListener("click", () => { this._restoreHistorySnapshot(snap); this.areaEl?.focus({ preventScroll: true }); });
   }
   _restoreHistorySnapshot(snap) {
     if (!this.bookHtml || this._openingBook) return;
@@ -11644,6 +11729,7 @@ const ReaderView = class extends ItemView {
     if (this.findPan) this.findPan.classList.toggle("qiaomu-reader-panel-open", name === "find");
     if (name === "toc" && this._tocRender) this._tocRender();
     this.overlayEl.classList.add("qiaomu-reader-overlay-on");
+    focusOpenedReaderPanel(this, name);
   }
   closePanel() {
     this.panelOpen = null;
@@ -11653,6 +11739,7 @@ const ReaderView = class extends ItemView {
     this.hlPan.classList.remove("qiaomu-reader-panel-open");
     if (this.findPan) this.findPan.classList.remove("qiaomu-reader-panel-open");
     this.overlayEl.classList.remove("qiaomu-reader-overlay-on");
+    restoreReaderPanelFocus(this);
   }
   async reloadView() {
     if (!this.bookHtml || !this.file) {
@@ -12056,7 +12143,15 @@ const LibraryModal = class extends Modal {
       const shown = filterLibBooks(files, selected, query, folder, progressOf, tagsOf, path => catalogMetadata(this.plugin.settings, path))
         .filter(f => selected !== "study:highlights" || marked.has(f.path));
       if (shown.length === 0) {
-        grid.createDiv("qiaomu-reader-lib-noresult").setText(qiaomuReaderTranslate("nothing-found"));
+        const empty = grid.createDiv("qiaomu-reader-lib-noresult");
+        empty.createDiv({ text: query.trim() ? qiaomuReaderTranslate("library-no-results-for", query.trim()) : qiaomuReaderTranslate("nothing-found") });
+        empty.createEl("button", { text: qiaomuReaderTranslate("library-clear-search-filters"), attr: { type: "button" } })
+          .addEventListener("click", () => {
+            input.value = "";
+            selected = this.plugin.settings.libCategory = "all";
+            void this.plugin._saveLocalData();
+            drawChipRow(); redraw(""); input.focus();
+          });
         return;
       }
       if (selected === "all" && !query.trim()) {
@@ -12671,7 +12766,7 @@ const BookDiscoveryModal = class extends Modal {
     const form = root.createEl("form", { cls: "qiaomu-reader-discovery-search" });
     const label = form.createEl("label", { text: qiaomuReaderTranslate("book-title-or-author") });
     const field = label.createEl("input", { attr: { type: "search", autocomplete: "off", placeholder: qiaomuReaderTranslate("book-title-or-author") } });
-    form.createEl("button", { attr: { type: "submit" }, text: qiaomuReaderTranslate("search") });
+    const searchButton = form.createEl("button", { attr: { type: "submit" }, text: qiaomuReaderTranslate("search") });
     const tabs = root.createDiv({ cls: "qiaomu-reader-discovery-source-tabs", attr: { role: "tablist" } });
     const shelfTab = tabs.createEl("button", { text: qiaomuReaderTranslate("shelf-source"), attr: { type: "button", role: "tab", "aria-selected": "true" } });
     const otherTab = tabs.createEl("button", { text: qiaomuReaderTranslate("other-book-sources"), attr: { type: "button", role: "tab", "aria-selected": "false" } });
@@ -12680,6 +12775,7 @@ const BookDiscoveryModal = class extends Modal {
     let source = "shelf";
     const selectSource = (value) => {
       source = value;
+      searchButton.setText(qiaomuReaderTranslate(value === "other" ? "search-gutenberg-action" : "search"));
       shelfPanel.hidden = value !== "shelf";
       otherPanel.hidden = value !== "other";
       shelfTab.setAttribute("aria-selected", String(value === "shelf"));
@@ -12734,10 +12830,7 @@ const BookDiscoveryModal = class extends Modal {
         this._shelf.searchNow(field.value);
         return;
       }
-      const urls = externalBookSearchUrls(field.value);
-      if (!urls) return;
-      window.open(urls.anna, "_blank", "noopener");
-      window.open(urls.zlibrary, "_blank", "noopener");
+      updateLinks();
       void this._search(field.value, status, results);
     });
     field.addEventListener("input", updateLinks);
@@ -12969,18 +13062,20 @@ const ReaderModal = class extends Modal {
   }
   _installCloseGuard(modalEl) {
     const CLOSE_SELECTOR = ".modal-close-button, .modal-header-button";
-    const sweep = (all) => {
+    // Only the reader replaces Obsidian's close chrome with its own back action.
+    // Other dialogs, including ones nested in the reader, retain their controls.
+    const sweep = () => {
       try {
-        for (const b of docOf(modalEl).querySelectorAll(CLOSE_SELECTOR)) {
+        for (const b of this.containerEl.querySelectorAll(CLOSE_SELECTOR)) {
           const owner = b.closest(".modal-container");
-          if (all || !owner || owner === this.containerEl) b.remove();
+          if (owner === this.containerEl) b.remove();
         }
       } catch { /* an unmatched selector simply removes nothing */ }
     };
-    sweep(true);
+    sweep();
     const pageDoc = docOf(modalEl);
-    this._closeWatch = new MutationObserver(() => sweep(false));
-    this._closeWatch.observe(pageDoc.body, { childList: true, subtree: true });
+    this._closeWatch = new pageDoc.defaultView.MutationObserver(sweep);
+    this._closeWatch.observe(this.containerEl, { childList: true, subtree: true });
   }
   _startReadingSession() {
     this._sessionSec = 0; this._running = false;
@@ -13442,9 +13537,9 @@ const ReaderModal = class extends Modal {
     }
     const recent = [...backups].reverse().slice(0, 14);
     for (const snap of recent) {
-      const chip = row.createDiv("qiaomu-reader-hist-chip");
+      const chip = row.createEl("button", { cls: "qiaomu-reader-hist-chip", attr: { type: "button" } });
       chip.setText(this._historyChipLabel(snap));
-      chip.addEventListener("click", () => this._restoreHistorySnapshot(snap));
+      chip.addEventListener("click", () => { this._restoreHistorySnapshot(snap); this.areaEl?.focus({ preventScroll: true }); });
     }
   }
   _syncHistoryBadge(count) {
@@ -13504,6 +13599,7 @@ const ReaderModal = class extends Modal {
     this.tocPan.classList.toggle("qiaomu-reader-panel-open", name === "toc");
     this.hlPan.classList.toggle("qiaomu-reader-panel-open", name === "highlights");
     this.overlayEl.classList.add("qiaomu-reader-overlay-on");
+    focusOpenedReaderPanel(this, name);
   }
   _closePanel() {
     this.panelOpen = null;
@@ -13513,6 +13609,7 @@ const ReaderModal = class extends Modal {
     this.hlPan.classList.remove("qiaomu-reader-panel-open");
     if (this.findPan) this.findPan.classList.remove("qiaomu-reader-panel-open");
     this.overlayEl.classList.remove("qiaomu-reader-overlay-on");
+    restoreReaderPanelFocus(this);
   }
   _renderFlowHighlights(scope = this.pager.flow) {
     if (this.engine) { this._renderEngineHighlights(); return; }

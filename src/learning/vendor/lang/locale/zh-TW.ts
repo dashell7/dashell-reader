@@ -1,6 +1,26 @@
 // 繁體中文
 
 export default {
+    "Open community plugins": "開啟第三方外掛設定",
+    "Vocabulary": "生詞本",
+    "Add vocabulary": "新增單字",
+    "Start vocabulary review": "開始複習",
+    "View saved vocabulary": "查看剛儲存的詞",
+    "Search vocabulary": "搜尋單字或含義",
+    "Loading vocabulary": "正在載入生詞…",
+    "Saved vocabulary": "已儲存",
+    "Matches": "符合",
+    "Vocabulary no matches": "沒有符合的單字或含義。",
+    "Vocabulary empty": "閱讀時儲存單字，或新增第一個單字。",
+    "Clear vocabulary search": "清除搜尋",
+    "Vocabulary load failed": "生詞載入失敗，請重試。",
+    "Retry vocabulary": "重試",
+    "Vocabulary action failed": "無法開啟複習，請檢查 Reader 英語學習設定後重試。",
+    "Enable review plugin": "請在第三方外掛中啟用 Spaced Repetition，然後返回這裡開始複習。",
+    "Save word": "儲存單字",
+    "Save phrase": "儲存片語",
+    "Choose phrase for multiple words": "多個單字請將類別選為「片語」。",
+
     "English learning prompts": "英語學習提示詞",
     // plugin.ts
     "Open word search panel": "開啟查字面板",
@@ -18,6 +38,12 @@ export default {
     "Search Panel": "查字面板",
 
     // SearchPanel.vue
+    "Search prompt": "輸入單字或片語，或選取書中的文字查字。",
+    "Dictionary request failed": "詞典暫時無法載入，請檢查網路或設定後重試。",
+    "Dictionary no result": "沒有傳回釋義，可以檢查拼字或重新查詢。",
+    "Check AI dictionary settings": "請在 Reader 設定中檢查 AI 服務和模型。",
+    "Error details": "錯誤詳情",
+    "Retry dictionary search": "重試",
     "Search": "搜索",
     "Enter word": "輸入單字或片語",
     "Previous search": "上一個查詢",
@@ -57,7 +83,7 @@ export default {
     "Meaning": "含義",
     "A short definition": "給一個簡短的定義",
     "Please input a word/phrase": "輸入一個單字或片語",
-    "A short definition is needed": "簡短地描述一下吧",
+    "A short definition is needed": "請輸入簡短釋義。",
     "Type": "類別",
     "Word": "單字",
     "Phrase": "片語",

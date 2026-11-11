@@ -12,6 +12,7 @@ type Position = {
 //继承 GlobalEventHandlersEventMap：EventMap 继承了 GlobalEventHandlersEventMap，
 //这意味着 EventMap 将包含 GlobalEventHandlersEventMap 中的所有事件，同时添加自定义事件。
 interface EventMap extends GlobalEventHandlersEventMap {
+    "qiaomu-english-event-new-word": CustomEvent;
     "qiaomu-english-event-search": CustomEvent<{
         selection: string,
         target?: HTMLElement,

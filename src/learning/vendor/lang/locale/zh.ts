@@ -1,6 +1,26 @@
 // 简体中文
 
 export default {
+    "Open community plugins": "打开第三方插件设置",
+    "Vocabulary": "生词本",
+    "Add vocabulary": "新增单词",
+    "Start vocabulary review": "开始复习",
+    "View saved vocabulary": "查看刚保存的词",
+    "Search vocabulary": "搜索单词或含义",
+    "Loading vocabulary": "正在加载生词…",
+    "Saved vocabulary": "已保存",
+    "Matches": "匹配",
+    "Vocabulary no matches": "没有匹配的单词或含义。",
+    "Vocabulary empty": "阅读时保存单词，或新增第一个单词。",
+    "Clear vocabulary search": "清除搜索",
+    "Vocabulary load failed": "生词加载失败，请重试。",
+    "Retry vocabulary": "重试",
+    "Vocabulary action failed": "无法打开复习，请检查 Reader 英语学习设置后重试。",
+    "Enable review plugin": "请在第三方插件中启用 Spaced Repetition，然后返回这里开始复习。",
+    "Save word": "保存单词",
+    "Save phrase": "保存短语",
+    "Choose phrase for multiple words": "多个单词请将类别选为“短语”。",
+
     "English learning prompts": "英语学习提示词",
     // plugin.ts
     "Convert to reading article": "转为阅读文章",
@@ -21,6 +41,12 @@ export default {
     "Search Panel": "查词面板",
 
     // SearchPanel.vue
+    "Search prompt": "输入单词或短语，或选中书中的文字查词。",
+    "Dictionary request failed": "词典暂时无法加载，请检查网络或设置后重试。",
+    "Dictionary no result": "没有返回释义，可以检查拼写或重新查询。",
+    "Check AI dictionary settings": "请在 Reader 设置中检查 AI 服务和模型。",
+    "Error details": "错误详情",
+    "Retry dictionary search": "重试",
     "Search": "搜索",
     "Enter word": "输入单词或短语",
     "Previous search": "上一个查询",
@@ -60,7 +86,7 @@ export default {
     "Meaning": "含义",
     "A short definition": "给一个简短的定义",
     "Please input a word/phrase": "输入一个单词或短语",
-    "A short definition is needed": "简短地描述一下吧",
+    "A short definition is needed": "请输入简短释义。",
     "Type": "类别",
     "Word": "单词",
     "Phrase": "短语",

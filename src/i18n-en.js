@@ -1,6 +1,11 @@
 import { SHELF_TEXT } from "./shelf-i18n.js";
 
 export const QIAOMU_READER_EN = {
+  "book-find-searching": "Searching this book…",
+  "book-find-failed": "Book search did not finish. Try again.",
+  "library-clear-search-filters": "Clear search and filters",
+  "library-no-results-for": "No books match “{0}”.",
+  "search-gutenberg-action": "Search Project Gutenberg",
   ...SHELF_TEXT.en,
   "library-sort": "Sort",
   "library-sort-read": "Recently read",
